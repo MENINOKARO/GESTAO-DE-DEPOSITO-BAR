@@ -5479,7 +5479,7 @@ function salvarItensComandaAberta(pedido, carrinho){
       i.travado = true;
 
       houveConsumo = true;
-    }
+    
   });
 
   if(houveConsumo){
@@ -12156,7 +12156,5 @@ function enviarRelatorioEmail(destinatario) {
  * 3. Testar cenários listados em RESUMO_AJUSTES_REALIZADOS.md
  * 4. Manter backup pré-alterações
  * 5. Monitorar logs por 48h
- *
  * ═══════════════════════════════════════════════════════════════════════════        
  */
-
