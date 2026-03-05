@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+
+<style>
+body{
+  font-family: Arial;
+  background:#020617;
+  color:white;
+  padding:20px;
+}
+
+select, input, button{
+  width:100%;
+  padding:8px;
+  margin-top:5px;
+  border-radius:6px;
+  border:none;
+}
+
+button{
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#1d4ed8;
+}
+
+.box{
+  margin-top:15px;
+  padding:15px;
+  background:#0f172a;
+  border-radius:8px;
+}
+
+#gauge{
+  height:20px;
+  border-radius:10px;
+  background:#1e293b;
+  overflow:hidden;
+  margin-top:10px;
+}
+
+#bar{
+  height:100%;
+  width:0%;
+  background:#22c55e;
+  transition:0.5s;
+}
+
+/* Toast */
+#toast{
+  position:fixed;
+  bottom:25px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#22c55e;
+  color:#020617;
+  padding:12px 25px;
+  border-radius:8px;
+  display:none;
+  font-weight:bold;
+  box-shadow:0 0 15px #000;
+  z-index:9999;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📊 Análise de Produto</h2>
+
+<label>Produto</label>
+<select id="produto" onchange="carregar()"></select>
+
+<div class="box">
+
+  <p>📦 Estoque Atual: <b id="qtd">0</b></p>
+
+  <p>💰 Preço Unitário: <b id="preco">R$ 0,00</b></p>
+
+  <p>📉 Custo Unitário: <b id="custo">R$ 0,00</b></p>
+
+  <p>📈 Margem Atual: <b id="margemTxt">0%</b></p>
+
+  <label>Nova Margem (%)</label>
+  <input id="margemInput" type="number" min="0" max="100">
+
+  <button onclick="salvarMargem()">💾 Salvar Margem</button>
+
+  <p>💡 Preço Sugerido: <b id="precoIdeal">R$ 0,00</b></p>
+
+</div>
+
+<h3>📈 Índice de Ganho</h3>
+
+<div id="gauge">
+  <div id="bar"></div>
+</div>
+
+<p id="scoreTxt"></p>
+
+<div id="toast"></div>
+
+<script>
+// ===========================
+// FORMATAR REAL
+// ===========================
+function formatarReal(v){
+  return Number(v).toLocaleString('pt-BR',{
+    style:'currency',
+    currency:'BRL'
+  });
+}
+
+// ===========================
+// TOAST
+// ===========================
+function mostrarPopup(msg, erro=false){
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.style.background = erro ? '#dc2626' : '#22c55e';
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none',2500);
+}
+
+// ===========================
+// LISTAR PRODUTOS
+// ===========================
+google.script.run
+  .withFailureHandler(e=>{
+    mostrarPopup(e.message || e, true);
+  })
+  .withSuccessHandler(lista=>{
+    const sel = produto;
+    sel.innerHTML = '<option value="">Selecione</option>';
+    lista.forEach(p=>{
+      const o = document.createElement('option');
+      o.value = p;
+      o.textContent = p;
+      sel.appendChild(o);
+    });
+  })
+  .listarProdutosAnalise();
+
+// ===========================
+// CARREGAR DADOS
+// ===========================
+function carregar(){
+
+  const nome = produto.value;
+  if(!nome) return;
+
+  google.script.run
+    .withFailureHandler(e=>{
+      mostrarPopup(e.message || e, true);
+    })
+    .withSuccessHandler(d=>{
+
+      qtd.innerText = d.qtd || 0;
+      preco.innerText = formatarReal(d.preco || 0);
+      custo.innerText = formatarReal(d.custo || 0);
+
+      margemTxt.innerText = (d.margem || 0) + '%';
+      margemInput.value = d.margem || 0;
+
+      precoIdeal.innerText =
+        formatarReal(d.precoSugerido || 0);
+
+      renderGauge(d.score || 0);
+
+    })
+    .buscarDadosProduto(nome);
+}
+
+// ===========================
+// GAUGE
+// ===========================
+function renderGauge(v){
+
+  const p = (v/15)*100;
+  bar.style.width = p+'%';
+
+  if(v<=7) bar.style.background='#dc2626';
+  else if(v<=11) bar.style.background='#facc15';
+  else bar.style.background='#22c55e';
+
+  scoreTxt.innerText = `Score: ${v}/15`;
+}
+
+// ===========================
+// SALVAR MARGEM
+// ===========================
+function salvarMargem(){
+
+  if(!produto.value){
+    mostrarPopup('Selecione um produto', true);
+    return;
+  }
+
+  const margem = Number(margemInput.value);
+
+  if(isNaN(margem)){
+    mostrarPopup('Margem inválida', true);
+    return;
+  }
+
+  google.script.run
+    .withFailureHandler(e=>{
+      mostrarPopup(e.message || e, true);
+    })
+    .withSuccessHandler(()=>{
+      mostrarPopup('Margem salva com sucesso');
+      carregar();
+    })
+    .atualizarMargemProduto(produto.value, margem);
+}
+</script>
+
+</body>
+</html>
