@@ -158,6 +158,7 @@ function onOpen() {
         ui.createMenu('🖥️ Sistema')
           .addItem('🚀 Iniciar Sistema', 'initSistema')
           .addItem('🚧 Resetar Sistema', 'popupSenhaReset')
+          .addItem('🔐 Alterar Senha de Reset', 'popupTrocarSenhaReset')
           .addItem('⚙️ Configurar Depósito', 'abrirConfiguracaoDeposito')
           .addItem('🔄 Recarregar Menu', 'recarregarMenu')
           .addItem('💾 Fazer Backup Agora', 'fazerBackupSistema')
@@ -653,7 +654,7 @@ function abrirNovoPainelSistema(){
           contas: 'popupPainelFinanceiro',
           caixa: 'abrirCaixaOpcoes',
           dashboard: 'criarHomeDashboard',
-          estoque: 'abrirPainelGestaoEstoque',
+          estoque: 'abrirEstoqueOpcoes',
           drive: 'abrirDriveLink',
           whatsapp: 'abrirPainelWhatsApp',
           backup: 'fazerBackupSistema',
@@ -726,6 +727,102 @@ function abrirPainelGestaoEstoque(){
     .setWidth(400);
   SpreadsheetApp.getUi().showSidebar(output);
 }
+
+function abrirEstoqueOpcoes(){
+
+  const html = `
+  <html>
+  <head>
+    <style>
+      body{margin:0;font-family:Arial;background:#0f172a;color:white;}
+      .container{padding:18px;display:flex;flex-direction:column;gap:12px;}
+      h2{text-align:center;margin:0 0 8px 0;}
+      .card{background:#1e293b;padding:14px;border-radius:12px;display:flex;flex-direction:column;gap:8px;}
+      .card-title{font-size:13px;font-weight:bold;opacity:.85;}
+      .btn{padding:10px;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;background:#2563eb;color:#fff;}
+      .btn:hover{background:#1d4ed8;}
+      .secondary{background:#475569;}
+      .secondary:hover{background:#334155;}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>📦 Central de Estoque</h2>
+
+      <div class="card">
+        <div class="card-title">📦 GESTÃO DE PRODUTOS E ESTOQUE</div>
+        <button class="btn" onclick="run('gestao')">🏷️ Gestão de Produto</button>
+        <button class="btn" onclick="run('analiseProduto')">💲 Análise de Lucratividade</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💰 ESTOQUE FINANCEIRO</div>
+        <button class="btn" onclick="run('painelGestao')">🎯 Painel Gestão</button>
+        <button class="btn" onclick="run('relatorioValores')">📊 Relatório Valores</button>
+        <button class="btn" onclick="run('rentabilidade')">📈 Análise de Rentabilidade</button>
+        <button class="btn" onclick="run('categoria')">🏷️ Valor por Categoria</button>
+        <button class="btn" onclick="run('total')">💹 Valor Total Estoque</button>
+      </div>
+
+      <button class="btn secondary" onclick="google.script.host.close()">❌ Fechar</button>
+    </div>
+
+    <script>
+      function run(tipo){
+        google.script.run
+          .withFailureHandler(e=>alert('Erro: ' + e.message))
+          .executarEstoque(tipo);
+      }
+    </script>
+  </body>
+  </html>
+  `;
+
+  const ui = HtmlService
+    .createHtmlOutput(html)
+    .setWidth(430)
+    .setHeight(640);
+
+  SpreadsheetApp.getUi().showModalDialog(ui, '📦 Estoque');
+}
+function executarEstoque(tipo){
+
+  switch(tipo){
+
+    case 'gestao':
+      popupProdutoManager();
+      break;
+
+    case 'analiseProduto':
+      abrirAnaliseProduto();
+      break;
+
+    case 'painelGestao':
+      abrirPainelGestaoEstoque();
+      break;
+
+    case 'relatorioValores':
+      abrirPainelEstoqueValores();
+      break;
+
+    case 'rentabilidade':
+      abrirAnalisRentabilidade();
+      break;
+
+    case 'categoria':
+      exibirValorCategoria();
+      break;
+
+    case 'total':
+      exibirValorTotalEstoque();
+      break;
+
+    default:
+      throw new Error('Opção inválida: ' + tipo);
+  }
+
+}
+
 function criarHomeDashboard(){
 
   const ss = SpreadsheetApp.getActive();
@@ -835,28 +932,37 @@ function criarHomeDashboard(){
   ];
 
 
-  let row = 4;
-  let col = 1;
+  // Layout 4x3: 4 cards na primeira linha e 3 cards na segunda (centralizados)
+  const cardPositions = [
+    [4,1], [4,3], [4,5], [4,7],
+    [7,2], [7,4], [7,6]
+  ];
 
+  // visual mais moderno para a HOME
+  sh.getRange('A1:H120')
+    .setBackground('#020617')
+    .setFontColor('#e2e8f0');
 
-  cards.forEach(([titulo,valor,aba,cor])=>{
+  sh.setColumnWidths(1, 8, 128);
+  [4,5,6,7,8,9].forEach(l=> sh.setRowHeight(l, 34));
 
+  cards.forEach(([titulo,valor,aba,cor], idx)=>{
+
+    const [row, col] = cardPositions[idx];
     const r = sh.getRange(row, col, 3, 2);
 
     r.merge();
 
     r.setValue(`${titulo}\n${valor}`)
-      .setFontSize(13)
+      .setFontSize(12)
       .setFontWeight('bold')
       .setHorizontalAlignment('center')
       .setVerticalAlignment('middle')
       .setBackground(cor)
       .setFontColor('#ffffff')
-      .setBorder(true,true,true,true,true,true);
+      .setBorder(true,true,true,true,true,true,'#0b1120',SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
 
     r.setWrap(true);
-
-    col += 2;
 
   });
 
@@ -865,7 +971,7 @@ function criarHomeDashboard(){
   // BOTÃO PAINEL
   // ======================
 
-  const painel = sh.getRange(8,1,2,8);
+  const painel = sh.getRange(11,1,2,8);
 
   painel.merge();
 
@@ -882,9 +988,9 @@ function criarHomeDashboard(){
   // ESTOQUE CRÍTICO
   // ======================
 
-  let r1 = 11;
-  
-  sh.setRowHeight(10, 2);
+  let r1 = 14;
+
+  sh.setRowHeight(10, 8);
 
 
   sh.getRange(r1,1,1,8).merge()
@@ -1789,7 +1895,7 @@ function abrirConfigOpcoes(){
       <h2>⚙️ Configurações do Sistema</h2>
 
       <div class="card">
-        <div class="card-title">⚙️ SISTEMA</div>
+        <div class="card-title">⚙️ SISTEMA E CONFIGURAÇÕES</div>
 
         <button class="btn primary" onclick="run('config')">
           🛠️ Dados do Depósito
@@ -1798,21 +1904,37 @@ function abrirConfigOpcoes(){
         <button class="btn primary" onclick="run('refresh')">
           ⏱️ Atualizar Dashboard
         </button>
-      </div>
 
-      <div class="card">
-        <div class="card-title">📦 ESTOQUE</div>
+        <button class="btn primary" onclick="run('recarregar')">
+          🔄 Recarregar Menu
+        </button>
 
-        <button class="btn primary" onclick="run('estoque')">
-          🏷️ Gestão de Produto
+        <button class="btn primary" onclick="run('backup')">
+          💾 Fazer Backup Agora
+        </button>
+
+        <button class="btn primary" onclick="run('logs')">
+          📜 Ver Logs
+        </button>
+
+        <button class="btn primary" onclick="run('manual')">
+          📘 Manual do Sistema
         </button>
       </div>
 
       <div class="card">
-        <div class="card-title">📘 SUPORTE</div>
+        <div class="card-title">🔐 SEGURANÇA</div>
 
-        <button class="btn primary" onclick="run('manual')">
-          📘 Manual do Sistema
+        <button class="btn primary" onclick="run('alterarSenha')">
+          🔐 Alterar Senha de Reset
+        </button>
+
+        <button class="btn primary" onclick="run('trocarLogin')">
+          🔀 Trocar Login
+        </button>
+
+        <button class="btn danger" onclick="run('logout')">
+          🚪 Logout
         </button>
       </div>
 
@@ -1870,16 +1992,36 @@ function executarConfig(tipo){
       abrirConfiguracaoDeposito();
       break;
 
-    case 'estoque':
-      popupProdutoManager();
-      break;
-
     case 'manual':
       abrirManualSistema();
       break;
 
     case 'refresh':
       criarHomeDashboard();
+      break;
+
+    case 'recarregar':
+      recarregarMenu();
+      break;
+
+    case 'backup':
+      fazerBackupSistema();
+      break;
+
+    case 'logs':
+      abrirAbaLog();
+      break;
+
+    case 'alterarSenha':
+      popupTrocarSenhaReset();
+      break;
+
+    case 'trocarLogin':
+      trocarLogin();
+      break;
+
+    case 'logout':
+      fazerLogout();
       break;
 
     case 'resetar':
