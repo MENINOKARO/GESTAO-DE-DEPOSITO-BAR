@@ -932,28 +932,37 @@ function criarHomeDashboard(){
   ];
 
 
-  let row = 4;
-  let col = 1;
+  // Layout 4x3: 4 cards na primeira linha e 3 cards na segunda (centralizados)
+  const cardPositions = [
+    [4,1], [4,3], [4,5], [4,7],
+    [7,2], [7,4], [7,6]
+  ];
 
+  // visual mais moderno para a HOME
+  sh.getRange('A1:H120')
+    .setBackground('#020617')
+    .setFontColor('#e2e8f0');
 
-  cards.forEach(([titulo,valor,aba,cor])=>{
+  sh.setColumnWidths(1, 8, 128);
+  [4,5,6,7,8,9].forEach(l=> sh.setRowHeight(l, 34));
 
+  cards.forEach(([titulo,valor,aba,cor], idx)=>{
+
+    const [row, col] = cardPositions[idx];
     const r = sh.getRange(row, col, 3, 2);
 
     r.merge();
 
     r.setValue(`${titulo}\n${valor}`)
-      .setFontSize(13)
+      .setFontSize(12)
       .setFontWeight('bold')
       .setHorizontalAlignment('center')
       .setVerticalAlignment('middle')
       .setBackground(cor)
       .setFontColor('#ffffff')
-      .setBorder(true,true,true,true,true,true);
+      .setBorder(true,true,true,true,true,true,'#0b1120',SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
 
     r.setWrap(true);
-
-    col += 2;
 
   });
 
@@ -962,7 +971,7 @@ function criarHomeDashboard(){
   // BOTÃO PAINEL
   // ======================
 
-  const painel = sh.getRange(8,1,2,8);
+  const painel = sh.getRange(11,1,2,8);
 
   painel.merge();
 
@@ -979,9 +988,9 @@ function criarHomeDashboard(){
   // ESTOQUE CRÍTICO
   // ======================
 
-  let r1 = 11;
-  
-  sh.setRowHeight(10, 2);
+  let r1 = 14;
+
+  sh.setRowHeight(10, 8);
 
 
   sh.getRange(r1,1,1,8).merge()
