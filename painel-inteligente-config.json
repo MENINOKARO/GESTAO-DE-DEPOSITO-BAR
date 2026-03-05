@@ -1,0 +1,35 @@
+{
+  "painel_inteligente": {
+    "botoes": [
+      {
+        "id": "estoque",
+        "titulo": "Estoque",
+        "descricao": "Acesso rápido às funções de gestão e análise de estoque.",
+        "funcoes": [
+          "Gestão de produto",
+          "Painel de gestão",
+          "Relatório de valores",
+          "Análise de rentabilidade",
+          "Valor por categoria",
+          "Valor total do estoque",
+          "Análise de lucratividade"
+        ]
+      },
+      {
+        "id": "configuracoes_sistema",
+        "titulo": "Configurações do sistema",
+        "descricao": "Central de administração com todas as opções de configuração do sistema.",
+        "funcoes": [
+          "Dados do depósito",
+          "Usuários e permissões",
+          "Parâmetros gerais",
+          "Integrações",
+          "Backup e restauração",
+          "Resetar sistema",
+          "Logs e auditoria",
+          "Preferências de notificação"
+        ]
+      }
+    ]
+  }
+}
