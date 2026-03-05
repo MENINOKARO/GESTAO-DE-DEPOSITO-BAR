@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>body{font-family:Arial,sans-serif;padding:20px;text-align:center}</style>
+  </head>
+  <body>
+    <div id="msg">Processando logout e backup...</div>
+    <script>
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.ok){
+            // fecha dialogo do GAS
+            google.script.host.close();
+            // tenta fechar a aba (pode ser bloqueado pelo browser)
+            try{ window.close(); }catch(e){}
+            alert('✅ Logout realizado. Backup ID: ' + (res.backupId || '---'));
+          } else {
+            document.getElementById('msg').textContent = 'Erro: ' + (res?.msg || 'Desconhecido');
+          }
+        })
+        .withFailureHandler(function(err){
+          document.getElementById('msg').textContent = 'Erro: ' + err.message;
+        })
+        .realizarLogoutCompleto();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,307 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 30px;
+      width: 100%;
+      max-width: 450px;
+    }
+    
+    h3 {
+      text-align: center;
+      color: #0f172a;
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    label {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 6px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    input[type=text] {
+      padding: 10px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+      font-family: Arial, sans-serif;
+    }
+    
+    input[type=text]:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    input[type=text]::placeholder {
+      color: #cbd5e1;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    button.primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      color: white;
+    }
+    
+    button.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+    }
+    
+    button.primary:active {
+      transform: translateY(0);
+    }
+    
+    button.secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    
+    button.secondary:hover {
+      background: #cbd5e1;
+    }
+    
+    .error {
+      color: #dc2626;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+    
+    .success {
+      color: #16a34a;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>⚙️ Configuração do Depósito</h3>
+    <p class="subtitle">Preencha os dados do seu estabelecimento</p>
+    
+    <form id="configForm">
+      <div class="form-group">
+        <label for="nome">📦 Nome do Depósito *</label>
+        <input type="text" id="nome" name="nome" placeholder="Ex: Meu Depósito" required>
+        <div class="error" id="err_nome">Campo obrigatório</div>
+      </div>
+
+      <div class="form-group">
+        <label for="dono">👤 Dono</label>
+        <input type="text" id="dono" name="dono" placeholder="Ex: João Silva">
+        <div class="success" id="ok_dono"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="cnpj">🏢 CNPJ</label>
+        <input type="text" id="cnpj" name="cnpj" placeholder="Ex: 12.345.678/0001-90">
+        <div class="success" id="ok_cnpj"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="telefone">📞 Telefone</label>
+        <input type="text" id="telefone" name="telefone" placeholder="Ex: (11) 98765-4321">
+        <div class="success" id="ok_telefone"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="cidade">🏙️ Cidade</label>
+        <input type="text" id="cidade" name="cidade" placeholder="Ex: São Paulo">
+        <div class="success" id="ok_cidade"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="drive">📂 URL Drive</label>
+        <input type="text" id="drive" name="drive" placeholder="https://drive.google.com/drive/folders/...">
+        <div class="success" id="ok_drive"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="auto">🔄 Auto Refresh</label>
+        <input type="text" id="auto" name="auto" placeholder="SIM ou NÃO" value="SIM">
+        <div class="success" id="ok_auto"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="intervalo">⏱️ Intervalo Refresh (min)</label>
+        <input type="text" id="intervalo" name="intervalo" placeholder="Ex: 5" value="5">
+        <div class="success" id="ok_intervalo"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="tema">🎨 Tema</label>
+        <input type="text" id="tema" name="tema" placeholder="DARK ou LIGHT" value="DARK">
+        <div class="success" id="ok_tema"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="backup">💾 Backup Automático</label>
+        <input type="text" id="backup" name="backup" placeholder="SIM ou NÃO" value="SIM">
+        <div class="success" id="ok_backup"></div>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="primary" onclick="salvar()">💾 Salvar Configuração</button>
+        <button type="button" class="secondary" onclick="fechar()">✕ Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // utilitários de formatação
+    function formatPhone(val){
+      let digits = (val || '').replace(/\D/g, '');
+      if(digits.length <= 2) return digits;
+      if(digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+      if(digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+      return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
+    }
+    function formatCNPJ(val){
+      let digits = (val || '').replace(/\D/g, '');
+      if(digits.length <= 2) return digits;
+      if(digits.length <= 5) return `${digits.slice(0,2)}.${digits.slice(2)}`;
+      if(digits.length <= 8) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5)}`;
+      if(digits.length <= 12) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8)}`;
+      return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8,12)}-${digits.slice(12,14)}`;
+    }
+
+    // aplicar formatação ao perder foco
+    window.addEventListener('load', () => {
+      carregarDados();
+      document.getElementById('telefone').addEventListener('blur', e => {
+        e.target.value = formatPhone(e.target.value);
+      });
+      document.getElementById('cnpj').addEventListener('blur', e => {
+        e.target.value = formatCNPJ(e.target.value);
+      });
+    });
+    
+    function carregarDados(){
+      google.script.run
+        .withSuccessHandler(dados => {
+          if(dados){
+            document.getElementById('nome').value = dados.nome || '';
+            document.getElementById('dono').value = dados.dono || '';
+            document.getElementById('cnpj').value = formatCNPJ(dados.cnpj || '');
+            document.getElementById('telefone').value = formatPhone(dados.telefone || '');
+            document.getElementById('cidade').value = dados.cidade || '';
+            document.getElementById('drive').value = dados.drive || '';
+            document.getElementById('auto').value = dados.auto || 'SIM';
+            document.getElementById('intervalo').value = dados.intervalo || '5';
+            document.getElementById('tema').value = dados.tema || 'DARK';
+            document.getElementById('backup').value = dados.backup || 'SIM';
+          }
+        })
+        .carregarDadosConfiguracao();
+    }
+    
+    function validar(){
+      const nome = document.getElementById('nome').value.trim();
+      const errNome = document.getElementById('err_nome');
+      
+      if(!nome){
+        errNome.style.display = 'block';
+        return false;
+      }
+      
+      errNome.style.display = 'none';
+      return true;
+    }
+    
+    function salvar(){
+      if(!validar()){
+        alert('⚠️ Campo obrigatório não preenchido!');
+        return;
+      }
+      
+      const dados = {
+        nome: document.getElementById('nome').value.trim(),
+        dono: document.getElementById('dono').value.trim(),
+        cnpj: document.getElementById('cnpj').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        cidade: document.getElementById('cidade').value.trim(),
+        drive: document.getElementById('drive').value.trim(),
+        auto: document.getElementById('auto').value.trim() || 'SIM',
+        intervalo: document.getElementById('intervalo').value.trim() || '5',
+        tema: document.getElementById('tema').value.trim() || 'DARK',
+        backup: document.getElementById('backup').value.trim() || 'SIM'
+      };
+      
+      google.script.run
+        .withSuccessHandler(res => {
+          if(res && res.ok){
+            alert('✅ Configuração salva com sucesso!');
+          } else {
+            alert('❌ Erro ao salvar: ' + (res?.msg || 'Desconhecido'));
+          }
+          // fecha sempre (evita popup travado) após mostrar mensagem
+          google.script.host.close();
+        })
+        .withFailureHandler(err => {
+          alert('❌ Erro: ' + err);
+          google.script.host.close();
+        })
+        .salvarConfiguracaoDeposito(dados);
+    }
+    
+    function fechar(){
+      google.script.host.close();
+    }
+  </script>
+</body>
+</html>

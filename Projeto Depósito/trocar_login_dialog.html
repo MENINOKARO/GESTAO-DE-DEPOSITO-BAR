@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>body{font-family:Arial,sans-serif;padding:20px;text-align:center}</style>
+  </head>
+  <body>
+    <div id="msg">Encerrando sessão e abrindo tela de login...</div>
+    <script>
+      google.script.run
+        .withSuccessHandler(function(res){
+          if(res && res.ok){
+            google.script.host.close();
+            // reabrir popup de login
+            google.script.run.popupLogin();
+          } else {
+            document.getElementById('msg').textContent = 'Erro: ' + (res?.msg || 'Desconhecido');
+          }
+        })
+        .withFailureHandler(function(err){
+          document.getElementById('msg').textContent = 'Erro: ' + err.message;
+        })
+        .realizarTrocaLoginCompleta();
+    </script>
+  </body>
+</html>
