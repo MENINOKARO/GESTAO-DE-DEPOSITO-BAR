@@ -1,8 +1,23 @@
 # GESTÃO DE DEPÓSITO
 
-Este repositório contém a configuração inicial do **Painel Inteligente** para organizar atalhos por área funcional.
+Este repositório contém a configuração do **Painel Inteligente** para organizar atalhos por área funcional.
 
-## ✅ Atualização aplicada no Painel Inteligente
+## ✅ Ajustes implementados nesta atualização
+
+Foram aplicados ajustes estruturais para facilitar a integração com front-end/API:
+
+- Inclusão de `versao` no objeto `painel_inteligente`.
+- Inclusão de `icone` em cada botão principal.
+- Evolução de `funcoes` de lista simples para objetos com:
+  - `nome`
+  - `rota`
+  - `categoria`
+
+Arquivo principal:
+
+- `painel-inteligente-config.json`
+
+## Botões disponíveis
 
 ### 1) Botão: **Estoque**
 Funções cadastradas:
@@ -25,23 +40,19 @@ Funções cadastradas:
 - Logs e auditoria
 - Preferências de notificação
 
-## Arquivo de configuração
+## Exemplo de uso (leitura da configuração)
 
-A estrutura das opções está em:
+A aplicação pode ler o JSON e renderizar menu/botões por `titulo`, com navegação por `rota`.
 
-- `painel-inteligente-config.json`
-
-## Como publicar no GitHub
-
-Depois de editar, rode:
+## Publicação no GitHub
 
 ```bash
 git add README.md painel-inteligente-config.json
-git commit -m "Atualiza opções do Painel Inteligente"
+git commit -m "Implementa ajustes estruturais no painel inteligente"
 git push
 ```
 
-Se for o primeiro push da branch:
+Primeiro push da branch:
 
 ```bash
 git push -u origin work

@@ -1,33 +1,96 @@
 {
   "painel_inteligente": {
+    "versao": "1.1.0",
     "botoes": [
       {
         "id": "estoque",
         "titulo": "Estoque",
         "descricao": "Acesso rápido às funções de gestão e análise de estoque.",
+        "icone": "box",
         "funcoes": [
-          "Gestão de produto",
-          "Painel de gestão",
-          "Relatório de valores",
-          "Análise de rentabilidade",
-          "Valor por categoria",
-          "Valor total do estoque",
-          "Análise de lucratividade"
+          {
+            "nome": "Gestão de produto",
+            "rota": "/estoque/produtos",
+            "categoria": "cadastro"
+          },
+          {
+            "nome": "Painel de gestão",
+            "rota": "/estoque/painel",
+            "categoria": "visao-geral"
+          },
+          {
+            "nome": "Relatório de valores",
+            "rota": "/estoque/relatorios/valores",
+            "categoria": "relatorio"
+          },
+          {
+            "nome": "Análise de rentabilidade",
+            "rota": "/estoque/analises/rentabilidade",
+            "categoria": "analise"
+          },
+          {
+            "nome": "Valor por categoria",
+            "rota": "/estoque/relatorios/valor-categoria",
+            "categoria": "relatorio"
+          },
+          {
+            "nome": "Valor total do estoque",
+            "rota": "/estoque/relatorios/valor-total",
+            "categoria": "relatorio"
+          },
+          {
+            "nome": "Análise de lucratividade",
+            "rota": "/estoque/analises/lucratividade",
+            "categoria": "analise"
+          }
         ]
       },
       {
         "id": "configuracoes_sistema",
         "titulo": "Configurações do sistema",
         "descricao": "Central de administração com todas as opções de configuração do sistema.",
+        "icone": "settings",
         "funcoes": [
-          "Dados do depósito",
-          "Usuários e permissões",
-          "Parâmetros gerais",
-          "Integrações",
-          "Backup e restauração",
-          "Resetar sistema",
-          "Logs e auditoria",
-          "Preferências de notificação"
+          {
+            "nome": "Dados do depósito",
+            "rota": "/configuracoes/deposito",
+            "categoria": "cadastro"
+          },
+          {
+            "nome": "Usuários e permissões",
+            "rota": "/configuracoes/usuarios",
+            "categoria": "seguranca"
+          },
+          {
+            "nome": "Parâmetros gerais",
+            "rota": "/configuracoes/parametros",
+            "categoria": "sistema"
+          },
+          {
+            "nome": "Integrações",
+            "rota": "/configuracoes/integracoes",
+            "categoria": "sistema"
+          },
+          {
+            "nome": "Backup e restauração",
+            "rota": "/configuracoes/backup",
+            "categoria": "seguranca"
+          },
+          {
+            "nome": "Resetar sistema",
+            "rota": "/configuracoes/reset",
+            "categoria": "sistema"
+          },
+          {
+            "nome": "Logs e auditoria",
+            "rota": "/configuracoes/logs",
+            "categoria": "seguranca"
+          },
+          {
+            "nome": "Preferências de notificação",
+            "rota": "/configuracoes/notificacoes",
+            "categoria": "sistema"
+          }
         ]
       }
     ]
