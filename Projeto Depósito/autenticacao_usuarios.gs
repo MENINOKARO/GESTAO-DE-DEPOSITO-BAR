@@ -306,8 +306,17 @@ function popupLogin() {
           google.script.run
             .withSuccessHandler((resultado) => {
               if(resultado.ok) {
-                google.script.run.abrirSistemaPosLogin(resultado.nomeUsuario);
-                google.script.host.close();
+                google.script.run
+                  .withSuccessHandler(() => {
+                    google.script.host.close();
+                  })
+                  .withFailureHandler((erroInit) => {
+                    errorMsg.textContent = '❌ Login ok, mas falha ao iniciar: ' + erroInit.message;
+                    errorMsg.style.display = 'block';
+                    btnLogin.disabled = false;
+                    loading.style.display = 'none';
+                  })
+                  .abrirSistemaPosLogin(resultado.nomeUsuario);
               } else {
                 errorMsg.textContent = '❌ ' + resultado.msg;
                 errorMsg.style.display = 'block';
@@ -1161,15 +1170,33 @@ function removerProtecoes(){
   });
 }
 
+function executarSeFuncao_(nomeFuncao, ...args){
+  try {
+    const fn = (typeof globalThis !== 'undefined') ? globalThis[nomeFuncao] : null;
+    if (typeof fn === 'function') {
+      fn.apply(null, args || []);
+      return true;
+    }
+  } catch (e) {
+    console.warn('Falha ao executar função opcional:', nomeFuncao, e);
+  }
+  return false;
+}
+
 function abrirSistemaPosLogin(emailUsuario){
   try {
-    // 1️⃣ Verifica se setup foi concluído
-    const setupConcluido = getConfig('SETUP_CONCLUIDO') === 'SIM';
+    // 1️⃣ Verifica se setup foi concluído (com fallback para projetos sem getConfig)
+    let setupConcluido = true;
+    if (typeof getConfig === 'function') {
+      setupConcluido = getConfig('SETUP_CONCLUIDO') === 'SIM';
+    }
     
     if(!setupConcluido){
       // 2️⃣ Abre fluxo: boas-vindas → config → HOME
-      popupBoasVindasSistema();
-      return;
+      if (typeof popupBoasVindasSistema === 'function') {
+        popupBoasVindasSistema();
+        return { ok: true, msg: 'Fluxo de configuração inicial aberto.' };
+      }
     }
     
     // 3️⃣ Setup já feito, abre direto para HOME
@@ -1186,13 +1213,24 @@ function abrirSistemaPosLogin(emailUsuario){
     // garante que as operações anteriores foram aplicadas antes de criar a HOME
     SpreadsheetApp.flush();
 
-    criarHomeDashboard();
-    abrirPainelFlutuante();
-    // tenta reinicializar menus/fluxos caso exista função de init
-    try{ if(typeof initSistema === 'function') initSistema(); }catch(e){ console.warn('Falha ao chamar initSistema():', e); }
+    // garante estrutura principal das abas ao autenticar
+    executarSeFuncao_('initSistema');
+
+    executarSeFuncao_('criarHomeDashboard');
+    executarSeFuncao_('abrirPainelFlutuante');
+
+    // garante recarga de menu/fluxos após autenticação
+    executarSeFuncao_('recarregarMenu');
+    executarSeFuncao_('onOpen');
+
+    // tenta inicialização complementar somente se existir
+    executarSeFuncao_('inicializacaoSilenciosa');
+
+    return { ok: true, msg: 'Sistema inicializado com sucesso.' };
     
   } catch(e){
     console.error('Erro em abrirSistemaPosLogin:', e);
+    return { ok: false, msg: 'Erro ao iniciar sistema: ' + e.message };
   }
 }
 
