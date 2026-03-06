@@ -12245,3 +12245,21 @@ function enviarRelatorioEmail(destinatario) {
  * 5. Monitorar logs por 48h
  * ═══════════════════════════════════════════════════════════════════════════        
  */
+
+
+/*
+ * ===============================================
+ * 🌐 MODO WEB APP (HTML + API Apps Script)
+ * ===============================================
+ * Novos arquivos adicionados:
+ * - WebApp.gs   : endpoint doGet() + bridge executarApi()
+ * - WebApp.html : interface web moderna em HTML/CSS/JS
+ *
+ * Publicação sugerida:
+ * 1) Implantar > Nova implantação > Tipo: Aplicativo da Web
+ * 2) Executar como: você
+ * 3) Quem tem acesso: usuários autorizados
+ *
+ * A tela Web usa google.script.run.executarApi(nomeFuncao, args)
+ * para reaproveitar as funções já existentes deste projeto.
+ */

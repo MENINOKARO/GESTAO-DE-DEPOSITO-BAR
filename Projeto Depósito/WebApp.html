@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Depósito • Web</title>
+  <style>
+    :root {
+      --bg: #091126;
+      --panel: #121c36;
+      --panel-soft: #1b2a4f;
+      --text: #eef3ff;
+      --muted: #9fb0d8;
+      --primary: #5f8cff;
+      --ok: #21c48a;
+      --danger: #ff6f7d;
+      --border: #2a3d68;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #1b2b51 0%, var(--bg) 50%);
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      min-height: 100vh;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spin { display:inline-block; animation: spin 2.4s linear infinite; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      background: rgba(9, 17, 38, 0.85);
+      z-index: 30;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: calc(100vh - 56px);
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      background: rgba(10, 15, 30, 0.6);
+    }
+
+    .brand { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+
+    .menu-btn {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 12px;
+      text-align: left;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .menu-btn.active, .menu-btn:hover {
+      background: var(--panel-soft);
+      border-color: var(--primary);
+    }
+
+    main { padding: 16px; }
+    h1 { margin: 0 0 4px; }
+    .lead { color: var(--muted); margin-bottom: 14px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .card h3 { margin: 0; font-size: 12px; color: var(--muted); }
+    .value { font-size: 20px; font-weight: 800; margin-top: 6px; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 10px;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 8px;
+    }
+
+    button {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: #0f1830;
+      padding: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button.primary { background: var(--primary); border-color: transparent; }
+    button.danger { background: #4b1e28; border-color: #75313f; }
+
+    .status { margin-top: 8px; font-size: 13px; color: var(--muted); }
+    .ok { color: var(--ok); }
+    .error { color: var(--danger); }
+
+    pre {
+      background: #0b142b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      max-height: 320px;
+      overflow: auto;
+      margin: 8px 0 0;
+    }
+
+    .hidden { display: none !important; }
+
+    .friendly-runner select,
+    .friendly-runner input,
+    .friendly-runner textarea,
+    .friendly-runner datalist {
+      width: 100%;
+      margin-bottom: 8px;
+      background: #0f1730;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    #loginOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 10, 20, 0.86);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .login-box {
+      width: min(440px, 94vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .login-box input {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0f1730;
+      color: var(--text);
+    }
+
+    #aiBubble {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      z-index: 45;
+      font-size: 24px;
+    }
+
+    #aiPanel {
+      position: fixed;
+      right: 16px;
+      bottom: 84px;
+      width: min(400px, 92vw);
+      max-height: 78vh;
+      overflow: auto;
+      z-index: 44;
+    }
+
+    #aiPanel textarea,
+    #aiPanel input,
+    #aiPanel select {
+      width: 100%;
+      min-height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0f1730;
+      color: var(--text);
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .ai-msg { padding: 8px; border-radius: 10px; margin-bottom: 8px; }
+    .ai-msg.user { background: #173261; }
+    .ai-msg.bot { background: #173828; }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <button class="danger" onclick="logout()">🔓 Logout</button>
+    <div>Usuário: <strong id="usuarioTopo">--</strong></div>
+  </div>
+
+  <div class="layout">
+    <aside>
+      <div class="brand">📦 Gestão de Depósito</div>
+      <div class="subtitle" id="nomeDepositoSidebar">Carregando depósito...</div>
+
+      <button class="menu-btn active" data-section="dashboard" onclick="abrirSecao('dashboard', this)">🏠 Dashboard</button>
+      <button class="menu-btn" data-section="comandas" onclick="abrirSecao('comandas', this)">🍺 Comandas</button>
+      <button class="menu-btn" data-section="delivery" onclick="abrirSecao('delivery', this)">🚚 Delivery</button>
+      <button class="menu-btn" data-section="financeiro" onclick="abrirSecao('financeiro', this)">🛅 Financeiro</button>
+      <button class="menu-btn" data-section="sistema" onclick="abrirSecao('sistema', this)"><span class="spin">⚙️</span> Sistema</button>
+      <button class="menu-btn" data-section="whatsapp" onclick="abrirSecao('whatsapp', this)">💬 WhatsApp</button>
+    </aside>
+
+    <main>
+      <h1 id="tituloSecao">Dashboard</h1>
+      <div class="lead" id="descricaoSecao">Visão gerencial de vendas, compras, estoque e operação.</div>
+
+      <div class="cards" id="cardsMetricas"></div>
+
+      <div class="two-col">
+        <section class="panel">
+          <h3 style="margin-top:0">Ações do módulo</h3>
+          <div class="actions-grid" id="acoesModulo"></div>
+          <div id="statusAcoes" class="status">Pronto.</div>
+          <pre id="resultadoModulo">Selecione uma ação para ver os dados.</pre>
+        </section>
+
+        <section class="panel friendly-runner">
+          <h3 style="margin-top:0">Painel Gerencial (ação amigável)</h3>
+          <label>Ação disponível</label>
+          <select id="acaoSelect"></select>
+          <label>Parâmetros (JSON Array)</label>
+          <input id="argsJson" value="[]" />
+          <button class="primary" onclick="executarAcaoSelecionada()">▶ Executar Ação</button>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="loginOverlay" class="hidden">
+    <div class="login-box">
+      <h3 style="margin-top:0">🔐 Login do Sistema</h3>
+      <input id="loginUsuario" placeholder="Usuário / Email" />
+      <input id="loginSenha" type="password" placeholder="Senha" />
+      <button class="primary" onclick="fazerLoginWeb()">Entrar</button>
+      <div id="loginStatus" class="status">Informe suas credenciais.</div>
+    </div>
+  </div>
+
+  <button id="aiBubble" onclick="toggleAiPanel()">🤖</button>
+
+  <section id="aiPanel" class="panel hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <h3 style="margin:0">Assistente IA (apoio gerencial)</h3>
+      <button onclick="toggleAiPanel()">✖</button>
+    </div>
+
+    <select id="iaTipoAcao">
+      <option value="chat">💡 Interação livre</option>
+      <option value="cenario">📊 Análise de cenário</option>
+      <option value="mercado">🌎 Buscar referência de mercado</option>
+      <option value="preco">🏷️ Sugestão de preço por produto</option>
+    </select>
+
+    <input id="iaProduto" list="listaProdutosIA" placeholder="Selecione ou digite um produto" />
+    <datalist id="listaProdutosIA"></datalist>
+
+    <textarea id="aiInput" placeholder="Ex: Quais ações devo priorizar hoje para aumentar margem?"></textarea>
+
+    <button class="primary" onclick="executarAcaoIA()">Executar IA</button>
+    <div id="aiMessages"></div>
+  </section>
+
+  <script>
+    const state = {
+      resumo: null,
+      section: 'dashboard',
+      actionsMap: {},
+      produtosIA: []
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    function setStatus(msg, ok = true) {
+      const status = el('statusAcoes');
+      status.textContent = msg;
+      status.className = 'status ' + (ok ? 'ok' : 'error');
+    }
+
+    function executar(funcName, args = []) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) return resolve(res.data);
+            reject(new Error((res && res.error) || 'Erro desconhecido da API'));
+          })
+          .withFailureHandler((err) => reject(err))
+          .executarApi(funcName, args);
+      });
+    }
+
+    function addAiMessage(text, role) {
+      const box = document.createElement('div');
+      box.className = 'ai-msg ' + role;
+      box.textContent = text;
+      el('aiMessages').prepend(box);
+    }
+
+    function toggleAiPanel() {
+      el('aiPanel').classList.toggle('hidden');
+    }
+
+    async function carregarProdutosIA() {
+      try {
+        const produtos = await executar('listarProdutosIA', []);
+        state.produtosIA = Array.isArray(produtos) ? produtos : [];
+
+        const dl = el('listaProdutosIA');
+        dl.innerHTML = '';
+
+        state.produtosIA.forEach((p) => {
+          const o = document.createElement('option');
+          o.value = p.nome;
+          dl.appendChild(o);
+        });
+      } catch (_) {
+        state.produtosIA = [];
+      }
+    }
+
+    async function executarAcaoIA() {
+      const modo = el('iaTipoAcao').value;
+      const produto = el('iaProduto').value.trim();
+      const pergunta = el('aiInput').value.trim();
+
+      try {
+        if (modo === 'cenario') {
+          const resp = await executar('analisarCenarioDepositoIA', []);
+          addAiMessage('📊 Análise de cenário: ' + JSON.stringify(resp, null, 2), 'bot');
+          return;
+        }
+
+        if (modo === 'mercado') {
+          if (!produto) {
+            addAiMessage('Informe um produto para buscar referência de mercado.', 'bot');
+            return;
+          }
+          const resp = await executar('buscarReferenciaMercado', [produto]);
+          addAiMessage('🌎 Referência de mercado: ' + JSON.stringify(resp, null, 2), 'bot');
+          return;
+        }
+
+        if (modo === 'preco') {
+          if (!produto) {
+            addAiMessage('Selecione um produto para sugestão de preço.', 'bot');
+            return;
+          }
+          const resp = await executar('sugerirPrecoIA', [produto]);
+          addAiMessage('🏷️ Sugestão de preço: ' + JSON.stringify(resp, null, 2), 'bot');
+          return;
+        }
+
+        if (!pergunta) {
+          addAiMessage('Digite uma pergunta para a IA.', 'bot');
+          return;
+        }
+
+        addAiMessage(pergunta, 'user');
+        const resp = await executar('gerarRespostaIA', [pergunta, { nomeDeposito: state.resumo?.app?.nomeDeposito || '' }]);
+        addAiMessage(String(resp || 'Sem resposta.'), 'bot');
+      } catch (e) {
+        addAiMessage('Falha IA: ' + (e.message || e), 'bot');
+      }
+    }
+
+    async function executarAcao(action) {
+      try {
+        setStatus('Executando: ' + action.label + '...');
+        const data = await executar(action.functionName, action.args || []);
+        el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
+        setStatus('Concluído: ' + action.label + '.');
+      } catch (error) {
+        el('resultadoModulo').textContent = String(error.message || error);
+        setStatus('Falha: ' + (error.message || error), false);
+      }
+    }
+
+    async function executarAcaoSelecionada() {
+      const id = el('acaoSelect').value;
+      const action = state.actionsMap[id];
+      if (!action) return setStatus('Ação não encontrada.', false);
+
+      try {
+        const args = JSON.parse(el('argsJson').value || '[]');
+        if (!Array.isArray(args)) throw new Error('Parâmetros devem ser JSON Array.');
+        action.args = args;
+      } catch (e) {
+        return setStatus('Parâmetros inválidos: ' + e.message, false);
+      }
+
+      await executarAcao(action);
+    }
+
+    function renderActions(actions) {
+      const wrap = el('acoesModulo');
+      const select = el('acaoSelect');
+      wrap.innerHTML = '';
+      select.innerHTML = '';
+      state.actionsMap = {};
+
+      (actions || []).forEach((action, idx) => {
+        const id = action.functionName + '_' + idx;
+        state.actionsMap[id] = { ...action };
+
+        const btn = document.createElement('button');
+        btn.textContent = action.label;
+        btn.onclick = () => executarAcao(action);
+        wrap.appendChild(btn);
+
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = action.label;
+        select.appendChild(option);
+      });
+    }
+
+    function renderCards(sectionData) {
+      const cards = el('cardsMetricas');
+      cards.innerHTML = '';
+
+      const base = [
+        { label: 'Depósito', value: state.resumo?.app?.nomeDeposito || '--' },
+        { label: 'Usuário ativo', value: (state.resumo?.app?.usuarioAtual?.nome || state.resumo?.app?.usuarioAtual?.NOME || 'Não identificado') },
+        { label: 'Módulo', value: sectionData?.titulo || '--' },
+        { label: 'Atualizado', value: new Date().toLocaleTimeString('pt-BR') }
+      ];
+
+      if (state.section === 'dashboard') {
+        const extra = (sectionData?.metricas || []).map((m) => ({ label: 'Indicador', value: m }));
+        base.push(...extra.slice(0, 4));
+      }
+
+      base.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = '<h3>' + item.label + '</h3><div class="value">' + item.value + '</div>';
+        cards.appendChild(card);
+      });
+    }
+
+    async function abrirSecao(section, btn) {
+      state.section = section;
+      document.querySelectorAll('.menu-btn').forEach((b) => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      const data = state.resumo?.secoes?.[section] || {};
+      el('tituloSecao').textContent = data.titulo || section;
+      el('descricaoSecao').textContent = data.descricao || 'Módulo com ações e respostas conectadas ao Apps Script.';
+      renderCards(data);
+      renderActions(data.acoes || []);
+      el('resultadoModulo').textContent = JSON.stringify(data.dados || { info: 'Sem dados pré-carregados para esta seção.' }, null, 2);
+
+      if (section === 'whatsapp') {
+        if ((data.acoes || [])[0]) {
+          await executarAcao(data.acoes[0]);
+        }
+      }
+    }
+
+    async function carregarResumo() {
+      try {
+        setStatus('Carregando dados do painel...');
+        const resumo = await executar('obterResumoWeb', []);
+        state.resumo = resumo;
+
+        el('nomeDepositoSidebar').textContent = resumo.app?.nomeDeposito || 'Depósito';
+        const userName = resumo.app?.usuarioAtual?.nome || resumo.app?.usuarioAtual?.NOME || resumo.app?.usuarioAtual?.EMAIL || 'Usuário web';
+        el('usuarioTopo').textContent = userName;
+
+        await abrirSecao('dashboard', document.querySelector('.menu-btn[data-section="dashboard"]'));
+        setStatus('Painel carregado com sucesso.');
+      } catch (e) {
+        setStatus('Não foi possível carregar resumo inicial: ' + (e.message || e), false);
+      }
+    }
+
+    async function logout() {
+      try {
+        await executar('rotinaLogout', []);
+      } catch (_) {
+        // fluxo continua
+      }
+      el('loginOverlay').classList.remove('hidden');
+      el('usuarioTopo').textContent = '--';
+      setStatus('Sessão encerrada. Faça login novamente.', true);
+    }
+
+    async function fazerLoginWeb() {
+      const usuario = el('loginUsuario').value.trim();
+      const senha = el('loginSenha').value;
+      if (!usuario || !senha) {
+        el('loginStatus').textContent = 'Preencha usuário e senha.';
+        return;
+      }
+
+      try {
+        const resp = await executar('autenticarUsuario', [usuario, senha]);
+        if (!resp || resp.ok !== true) {
+          throw new Error((resp && (resp.msg || resp.mensagem)) || 'Credenciais inválidas.');
+        }
+
+        await executar('carregarAbasPosLoginWeb', [usuario]);
+        el('loginOverlay').classList.add('hidden');
+        el('usuarioTopo').textContent = resp.nomeUsuario || usuario;
+        await carregarResumo();
+        el('loginStatus').textContent = 'Login realizado com sucesso.';
+      } catch (e) {
+        el('loginStatus').textContent = 'Falha no login: ' + (e.message || e);
+      }
+    }
+
+    (async function init() {
+      await carregarResumo();
+      await carregarProdutosIA();
+      addAiMessage('Olá! Posso ajudar com precificação, cenário e referências de mercado.', 'bot');
+    })();
+  </script>
+</body>
+</html>
