@@ -1211,34 +1211,17 @@ function aplicarVisibilidadeAbasPorPerfil(){
     return;
   }
 
-  const perfil = String(usuario.perfil || '').toUpperCase();
-
-  // definir abas mínimas visíveis para OPERACIONAL
-  const abasOperacional = ['HOME','PRODUTOS','ESTOQUE','PAINEL'];
-
+  // Requisito operacional: após login, todas as abas devem abrir automaticamente.
   const sheets = ss.getSheets();
   sheets.forEach(sh => {
-    const name = sh.getName();
     try{
-      if(perfil === 'OPERACIONAL'){
-        // mostra apenas as abas definidas em abasOperacional
-        if(abasOperacional.indexOf(name) !== -1){
-          sh.showSheet();
-        } else {
-          sh.hideSheet();
-        }
-      } else if(perfil === 'GERENCIAL'){
-        // gerencial vê todas as abas
-        sh.showSheet();
-      } else {
-        // perfis desconhecidos: esconde tudo por segurança
-        sh.hideSheet();
-      }
+      sh.showSheet();
     }catch(e){
-      console.warn('Falha ao ajustar visibilidade da aba', name, e);
+      console.warn('Falha ao exibir aba', sh.getName(), e);
     }
   });
-  // se existe aba de bloqueio, escondê-la agora que usuário autenticado está presente
+
+  // aba de bloqueio não deve ficar visível após autenticação
   try{
     const shBloq = ss.getSheetByName('BLOQUEIO_LOGIN');
     if(shBloq) shBloq.hideSheet();
