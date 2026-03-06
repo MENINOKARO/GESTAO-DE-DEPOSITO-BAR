@@ -313,6 +313,7 @@
       <button class="menu-btn" data-section="comandas" onclick="abrirSecao('comandas', this)"><span class="emoji-anim">🍺</span> Comandas</button>
       <button class="menu-btn" data-section="delivery" onclick="abrirSecao('delivery', this)"><span class="emoji-anim">🚚</span> Delivery</button>
       <button class="menu-btn" data-section="financeiro" onclick="abrirSecao('financeiro', this)"><span class="emoji-anim">🛅</span> Financeiro</button>
+      <button class="menu-btn" data-section="inteligente" onclick="abrirSecao('inteligente', this)"><span class="emoji-anim">🧠</span> Painel Inteligente</button>
       <button class="menu-btn" data-section="sistema" onclick="abrirSecao('sistema', this)"><span class="spin emoji-anim">⚙️</span> Sistema</button>
       <button class="menu-btn" data-section="whatsapp" onclick="abrirSecao('whatsapp', this)"><span class="emoji-anim">💬</span> WhatsApp</button>
     </aside>
@@ -646,6 +647,15 @@
         el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
         renderResultadoBonito(data);
         renderGraficosGerenciais(data);
+
+        if (action.functionName === 'abrirDriveWeb') {
+          if (data && data.ok && data.url) {
+            window.open(data.url, '_blank');
+          } else {
+            throw new Error((data && data.mensagem) || 'Link do Drive não configurado.');
+          }
+        }
+
         setStatus('Concluído: ' + action.label + '.');
       } catch (error) {
         el('resultadoModulo').textContent = String(error.message || error);

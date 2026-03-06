@@ -19,6 +19,14 @@ function obterResumoWeb() {
   const financeiroHoje = calcularFinanceiroHojeWeb();
   const estoqueValores = obterValorTotalEstoqueSafe();
   const rentabilidade = analisarRentabilidadeEstoqueSafe();
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+  const vendas = obterResumoVendasWeb();
+  const compras = obterResumoComprasWeb();
+  const comandas = obterResumoComandasWeb();
+  const delivery = obterResumoDeliveryWeb();
+  const painelInteligente = obterPainelInteligenteWeb();
+=======
+>>>>>>> main
 
   return {
     app: {
@@ -36,13 +44,27 @@ function obterResumoWeb() {
           'Rentabilidade'
         ],
         dados: {
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+          vendas: vendas,
+          compras: compras,
+          comandas: comandas,
+          delivery: delivery,
+          financeiro: financeiroHoje,
+          fluxoCaixa: fluxoCaixa,
+=======
           fluxoCaixa: fluxoCaixa,
           financeiroHoje: financeiroHoje,
+>>>>>>> main
           estoqueValores: estoqueValores,
           rentabilidade: rentabilidade
         },
         acoes: [
           { label: 'Atualizar Dashboard', functionName: 'obterResumoWeb', args: [] },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+          { label: 'Resumo de Vendas', functionName: 'obterResumoVendasWeb', args: [] },
+          { label: 'Resumo de Compras', functionName: 'obterResumoComprasWeb', args: [] },
+=======
+>>>>>>> main
           { label: 'Fluxo de Caixa (Hoje)', functionName: 'calcularFluxoCaixaWeb', args: [] },
           { label: 'Financeiro (Hoje)', functionName: 'calcularFinanceiroHojeWeb', args: [] }
         ]
@@ -78,6 +100,15 @@ function obterResumoWeb() {
           { label: 'Financeiro Hoje', functionName: 'calcularFinanceiroHojeWeb', args: [] }
         ]
       },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+      inteligente: {
+        titulo: 'Painel Inteligente',
+        descricao: 'Catálogo das funções reais existentes no sistema com compatibilidade Web.',
+        dados: painelInteligente,
+        acoes: painelInteligente.acoesDisponiveis
+      },
+=======
+>>>>>>> main
       sistema: {
         titulo: 'Sistema',
         descricao: 'Funções de apoio administrativo em contexto web.',
@@ -88,6 +119,11 @@ function obterResumoWeb() {
         },
         acoes: [
           { label: 'Resumo do Sistema', functionName: 'obterResumoSistemaWeb', args: [] },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+          { label: 'Carregar Painel Inteligente', functionName: 'obterPainelInteligenteWeb', args: [] },
+          { label: 'Abrir Drive', functionName: 'abrirDriveWeb', args: [] },
+=======
+>>>>>>> main
           { label: 'Gerar Relatório Estoque (sem popup)', functionName: 'gerarRelatorioEstoqueComValoresWeb', args: [] }
         ]
       },
@@ -105,6 +141,61 @@ function obterResumoWeb() {
   };
 }
 
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+
+function obterPainelInteligenteWeb() {
+  const catalogo = catalogoFuncoesReaisWeb();
+  const total = catalogo.length;
+  const webCompativeis = catalogo.filter(function(i){ return i.webCompativel; }).length;
+  const dependemUi = catalogo.filter(function(i){ return !i.webCompativel; }).length;
+
+  return {
+    totalFuncoesMapeadas: total,
+    webCompativeis: webCompativeis,
+    dependemDeUiPlanilha: dependemUi,
+    funcoes: catalogo,
+    acoesDisponiveis: catalogo.filter(function(i){ return i.webCompativel; }).map(function(i){
+      return { label: i.nome + ' • ' + i.modulo, functionName: i.nome, args: [] };
+    })
+  };
+}
+
+function catalogoFuncoesReaisWeb() {
+  return [
+    { nome: 'autenticarUsuario', modulo: 'autenticacao_usuarios.gs', finalidade: 'Valida login e cria sessão.', webCompativel: true },
+    { nome: 'rotinaLogout', modulo: 'autenticacao_usuarios.gs', finalidade: 'Encerra sessão e aplica bloqueio.', webCompativel: true },
+    { nome: 'obterUsuarioAtual', modulo: 'autenticacao_usuarios.gs', finalidade: 'Retorna usuário logado.', webCompativel: true },
+    { nome: 'temPermissao', modulo: 'autenticacao_usuarios.gs', finalidade: 'Valida permissão por perfil.', webCompativel: true },
+    { nome: 'garantirEstruturausuarios', modulo: 'autenticacao_usuarios.gs', finalidade: 'Cria abas de usuários/sessões/auditoria.', webCompativel: true },
+    { nome: 'aplicarVisibilidadeAbasPorPerfil', modulo: 'autenticacao_usuarios.gs', finalidade: 'Exibe/oculta abas conforme sessão.', webCompativel: true },
+
+    { nome: 'gerarRelatorioEstoqueComValores', modulo: 'gestao_estoque_valores.gs', finalidade: 'Relatório completo de estoque com valores.', webCompativel: false },
+    { nome: 'obterDadosEstoque', modulo: 'gestao_estoque_valores.gs', finalidade: 'Lê estoque da planilha.', webCompativel: true },
+    { nome: 'obterDadosProdutos', modulo: 'gestao_estoque_valores.gs', finalidade: 'Lê produtos/custos/preços.', webCompativel: true },
+    { nome: 'obterDadosVendas', modulo: 'gestao_estoque_valores.gs', finalidade: 'Lê vendas da planilha.', webCompativel: true },
+    { nome: 'obterValorTotalEstoque', modulo: 'gestao_estoque_valores.gs', finalidade: 'Calcula valor total do estoque.', webCompativel: true },
+    { nome: 'obterValorEstoquesPorCategoria', modulo: 'gestao_estoque_valores.gs', finalidade: 'Agrupa valor por categoria.', webCompativel: true },
+    { nome: 'analisarRentabilidadeEstoque', modulo: 'gestao_estoque_valores.gs', finalidade: 'Classifica rentabilidade e alertas.', webCompativel: true },
+
+    { nome: 'exibirValorCategoria', modulo: 'integracao_estoque_valores.gs', finalidade: 'Gera dashboard por categoria na planilha.', webCompativel: false },
+    { nome: 'exibirValorTotalEstoque', modulo: 'integracao_estoque_valores.gs', finalidade: 'Mostra consolidado via alerta.', webCompativel: false },
+    { nome: 'abrirAnalisRentabilidade', modulo: 'integracao_estoque_valores.gs', finalidade: 'Monta análise de rentabilidade em aba.', webCompativel: false },
+    { nome: 'monitorarEstoqueAuto', modulo: 'integracao_estoque_valores.gs', finalidade: 'Executa monitoramento automático.', webCompativel: true },
+    { nome: 'setupMonitoramentoEstoque', modulo: 'integracao_estoque_valores.gs', finalidade: 'Cria trigger de monitoramento.', webCompativel: false },
+
+    { nome: 'calcularFluxoCaixaWeb', modulo: 'WebApiPainel.gs', finalidade: 'Resumo de caixa do dia para web.', webCompativel: true },
+    { nome: 'calcularFinanceiroHojeWeb', modulo: 'WebApiPainel.gs', finalidade: 'Consolida entrada/saída/saldo.', webCompativel: true },
+    { nome: 'obterResumoVendasWeb', modulo: 'WebApiPainel.gs', finalidade: 'Resumo de vendas para dashboard.', webCompativel: true },
+    { nome: 'obterResumoComprasWeb', modulo: 'WebApiPainel.gs', finalidade: 'Resumo de compras para dashboard.', webCompativel: true },
+    { nome: 'listarComandasAbertasWeb', modulo: 'WebApiPainel.gs', finalidade: 'Lista comandas abertas.', webCompativel: true },
+    { nome: 'criarNovaComandaWeb', modulo: 'WebApiPainel.gs', finalidade: 'Cria comanda na aba COMANDAS.', webCompativel: true },
+    { nome: 'obterResumoDeliveryWeb', modulo: 'WebApiPainel.gs', finalidade: 'Resumo de status do delivery.', webCompativel: true },
+    { nome: 'abrirDriveWeb', modulo: 'WebApiPainel.gs', finalidade: 'Retorna URL do Drive configurado.', webCompativel: true }
+  ];
+}
+
+=======
+>>>>>>> main
 function obterResumoSistemaWeb() {
   return {
     usuarioAtual: obterUsuarioAtualWebSafe(),
@@ -427,6 +518,60 @@ function calcularFinanceiroHojeWeb() {
   };
 }
 
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
+
+function obterResumoVendasWeb() {
+  const sh = SpreadsheetApp.getActive().getSheetByName('VENDAS');
+  if (!sh) return { registros: 0, total: 0 };
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 1) return { registros: 0, total: 0 };
+  const headers = dados[0].map(function(h){ return String(h || '').trim().toUpperCase(); });
+  const idxValor = indexHeader(headers, ['VALOR','TOTAL','VALOR_TOTAL']);
+  const total = dados.slice(1).reduce(function(s, r){ return s + (Number(idxValor >= 0 ? r[idxValor] : 0) || 0); }, 0);
+  return { registros: dados.length - 1, total: Number(total.toFixed(2)) };
+}
+
+function obterResumoComprasWeb() {
+  const sh = SpreadsheetApp.getActive().getSheetByName('COMPRAS');
+  if (!sh) return { registros: 0, total: 0 };
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 1) return { registros: 0, total: 0 };
+  const headers = dados[0].map(function(h){ return String(h || '').trim().toUpperCase(); });
+  const idxValor = indexHeader(headers, ['VALOR','TOTAL','VALOR_TOTAL']);
+  const total = dados.slice(1).reduce(function(s, r){ return s + (Number(idxValor >= 0 ? r[idxValor] : 0) || 0); }, 0);
+  return { registros: dados.length - 1, total: Number(total.toFixed(2)) };
+}
+
+function obterResumoComandasWeb() {
+  const abertas = listarComandasAbertasWeb();
+  return { abertas: abertas.length };
+}
+
+function abrirDriveWeb() {
+  const link = obterLinkDriveWeb();
+  if (!link) {
+    return { ok: false, mensagem: 'Link do Drive não configurado na aba CONFIG.' };
+  }
+  return { ok: true, url: link, mensagem: 'Link do Drive carregado.' };
+}
+
+function obterLinkDriveWeb() {
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName('CONFIG');
+    if (!sh) return '';
+    const dados = sh.getDataRange().getValues();
+    for (var i = 0; i < dados.length; i++) {
+      const key = String(dados[i][0] || '').toUpperCase();
+      if (key.indexOf('DRIVE') !== -1) {
+        return String(dados[i][1] || '').trim();
+      }
+    }
+  } catch (_) {}
+  return '';
+}
+
+=======
+>>>>>>> main
 function indexHeader(headers, options) {
   for (var i = 0; i < options.length; i++) {
     var idx = headers.indexOf(options[i]);
