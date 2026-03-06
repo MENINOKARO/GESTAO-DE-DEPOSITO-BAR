@@ -514,6 +514,40 @@ function abrirNovoPainelSistema(){
         max-width:100%;
       }
 
+      .hint{
+        margin:0;
+        font-size:12px;
+        text-align:center;
+        color:#94a3b8;
+      }
+
+      .search{
+        width:100%;
+        border:1px solid #334155;
+        background:#020617;
+        color:#fff;
+        border-radius:10px;
+        padding:10px 12px;
+        font-size:14px;
+      }
+
+      .search:focus{
+        outline:none;
+        border-color:#2563eb;
+      }
+
+      .section{
+        margin-top:4px;
+      }
+
+      .section-title{
+        margin:0 0 8px 0;
+        font-size:12px;
+        letter-spacing:.5px;
+        color:#94a3b8;
+        text-transform:uppercase;
+      }
+
       h2{
         text-align:center;
         margin:0 0 10px 0;
@@ -590,83 +624,134 @@ function abrirNovoPainelSistema(){
 
     <div class="container">
 
-      <h2>🎛️ Painel Rápido</h2>
+      <h2>🎛️ Painel Inteligente</h2>
+      <p class="hint">Modo mobile com acesso rápido + todas as funções do sistema.</p>
 
-      <div class="card info" onclick="run('comanda')">
-        <span class="icon">🍺</span>
-        <span class="label">Comanda</span>
-      </div>
+      <input id="busca" class="search" type="search" placeholder="Buscar função..." oninput="filtrar()">
 
-      <div class="card info" onclick="run('delivery')">
-        <span class="icon">🚚</span>
-        <span class="label">Delivery</span>
-      </div>
-
-      <div class="card info" onclick="run('contas')">
-        <span class="icon">📝</span>
-        <span class="label">Financeiro</span>
-      </div>
-
-      <div class="card info" onclick="run('caixa')">
-        <span class="icon">💰</span>
-        <span class="label">Caixa</span>
-      </div>
-
-      <div class="card info" onclick="run('dashboard')">
-        <span class="icon">📊</span>
-        <span class="label">Dashboard</span>
-      </div>
-
-      <div class="card info" onclick="run('estoque')">
-        <span class="icon">📦</span>
-        <span class="label">Estoque</span>
-      </div>
-
-      <div class="card success" onclick="run('drive')">
-        <span class="icon">📂</span>
-        <span class="label">Drive</span>
-      </div>
-
-      <div class="card success" onclick="run('whatsapp')">
-        <span class="icon">💬</span>
-        <span class="label">WhatsApp</span>
-      </div>
-
-      <div class="card success" onclick="run('backup')">
-        <span class="icon">💾</span>
-        <span class="label">Backup</span>
-      </div>
-
-      <div class="card danger" onclick="run('config')">
-        <span class="icon">⚙️</span>
-        <span class="label">Configurações</span>
-      </div>
+      <div id="lista"></div>
 
     </div>
 
     <script>
 
-      function run(tipo){
+      const grupos = [
+        {
+          titulo: '⚡ Ações rápidas',
+          estilo: 'info',
+          acoes: [
+            ['🍺', 'Comanda', 'popupPainelComandas'],
+            ['🚚', 'Delivery', 'popupPainelDelivery2'],
+            ['📝', 'Financeiro', 'popupPainelFinanceiro'],
+            ['💰', 'Caixa', 'abrirCaixaOpcoes'],
+            ['📊', 'Dashboard', 'criarHomeDashboard'],
+            ['📦', 'Estoque', 'abrirEstoqueOpcoes']
+          ]
+        },
+        {
+          titulo: '💶 Comandas e Delivery',
+          estilo: 'info',
+          acoes: [
+            ['🍺', 'Nova Comanda Balcão', 'popupComandaBalcao'],
+            ['📂', 'Comandas Abertas', 'listarComandasAbertas'],
+            ['🚚', 'Novo Delivery', 'popupDelivery'],
+            ['📦', 'Painel de Delivery', 'popupPainelDelivery2']
+          ]
+        },
+        {
+          titulo: '🛅 Controle',
+          estilo: 'success',
+          acoes: [
+            ['📝', 'Painel Financeiro', 'popupPainelFinanceiro'],
+            ['🔒', 'Conferência Caixa', 'fecharCaixaDia'],
+            ['📑', 'Fechamento Fiscal', 'fecharFiscalDia'],
+            ['⚖️', 'Fluxo de Caixa', 'popupFluxoCaixa'],
+            ['🪙', 'Contas a Pagar', 'popupPainelContasAPagar'],
+            ['👤', 'Novo Cliente', 'popupCliente'],
+            ['👥', 'Usuários', 'popupListarUsuarios'],
+            ['🛒', 'Nova Compra', 'popupCompraV2'],
+            ['❌', 'Cancelamento de Notas', 'popupPainelCancelamentoCompra'],
+            ['💲', 'Análise de Lucratividade', 'abrirAnaliseProduto'],
+            ['🛍️', 'Gestão de Produto', 'popupProdutoManager']
+          ]
+        },
+        {
+          titulo: '📦 Estoque Financeiro',
+          estilo: 'info',
+          acoes: [
+            ['🎯', 'Painel Gestão', 'abrirPainelGestaoEstoque'],
+            ['📊', 'Relatório Valores', 'abrirPainelEstoqueValores'],
+            ['📈', 'Análise de Rentabilidade', 'abrirAnalisRentabilidade'],
+            ['🏷️', 'Valor por Categoria', 'exibirValorCategoria'],
+            ['💹', 'Valor Total Estoque', 'exibirValorTotalEstoque']
+          ]
+        },
+        {
+          titulo: '🖥️ Sistema',
+          estilo: 'danger',
+          acoes: [
+            ['🚀', 'Iniciar Sistema', 'initSistema'],
+            ['🚧', 'Resetar Sistema', 'popupSenhaReset'],
+            ['🔐', 'Trocar Senha Reset', 'popupTrocarSenhaReset'],
+            ['⚙️', 'Configurar Depósito', 'abrirConfiguracaoDeposito'],
+            ['🔄', 'Recarregar Menu', 'recarregarMenu'],
+            ['💾', 'Backup', 'fazerBackupSistema'],
+            ['📜', 'Ver Logs', 'abrirAbaLog'],
+            ['📖', 'Manual', 'abrirManualDoSistema'],
+            ['🔀', 'Trocar Login', 'trocarLogin'],
+            ['🚪', 'Logout', 'fazerLogout'],
+            ['📂', 'Drive', 'abrirDriveLink'],
+            ['💬', 'WhatsApp', 'abrirPainelWhatsApp']
+          ]
+        }
+      ];
 
-        const map = {
-          comanda: 'popupPainelComandas',
-          delivery: 'popupPainelDelivery2',
-          contas: 'popupPainelFinanceiro',
-          caixa: 'abrirCaixaOpcoes',
-          dashboard: 'criarHomeDashboard',
-          estoque: 'abrirEstoqueOpcoes',
-          drive: 'abrirDriveLink',
-          whatsapp: 'abrirPainelWhatsApp',
-          backup: 'fazerBackupSistema',
-          config: 'abrirConfigOpcoes'
-        };
+      function desenhar(lista){
+        const root = document.getElementById('lista');
+        root.innerHTML = '';
 
-        const fn = map[tipo];
+        let total = 0;
+        lista.forEach(grupo=>{
+          if(!grupo.acoes.length) return;
+          total += grupo.acoes.length;
 
-        if(!fn){
-          alert('Função não encontrada.');
+          const sec = document.createElement('div');
+          sec.className = 'section';
+          sec.innerHTML = '<h3 class="section-title">' + grupo.titulo + '</h3>';
+
+          grupo.acoes.forEach(([icone, nome, fn])=>{
+            const item = document.createElement('div');
+            item.className = 'card ' + grupo.estilo;
+            item.innerHTML = '<span class="icon">' + icone + '</span><span class="label">' + nome + '</span>';
+            item.onclick = () => run(fn);
+            sec.appendChild(item);
+          });
+
+          root.appendChild(sec);
+        });
+
+        if(total === 0){
+          root.innerHTML = '<p class="hint">Nenhuma função encontrada.</p>';
+        }
+      }
+
+      function filtrar(){
+        const termo = (document.getElementById('busca').value || '').toLowerCase().trim();
+        if(!termo){
+          desenhar(grupos);
           return;
         }
+
+        const filtrado = grupos.map(g=>({
+          titulo: g.titulo,
+          estilo: g.estilo,
+          acoes: g.acoes.filter(a=> a[1].toLowerCase().includes(termo))
+        }));
+
+        desenhar(filtrado);
+      }
+
+      function run(fn){
 
         google.script.run
           .withFailureHandler(e=>{
@@ -674,6 +759,8 @@ function abrirNovoPainelSistema(){
           })
           [fn]();
       }
+
+      desenhar(grupos);
 
     </script>
 
@@ -684,7 +771,7 @@ function abrirNovoPainelSistema(){
   const ui = HtmlService
     .createHtmlOutput(html)
     .setTitle('🎛️ Painel Inteligente')
-    .setWidth(350);
+    .setWidth(420);
 
   SpreadsheetApp.getUi().showSidebar(ui);
   abrirHome()
