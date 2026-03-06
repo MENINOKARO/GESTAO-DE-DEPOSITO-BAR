@@ -19,11 +19,14 @@ function obterResumoWeb() {
   const financeiroHoje = calcularFinanceiroHojeWeb();
   const estoqueValores = obterValorTotalEstoqueSafe();
   const rentabilidade = analisarRentabilidadeEstoqueSafe();
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
   const vendas = obterResumoVendasWeb();
   const compras = obterResumoComprasWeb();
   const comandas = obterResumoComandasWeb();
   const delivery = obterResumoDeliveryWeb();
   const painelInteligente = obterPainelInteligenteWeb();
+=======
+>>>>>>> main
 
   return {
     app: {
@@ -41,19 +44,27 @@ function obterResumoWeb() {
           'Rentabilidade'
         ],
         dados: {
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
           vendas: vendas,
           compras: compras,
           comandas: comandas,
           delivery: delivery,
           financeiro: financeiroHoje,
           fluxoCaixa: fluxoCaixa,
+=======
+          fluxoCaixa: fluxoCaixa,
+          financeiroHoje: financeiroHoje,
+>>>>>>> main
           estoqueValores: estoqueValores,
           rentabilidade: rentabilidade
         },
         acoes: [
           { label: 'Atualizar Dashboard', functionName: 'obterResumoWeb', args: [] },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
           { label: 'Resumo de Vendas', functionName: 'obterResumoVendasWeb', args: [] },
           { label: 'Resumo de Compras', functionName: 'obterResumoComprasWeb', args: [] },
+=======
+>>>>>>> main
           { label: 'Fluxo de Caixa (Hoje)', functionName: 'calcularFluxoCaixaWeb', args: [] },
           { label: 'Financeiro (Hoje)', functionName: 'calcularFinanceiroHojeWeb', args: [] }
         ]
@@ -89,12 +100,15 @@ function obterResumoWeb() {
           { label: 'Financeiro Hoje', functionName: 'calcularFinanceiroHojeWeb', args: [] }
         ]
       },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
       inteligente: {
         titulo: 'Painel Inteligente',
         descricao: 'Catálogo das funções reais existentes no sistema com compatibilidade Web.',
         dados: painelInteligente,
         acoes: painelInteligente.acoesDisponiveis
       },
+=======
+>>>>>>> main
       sistema: {
         titulo: 'Sistema',
         descricao: 'Funções de apoio administrativo em contexto web.',
@@ -105,8 +119,11 @@ function obterResumoWeb() {
         },
         acoes: [
           { label: 'Resumo do Sistema', functionName: 'obterResumoSistemaWeb', args: [] },
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
           { label: 'Carregar Painel Inteligente', functionName: 'obterPainelInteligenteWeb', args: [] },
           { label: 'Abrir Drive', functionName: 'abrirDriveWeb', args: [] },
+=======
+>>>>>>> main
           { label: 'Gerar Relatório Estoque (sem popup)', functionName: 'gerarRelatorioEstoqueComValoresWeb', args: [] }
         ]
       },
@@ -124,6 +141,7 @@ function obterResumoWeb() {
   };
 }
 
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
 
 function obterPainelInteligenteWeb() {
   const catalogo = catalogoFuncoesReaisWeb();
@@ -176,6 +194,8 @@ function catalogoFuncoesReaisWeb() {
   ];
 }
 
+=======
+>>>>>>> main
 function obterResumoSistemaWeb() {
   return {
     usuarioAtual: obterUsuarioAtualWebSafe(),
@@ -498,6 +518,7 @@ function calcularFinanceiroHojeWeb() {
   };
 }
 
+<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
 
 function obterResumoVendasWeb() {
   const sh = SpreadsheetApp.getActive().getSheetByName('VENDAS');
@@ -549,6 +570,8 @@ function obterLinkDriveWeb() {
   return '';
 }
 
+=======
+>>>>>>> main
 function indexHeader(headers, options) {
   for (var i = 0; i < options.length; i++) {
     var idx = headers.indexOf(options[i]);
