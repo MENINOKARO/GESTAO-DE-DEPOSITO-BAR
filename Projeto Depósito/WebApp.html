@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Depósito • Web</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel-soft: #1a2647;
+      --text: #e9eefc;
+      --muted: #9ca9cc;
+      --primary: #5f8cff;
+      --ok: #1ec28b;
+      --warn: #ffb74d;
+      --danger: #ff6b6b;
+      --border: #28385f;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #17213f 0%, var(--bg) 45%);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      background: rgba(10, 15, 30, 0.65);
+      backdrop-filter: blur(8px);
+    }
+
+    .brand {
+      font-weight: 700;
+      margin-bottom: 18px;
+      font-size: 18px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 22px;
+    }
+
+    .menu-btn {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 12px;
+      text-align: left;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .menu-btn:hover,
+    .menu-btn.active {
+      border-color: var(--primary);
+      background: var(--panel-soft);
+    }
+
+    main {
+      padding: 24px;
+    }
+
+    h1 { margin: 0 0 6px; }
+    .lead { color: var(--muted); margin-bottom: 20px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .card h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+    .value { font-size: 22px; font-weight: 700; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+    input, textarea, select {
+      width: 100%;
+      background: #0f1730;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+
+    textarea { min-height: 76px; resize: vertical; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button.primary, button.ghost {
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button.primary { background: var(--primary); color: white; border-color: transparent; }
+    button.ghost { background: #0f1730; color: var(--text); }
+
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    pre {
+      background: #0b1328;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      color: #d6e0ff;
+      max-height: 360px;
+    }
+
+    .ok { color: var(--ok); }
+    .error { color: var(--danger); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand">📦 Gestão de Depósito</div>
+      <div class="subtitle">Frontend web moderno + Apps Script API</div>
+
+      <button class="menu-btn active">🏠 Dashboard</button>
+      <button class="menu-btn">🍺 Comandas</button>
+      <button class="menu-btn">🚚 Delivery</button>
+      <button class="menu-btn">🛅 Financeiro</button>
+      <button class="menu-btn">⚙️ Sistema</button>
+    </aside>
+
+    <main>
+      <h1>Painel Web</h1>
+      <div class="lead">
+        Esta página roda como <strong>Web App</strong> e chama funções do seu Google Apps Script usando <code>google.script.run</code>.
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3>Usuário atual</h3>
+          <div class="value" id="usuarioAtual">--</div>
+        </div>
+        <div class="card">
+          <h3>Status da API</h3>
+          <div class="value" id="apiStatus">Aguardando</div>
+        </div>
+        <div class="card">
+          <h3>Última ação</h3>
+          <div class="value" id="ultimaAcao">Nenhuma</div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <h3 style="margin-top:0">Ações rápidas</h3>
+        <div class="actions">
+          <button class="ghost" onclick="chamarSemArgs('obterUsuarioAtual')">obterUsuarioAtual()</button>
+          <button class="ghost" onclick="chamarSemArgs('resumoFinanceiroHoje')">resumoFinanceiroHoje()</button>
+          <button class="ghost" onclick="chamarSemArgs('atualizarDashboards')">atualizarDashboards()</button>
+          <button class="ghost" onclick="chamarSemArgs('atualizarEstoque')">atualizarEstoque()</button>
+        </div>
+        <div class="status" id="statusAcoes">Pronto.</div>
+      </section>
+
+      <section class="panel">
+        <h3 style="margin-top:0">Runner de funções da API (genérico)</h3>
+        <div class="row">
+          <div>
+            <label for="nomeFuncao">Nome da função Apps Script</label>
+            <input id="nomeFuncao" value="obterUsuarioAtual" />
+          </div>
+          <div>
+            <label for="argsJson">Argumentos (JSON Array)</label>
+            <input id="argsJson" value="[]" />
+          </div>
+        </div>
+        <button class="primary" onclick="executarCustom()">Executar função</button>
+        <pre id="resultado">Resultado aparecerá aqui...</pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    function setStatus(msg, ok = true) {
+      const status = el('statusAcoes');
+      status.textContent = msg;
+      status.className = 'status ' + (ok ? 'ok' : 'error');
+      el('ultimaAcao').textContent = msg;
+      el('apiStatus').textContent = ok ? 'Online' : 'Erro';
+    }
+
+    function executar(funcName, args = []) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) return resolve(res.data);
+            reject(new Error((res && res.error) || 'Erro desconhecido da API'));
+          })
+          .withFailureHandler((err) => reject(err))
+          .executarApi(funcName, args);
+      });
+    }
+
+    async function chamarSemArgs(nome) {
+      try {
+        setStatus('Executando ' + nome + '...');
+        const data = await executar(nome, []);
+        el('resultado').textContent = JSON.stringify(data, null, 2);
+        setStatus(nome + ' executada com sucesso.');
+
+        if (nome === 'obterUsuarioAtual') {
+          const nomeUsuario = (data && (data.nome || data.NOME || data.usuario)) || JSON.stringify(data);
+          el('usuarioAtual').textContent = nomeUsuario || '--';
+        }
+      } catch (error) {
+        el('resultado').textContent = String(error.message || error);
+        setStatus('Falha em ' + nome + ': ' + (error.message || error), false);
+      }
+    }
+
+    async function executarCustom() {
+      const nomeFuncao = el('nomeFuncao').value.trim();
+      let args = [];
+
+      try {
+        args = JSON.parse(el('argsJson').value || '[]');
+        if (!Array.isArray(args)) throw new Error('Use um array JSON. Ex: ["A", 1]');
+      } catch (error) {
+        setStatus('JSON inválido: ' + error.message, false);
+        return;
+      }
+
+      try {
+        setStatus('Executando função custom: ' + nomeFuncao + '...');
+        const data = await executar(nomeFuncao, args);
+        el('resultado').textContent = JSON.stringify(data, null, 2);
+        setStatus('Função executada: ' + nomeFuncao);
+      } catch (error) {
+        el('resultado').textContent = String(error.message || error);
+        setStatus('Erro: ' + (error.message || error), false);
+      }
+    }
+
+    (async function init() {
+      await chamarSemArgs('obterUsuarioAtual');
+    })();
+  </script>
+</body>
+</html>
