@@ -82,8 +82,7 @@ function executarApi(functionName, args) {
 function executarAcaoWebSegura(functionName, args) {
   try {
     const normalizedArgs = Array.isArray(args) ? args : [];
-<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
-=======
+
     const isUiBound = /^(popup|abrirPopup|abrirPainel|abrirSistema|popupTela|popupLogout|popupLogin|popupCriar)/i.test(functionName || '');
 
     if (isUiBound) {
@@ -95,7 +94,7 @@ function executarAcaoWebSegura(functionName, args) {
         suggestion: sugerirAcaoWeb(functionName)
       };
     }
->>>>>>> main
+
 
     const raw = executarApi(functionName, normalizedArgs);
     if (!raw || raw.ok !== true) {
@@ -163,9 +162,6 @@ function sugerirAcaoWeb(functionName) {
   };
 }
 
-<<<<<<< codex/fix-buttons-not-functioning-in-web-panel-a7ad3i
-// criarNovaComandaWeb foi movida para WebApiPainel.gs para usar gravação real em aba COMANDAS.
-=======
 /**
  * Protótipo funcional para criação de comanda em ambiente web.
  * Não depende de SpreadsheetApp.getUi().
@@ -186,4 +182,3 @@ function criarNovaComandaWeb(payload) {
     mensagem: 'Comanda criada no modo web (protótipo). Conecte este retorno ao fluxo definitivo de gravação.'
   };
 }
->>>>>>> main
