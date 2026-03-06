@@ -139,6 +139,74 @@
       margin: 8px 0 0;
     }
 
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .result-card {
+      background: #0b142b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .result-card h4 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: capitalize;
+    }
+
+    .metric-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+      gap: 10px;
+    }
+
+    .mini-chart {
+      width: 100%;
+      height: 120px;
+      display: block;
+      margin-top: 8px;
+      border-radius: 8px;
+      background: #081129;
+      border: 1px solid #1a2b55;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 8, 18, 0.82);
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .modal-box {
+      width: min(520px, 96vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .modal-box input, .modal-box textarea {
+      width: 100%;
+      margin-bottom: 8px;
+      background: #0f1730;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
     .hidden { display: none !important; }
 
     .friendly-runner select,
@@ -258,10 +326,13 @@
           <div class="actions-grid" id="acoesModulo"></div>
           <div id="statusAcoes" class="status">Pronto.</div>
           <pre id="resultadoModulo">Selecione uma ação para ver os dados.</pre>
+          <div id="resultadoBonito" class="results-grid"></div>
         </section>
 
         <section class="panel friendly-runner">
-          <h3 style="margin-top:0">Painel Gerencial (ação amigável)</h3>
+          <h3 style="margin-top:0">Painel Gerencial (visual)</h3>
+          <div class="status">Indicadores resumidos por bloco com mini-gráficos.</div>
+          <div id="chartsGerenciais" class="results-grid"></div>
           <label>Ação disponível</label>
           <select id="acaoSelect"></select>
           <label>Parâmetros (JSON Array)</label>
@@ -270,6 +341,19 @@
         </section>
       </div>
     </main>
+  </div>
+
+  <div id="comandaModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 style="margin-top:0">🍺 Nova Comanda (Web)</h3>
+      <input id="comandaCliente" placeholder="Nome do cliente" />
+      <input id="comandaMesa" placeholder="Mesa / referência (ex: Balcão)" />
+      <textarea id="comandaObs" placeholder="Observações"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="fecharModalComanda()">Cancelar</button>
+        <button class="primary" onclick="salvarNovaComandaWeb()">Salvar Comanda</button>
+      </div>
+    </div>
   </div>
 
   <div id="loginOverlay" class="hidden">
@@ -332,6 +416,150 @@
           .withFailureHandler((err) => reject(err))
           .executarApi(funcName, args);
       });
+    }
+
+    function executarSeguro(funcName, args = []) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) return resolve(res.data);
+
+            if (res && res.code === 'UI_CONTEXT_BLOCKED') {
+              if (res.suggestion && res.suggestion.type === 'OPEN_NEW_COMANDA_MODAL') {
+                abrirModalComanda();
+              }
+              return reject(new Error('Ação indisponível no WebApp: ' + ((res && res.message) || 'função de UI do Sheets.')));
+            }
+
+            reject(new Error((res && res.message) || (res && res.error) || 'Erro desconhecido da API'));
+          })
+          .withFailureHandler((err) => reject(err))
+          .executarAcaoWebSegura(funcName, args);
+      });
+    }
+
+    function formatValue(value) {
+      if (typeof value === 'number') {
+        const moeda = Math.abs(value) >= 100 || Number.isInteger(value) === false;
+        return moeda
+          ? value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+          : value.toLocaleString('pt-BR');
+      }
+      if (value === null || value === undefined || value === '') return '--';
+      return String(value);
+    }
+
+    function drawMiniChart(canvas, obj) {
+      if (!canvas || !obj || typeof obj !== 'object') return;
+      const entries = Object.entries(obj).filter(([, v]) => typeof v === 'number');
+      if (!entries.length) return;
+
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1);
+      const height = canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1);
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const max = Math.max(...entries.map(([, v]) => Math.abs(v)), 1);
+      const barW = Math.max(18, Math.floor((w - 16) / entries.length) - 4);
+
+      entries.forEach(([k, v], i) => {
+        const bh = Math.max(4, Math.floor((Math.abs(v) / max) * (h - 36)));
+        const x = 8 + i * (barW + 4);
+        const y = h - bh - 18;
+
+        ctx.fillStyle = v >= 0 ? '#21c48a' : '#ff6f7d';
+        ctx.fillRect(x, y, barW, bh);
+
+        ctx.fillStyle = '#9fb0d8';
+        ctx.font = '10px Inter';
+        ctx.fillText(k.slice(0, 8), x, h - 6);
+      });
+    }
+
+    function renderResultadoBonito(data) {
+      const wrap = el('resultadoBonito');
+      wrap.innerHTML = '';
+
+      if (!data || typeof data !== 'object') return;
+
+      Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'result-card';
+        const title = document.createElement('h4');
+        title.textContent = key.replace(/([A-Z])/g, ' $1');
+        card.appendChild(title);
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          Object.entries(value).forEach(([k, v]) => {
+            const line = document.createElement('div');
+            line.className = 'metric-line';
+            line.innerHTML = '<span>' + k + '</span><strong>' + formatValue(v) + '</strong>';
+            card.appendChild(line);
+          });
+
+          const canvas = document.createElement('canvas');
+          canvas.className = 'mini-chart';
+          card.appendChild(canvas);
+          setTimeout(() => drawMiniChart(canvas, value), 20);
+        } else {
+          const line = document.createElement('div');
+          line.className = 'metric-line';
+          line.innerHTML = '<span>valor</span><strong>' + formatValue(value) + '</strong>';
+          card.appendChild(line);
+        }
+
+        wrap.appendChild(card);
+      });
+    }
+
+    function renderGraficosGerenciais(data) {
+      const wrap = el('chartsGerenciais');
+      wrap.innerHTML = '';
+
+      if (!data || typeof data !== 'object') return;
+
+      Object.entries(data)
+        .filter(([, value]) => value && typeof value === 'object' && !Array.isArray(value))
+        .forEach(([name, block]) => {
+          const card = document.createElement('div');
+          card.className = 'result-card';
+          card.innerHTML = '<h4>' + name + '</h4>';
+          const canvas = document.createElement('canvas');
+          canvas.className = 'mini-chart';
+          card.appendChild(canvas);
+          wrap.appendChild(card);
+          setTimeout(() => drawMiniChart(canvas, block), 20);
+        });
+    }
+
+    function abrirModalComanda() {
+      el('comandaModal').classList.remove('hidden');
+      el('comandaCliente').focus();
+    }
+
+    function fecharModalComanda() {
+      el('comandaModal').classList.add('hidden');
+    }
+
+    async function salvarNovaComandaWeb() {
+      const payload = {
+        cliente: el('comandaCliente').value.trim(),
+        mesa: el('comandaMesa').value.trim(),
+        observacoes: el('comandaObs').value.trim()
+      };
+
+      try {
+        const data = await executar('criarNovaComandaWeb', [payload]);
+        el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
+        renderResultadoBonito(data);
+        setStatus('Nova comanda criada: ' + (data.idComanda || '--'));
+        fecharModalComanda();
+      } catch (e) {
+        setStatus('Falha ao criar comanda: ' + (e.message || e), false);
+      }
     }
 
     function addAiMessage(text, role) {
@@ -411,11 +639,14 @@
     async function executarAcao(action) {
       try {
         setStatus('Executando: ' + action.label + '...');
-        const data = await executar(action.functionName, action.args || []);
+        const data = await executarSeguro(action.functionName, action.args || []);
         el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
+        renderResultadoBonito(data);
+        renderGraficosGerenciais(data);
         setStatus('Concluído: ' + action.label + '.');
       } catch (error) {
         el('resultadoModulo').textContent = String(error.message || error);
+        el('resultadoBonito').innerHTML = '';
         setStatus('Falha: ' + (error.message || error), false);
       }
     }
@@ -457,6 +688,14 @@
         option.textContent = action.label;
         select.appendChild(option);
       });
+
+      if (state.section === 'comandas') {
+        const btnNova = document.createElement('button');
+        btnNova.className = 'primary';
+        btnNova.textContent = '🍺 Nova Comanda (Web)';
+        btnNova.onclick = abrirModalComanda;
+        wrap.prepend(btnNova);
+      }
     }
 
     function renderCards(sectionData) {
@@ -494,6 +733,8 @@
       renderCards(data);
       renderActions(data.acoes || []);
       el('resultadoModulo').textContent = JSON.stringify(data.dados || { info: 'Sem dados pré-carregados para esta seção.' }, null, 2);
+      renderResultadoBonito(data.dados || {});
+      renderGraficosGerenciais(data.dados || {});
 
       if (section === 'whatsapp') {
         if ((data.acoes || [])[0]) {
@@ -513,6 +754,7 @@
         el('usuarioTopo').textContent = userName;
 
         await abrirSecao('dashboard', document.querySelector('.menu-btn[data-section="dashboard"]'));
+        renderGraficosGerenciais(resumo || {});
         setStatus('Painel carregado com sucesso.');
       } catch (e) {
         setStatus('Não foi possível carregar resumo inicial: ' + (e.message || e), false);
