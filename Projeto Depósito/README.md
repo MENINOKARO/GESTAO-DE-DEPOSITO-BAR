@@ -82,6 +82,11 @@
  * - `fazerLogout()`                : item de menu que dispara `popupLogout()` (fechamento + backup)
  * - `rotinaLogout()`               : rotina server que encerra sessão, faz backup e registra log
  * - `trocarLogin()`                : encerra sessão, registra `TROCA_LOGIN` e reabre `popupTelaInicial()`
+ * - `abrirSistemaPosLogin()`        : após login, reaplica visibilidade, executa `initSistema()` (quando disponível)
+ *                                    e recarrega o menu para iniciar o sistema completo.
+ *
+ * Abas-base criadas/inicializadas por `initSistema()`:
+ * `PRODUTOS`, `ESTOQUE`, `VENDAS`, `COMPRAS`, `CLIENTES`, `DELIVERY`, `CAIXA`, `CONFIG`.
  *
  * Observação: use o console do navegador e o painel "Executions" do Apps Script
  * para inspecionar logs `[DEBUG]` (cliente) e `[SERVER]` (servidor) ao testar.
