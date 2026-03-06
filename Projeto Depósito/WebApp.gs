@@ -13,9 +13,16 @@ function doGet(e) {
   const page = (e && e.parameter && e.parameter.page) || 'WebApp2';
   const template = HtmlService.createTemplateFromFile(page);
 
+  let titulo = 'Painel do Depósito';
+  try {
+    if (typeof obterNomeDepositoWebSafe === 'function') {
+      titulo = obterNomeDepositoWebSafe() || titulo;
+    }
+  } catch (_) {}
+
   return template
     .evaluate()
-    .setTitle('Gestão de Depósito - Web')
+    .setTitle(titulo + ' • Web')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
@@ -67,3 +74,79 @@ function executarApi(functionName, args) {
     };
   }
 }
+
+/**
+ * Executa ações da camada web com proteção para funções que dependem de UI de planilha.
+ * Em contexto de WebApp, funções com SpreadsheetApp.getUi() quebram com erro de contexto.
+ */
+function executarAcaoWebSegura(functionName, args) {
+  try {
+    const normalizedArgs = Array.isArray(args) ? args : [];
+
+    const raw = executarApi(functionName, normalizedArgs);
+    if (!raw || raw.ok !== true) {
+      const msg = raw && raw.error ? raw.error : 'Falha desconhecida';
+      if (/SpreadsheetApp\.getUi\(\) from this context/i.test(msg)) {
+        return {
+          ok: false,
+          code: 'UI_CONTEXT_BLOCKED',
+          functionName: functionName,
+          message: msg,
+          suggestion: sugerirAcaoWeb(functionName)
+        };
+      }
+
+      return {
+        ok: false,
+        code: 'EXECUTION_ERROR',
+        functionName: functionName,
+        message: msg
+      };
+    }
+
+    return {
+      ok: true,
+      code: 'SUCCESS',
+      functionName: functionName,
+      data: raw.data
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'EXECUTION_ERROR',
+      functionName: functionName,
+      message: error && error.message ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Sugere um fallback de UI web para ações tradicionalmente acionadas por popup no Sheets.
+ */
+function sugerirAcaoWeb(functionName) {
+  const key = String(functionName || '').toLowerCase();
+
+  if (key.indexOf('comanda') !== -1) {
+    return {
+      type: 'OPEN_NEW_COMANDA_MODAL',
+      title: 'Nova Comanda',
+      description: 'Abra o formulário web para lançar cliente, mesa e observações da comanda.'
+    };
+  }
+
+  if (key.indexOf('login') !== -1 || key.indexOf('usuario') !== -1) {
+    return {
+      type: 'OPEN_LOGIN_MODAL',
+      title: 'Autenticação',
+      description: 'Use os campos de login do painel web para continuar.'
+    };
+  }
+
+  return {
+    type: 'SHOW_INFO',
+    title: 'Ação indisponível no Web App',
+    description: 'Esta ação foi criada para rodar no menu da planilha e precisa de adaptação para HTML.'
+  };
+}
+
+// criarNovaComandaWeb foi movida para WebApiPainel.gs para usar gravação real em aba COMANDAS.
