@@ -1,300 +1,385 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gestão de Depósito • Web</title>
-  <style>
-    :root {
-      --bg: #0b1020;
-      --panel: #121a31;
-      --panel-soft: #1a2647;
-      --text: #e9eefc;
-      --muted: #9ca9cc;
-      --primary: #5f8cff;
-      --ok: #1ec28b;
-      --warn: #ffb74d;
-      --danger: #ff6b6b;
-      --border: #28385f;
+/**
+ * ==============================================
+ * WEB APP (HTML) PARA GESTÃO DE DEPÓSITO
+ * ==============================================
+ * Camada web para consumir funções existentes do Apps Script,
+ * mantendo a planilha como banco de dados principal.
+ */
+
+function doGet(e) {
+  const page = (e && e.parameter && e.parameter.page) || 'WebApp';
+  const template = HtmlService.createTemplateFromFile(page);
+
+  return template
+    .evaluate()
+    .setTitle('Gestão de Depósito - Web')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function executarApi(functionName, args) {
+  try {
+    if (!functionName || typeof functionName !== 'string') {
+      throw new Error('Nome de função inválido.');
     }
 
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at top right, #17213f 0%, var(--bg) 45%);
-      min-height: 100vh;
+    const blocked = {
+      doGet: true,
+      include: true,
+      executarApi: true
+    };
+
+    if (blocked[functionName]) {
+      throw new Error('Função bloqueada por segurança.');
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      min-height: 100vh;
+    const fn = this[functionName];
+    if (typeof fn !== 'function') {
+      throw new Error('Função não encontrada: ' + functionName);
     }
 
-    aside {
-      border-right: 1px solid var(--border);
-      padding: 24px 16px;
-      background: rgba(10, 15, 30, 0.65);
-      backdrop-filter: blur(8px);
+    const params = Array.isArray(args) ? args : [];
+    const result = fn.apply(null, params);
+
+    return { ok: true, data: result };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error && error.message ? error.message : String(error)
+    };
+  }
+}
+
+function obterDadosPainelWeb() {
+  const nomeDeposito = obterNomeDepositoWeb();
+  const usuario = typeof obterUsuarioAtual === 'function' ? obterUsuarioAtual() : null;
+
+  return {
+    nomeDeposito: nomeDeposito,
+    usuarioAtual: usuario,
+    dashboard: obterResumoDashboardWeb(),
+    comandas: obterResumoComandasWeb(),
+    delivery: obterResumoDeliveryWeb(),
+    financeiro: obterResumoFinanceiroWeb(),
+    sistema: obterResumoSistemaWeb(),
+    acoes: listarAcoesPainelWeb()
+  };
+}
+
+function obterNomeDepositoWeb() {
+  if (typeof getNomeDeposito === 'function') {
+    const nome = getNomeDeposito();
+    if (nome) return nome;
+  }
+
+  return SpreadsheetApp.getActive().getName();
+}
+
+function listarAcoesPainelWeb() {
+  return [
+    { secao: 'comandas', label: 'Criar nova comanda balcão', fn: 'popupComandaBalcao', args: [] },
+    { secao: 'comandas', label: 'Abrir comandas abertas', fn: 'listarComandasAbertas', args: [] },
+    { secao: 'delivery', label: 'Criar novo delivery', fn: 'popupDelivery', args: [] },
+    { secao: 'delivery', label: 'Abrir painel delivery', fn: 'popupPainelDelivery2', args: [] },
+    { secao: 'financeiro', label: 'Abrir painel financeiro', fn: 'popupPainelFinanceiro', args: [] },
+    { secao: 'financeiro', label: 'Conferência de caixa', fn: 'fecharCaixaDia', args: [] },
+    { secao: 'financeiro', label: 'Fechamento fiscal', fn: 'fecharFiscalDia', args: [] },
+    { secao: 'financeiro', label: 'Fluxo de caixa', fn: 'popupFluxoCaixa', args: [] },
+    { secao: 'financeiro', label: 'Contas a pagar', fn: 'popupPainelContasAPagar', args: [] },
+    { secao: 'sistema', label: 'Usuários do sistema', fn: 'popupListarUsuarios', args: [] },
+    { secao: 'sistema', label: 'Backup agora', fn: 'fazerBackupSistema', args: [] },
+    { secao: 'sistema', label: 'Ver logs', fn: 'abrirAbaLog', args: [] },
+    { secao: 'sistema', label: 'Trocar login', fn: 'trocarLogin', args: [] },
+    { secao: 'sistema', label: 'Logout seguro', fn: 'fazerLogout', args: [] }
+  ];
+}
+
+function obterResumoDashboardWeb() {
+  const vendas = _sheetData_('VENDAS');
+  const compras = _sheetData_('COMPRAS');
+  const produtos = _sheetData_('PRODUTOS');
+  const estoque = _sheetData_('ESTOQUE');
+
+  const vendasHoje = _sumByDate_(vendas.rows, vendas.headers, ['VALOR', 'TOTAL'], ['DATA'], new Date());
+  const comprasHoje = _sumByDate_(compras.rows, compras.headers, ['VALOR', 'TOTAL'], ['DATA'], new Date());
+  const totalProdutos = produtos.rows.length;
+  const totalItensEstoque = _sumCols_(estoque.rows, estoque.headers, ['ESTOQUE', 'QUANT', 'QTD']);
+
+  const topMaisVendidos = _topBy_(vendas.rows, vendas.headers, ['PRODUTO', 'ITEM'], ['QUANT', 'QTD'], 5, 'desc');
+  const topMenosVendidos = _topBy_(vendas.rows, vendas.headers, ['PRODUTO', 'ITEM'], ['QUANT', 'QTD'], 5, 'asc');
+
+  return {
+    vendasHoje: vendasHoje,
+    comprasHoje: comprasHoje,
+    saldoOperacionalDia: vendasHoje - comprasHoje,
+    totalProdutos: totalProdutos,
+    totalItensEstoque: totalItensEstoque,
+    graficos: {
+      vendasCompras: [
+        { label: 'Vendas', value: vendasHoje },
+        { label: 'Compras', value: comprasHoje },
+        { label: 'Saldo', value: vendasHoje - comprasHoje }
+      ],
+      estoqueProdutos: [
+        { label: 'Produtos cadastrados', value: totalProdutos },
+        { label: 'Itens no estoque', value: totalItensEstoque }
+      ],
+      maisVendidos: topMaisVendidos,
+      menosVendidos: topMenosVendidos
     }
+  };
+}
 
-    .brand {
-      font-weight: 700;
-      margin-bottom: 18px;
-      font-size: 18px;
+function obterResumoComandasWeb() {
+  const comandas = _sheetData_('COMANDAS');
+  const vendas = _sheetData_('VENDAS');
+  const abertas = comandas.rows.filter(function(r) {
+    const status = _getCol_(r, comandas.headers, ['STATUS']) || '';
+    return String(status).toUpperCase().indexOf('ABERTA') >= 0;
+  });
+
+  const receber = _sumByFilter_(vendas.rows, vendas.headers, ['VALOR', 'TOTAL'], function(r) {
+    const origem = (_getCol_(r, vendas.headers, ['ORIGEM']) || '').toString().toUpperCase();
+    const pago = (_getCol_(r, vendas.headers, ['PAGO', 'QUITADO', 'STATUS']) || '').toString().toUpperCase();
+    return origem.indexOf('COMANDA') >= 0 && pago.indexOf('SIM') < 0 && pago.indexOf('QUITADO') < 0;
+  });
+
+  return {
+    comandasAbertasHoje: abertas.length,
+    valorReceberAbertas: receber,
+    listaAbertas: abertas.slice(0, 20)
+  };
+}
+
+function obterResumoDeliveryWeb() {
+  const delivery = _sheetData_('DELIVERY');
+  const emAberto = delivery.rows.filter(function(r) {
+    const status = (_getCol_(r, delivery.headers, ['STATUS']) || '').toString().toUpperCase();
+    return status.indexOf('FEITO') >= 0 || status.indexOf('ANDAMENTO') >= 0 || status.indexOf('ABERTO') >= 0;
+  });
+
+  const valorEmAberto = _sumCols_(emAberto, delivery.headers, ['VALOR', 'TOTAL']);
+
+  return {
+    pedidosAbertos: emAberto.length,
+    valorAberto: valorEmAberto,
+    ultimosPedidos: emAberto.slice(0, 20)
+  };
+}
+
+function obterResumoFinanceiroWeb() {
+  const caixa = _sheetData_('CAIXA');
+  const contasPagar = _sheetData_('CONTAS_A_PAGAR');
+  const contasReceber = _sheetData_('CONTAS_A_RECEBER');
+
+  const saldoCaixa = _sumCols_(caixa.rows, caixa.headers, ['SALDO']) || (_sumCols_(caixa.rows, caixa.headers, ['ENTRADA']) - _sumCols_(caixa.rows, caixa.headers, ['SAIDA']));
+  const totalPagar = _sumCols_(contasPagar.rows, contasPagar.headers, ['VALOR', 'TOTAL']);
+  const totalReceber = _sumCols_(contasReceber.rows, contasReceber.headers, ['VALOR', 'TOTAL']);
+
+  return {
+    saldoCaixa: saldoCaixa,
+    totalPagar: totalPagar,
+    totalReceber: totalReceber,
+    resultadoPrevisto: saldoCaixa + totalReceber - totalPagar,
+    graficos: [
+      { label: 'Saldo caixa', value: saldoCaixa },
+      { label: 'Contas a receber', value: totalReceber },
+      { label: 'Contas a pagar', value: totalPagar }
+    ]
+  };
+}
+
+function obterResumoSistemaWeb() {
+  const usuarios = _sheetData_('USUARIOS');
+  const sessoes = _sheetData_('SESSOES');
+  const logs = _sheetData_('LOG');
+
+  const ativos = usuarios.rows.filter(function(r) {
+    const ativo = (_getCol_(r, usuarios.headers, ['ATIVO']) || '').toString().toUpperCase();
+    return ativo === 'TRUE' || ativo === 'SIM' || ativo === 'ATIVO';
+  }).length;
+
+  const loginsAtivos = sessoes.rows.filter(function(r) {
+    const ativo = (_getCol_(r, sessoes.headers, ['ATIVO']) || '').toString().toUpperCase();
+    return ativo === 'TRUE' || ativo === 'SIM' || ativo === 'ATIVO';
+  }).length;
+
+  return {
+    totalUsuarios: usuarios.rows.length,
+    usuariosAtivos: ativos,
+    sessoesAtivas: loginsAtivos,
+    totalLogs: logs.rows.length
+  };
+}
+
+function gerarDiagnosticoIAWeb(pergunta) {
+  const resumo = obterDadosPainelWeb();
+  const fin = resumo.financeiro;
+  const dash = resumo.dashboard;
+  const com = resumo.comandas;
+  const del = resumo.delivery;
+
+  const alertas = [];
+  if (fin.totalPagar > fin.totalReceber) {
+    alertas.push('Contas a pagar acima das contas a receber: revise prazos e renegocie fornecedores.');
+  }
+  if (dash.saldoOperacionalDia < 0) {
+    alertas.push('Saldo operacional do dia está negativo: priorize itens de maior giro e margem.');
+  }
+  if (com.comandasAbertasHoje > 0 && com.valorReceberAbertas > 0) {
+    alertas.push('Há comandas em aberto com valores pendentes: acione cobrança amigável no fechamento.');
+  }
+  if (del.pedidosAbertos > 5) {
+    alertas.push('Volume alto de delivery em aberto: verificar capacidade de entrega e tempo médio.');
+  }
+
+  const sugestoes = [
+    'Acompanhar ticket médio diário por canal (balcão vs delivery).',
+    'Definir margem mínima por categoria e bloquear venda abaixo do piso.',
+    'Automatizar alerta de estoque mínimo para produtos de maior saída.'
+  ];
+
+  if (pergunta && String(pergunta).trim()) {
+    sugestoes.unshift('Sobre sua pergunta: "' + String(pergunta).trim() + '", recomendamos iniciar com análise de caixa e margem do produto líder.');
+  }
+
+  return {
+    pergunta: pergunta || '',
+    dataHora: new Date(),
+    alertas: alertas,
+    sugestoes: sugestoes,
+    resumo: {
+      saldoCaixa: fin.saldoCaixa,
+      saldoOperacional: dash.saldoOperacionalDia,
+      receberComandas: com.valorReceberAbertas
     }
+  };
+}
 
-    .subtitle {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 22px;
-    }
+function sugerirPrecoProdutoWeb(produto, custo, margemPercentual) {
+  const custoNum = _toNum_(custo);
+  const margemNum = _toNum_(margemPercentual);
+  const margem = margemNum > 0 ? margemNum : 30;
 
-    .menu-btn {
-      width: 100%;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--text);
-      border-radius: 12px;
-      text-align: left;
-      padding: 12px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
+  if (custoNum <= 0) {
+    throw new Error('Informe um custo válido para calcular sugestão de preço.');
+  }
 
-    .menu-btn:hover,
-    .menu-btn.active {
-      border-color: var(--primary);
-      background: var(--panel-soft);
-    }
+  const precoSugerido = custoNum * (1 + margem / 100);
+  return {
+    produto: produto || 'Produto sem nome',
+    custo: custoNum,
+    margemPercentual: margem,
+    precoSugerido: Number(precoSugerido.toFixed(2))
+  };
+}
 
-    main {
-      padding: 24px;
-    }
+function pesquisarPrecoMercadoWeb(produto) {
+  if (!produto || !String(produto).trim()) {
+    throw new Error('Informe um produto para pesquisa.');
+  }
 
-    h1 { margin: 0 0 6px; }
-    .lead { color: var(--muted); margin-bottom: 20px; }
+  try {
+    const q = encodeURIComponent(String(produto).trim() + ' preço médio Brasil');
+    const url = 'https://api.duckduckgo.com/?q=' + q + '&format=json&no_html=1&skip_disambig=1';
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    const data = JSON.parse(response.getContentText() || '{}');
 
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
-      margin-bottom: 16px;
-    }
+    return {
+      produto: produto,
+      fonte: 'DuckDuckGo Instant Answer',
+      resumo: data.AbstractText || 'Sem resumo objetivo retornado. Use a query para pesquisa manual complementar.',
+      url: data.AbstractURL || 'https://duckduckgo.com/?q=' + q
+    };
+  } catch (e) {
+    return {
+      produto: produto,
+      fonte: 'DuckDuckGo Instant Answer',
+      resumo: 'Não foi possível buscar preços automaticamente no momento.',
+      erro: e.message
+    };
+  }
+}
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-    }
+function _sheetData_(name) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(name);
+  if (!sh) return { headers: [], rows: [] };
 
-    .card h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
-    .value { font-size: 22px; font-weight: 700; }
+  const values = sh.getDataRange().getValues();
+  if (!values.length) return { headers: [], rows: [] };
 
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
+  const headers = values[0].map(function(h) { return String(h || '').toUpperCase().trim(); });
+  const rows = values.slice(1).filter(function(r) {
+    return r.some(function(c) { return c !== '' && c !== null; });
+  });
 
-    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
-    input, textarea, select {
-      width: 100%;
-      background: #0f1730;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-family: inherit;
-    }
+  return { headers: headers, rows: rows };
+}
 
-    textarea { min-height: 76px; resize: vertical; }
+function _getCol_(row, headers, options) {
+  if (!headers || !headers.length) return null;
+  for (var i = 0; i < options.length; i++) {
+    var idx = headers.findIndex(function(h) { return h.indexOf(options[i]) >= 0; });
+    if (idx >= 0) return row[idx];
+  }
+  return null;
+}
 
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+function _toNum_(v) {
+  if (typeof v === 'number') return v;
+  if (v === null || v === undefined) return 0;
+  var s = String(v).replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+  var n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
 
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
+function _sumCols_(rows, headers, options) {
+  return rows.reduce(function(acc, row) {
+    return acc + _toNum_(_getCol_(row, headers, options));
+  }, 0);
+}
 
-    button.primary, button.ghost {
-      border-radius: 10px;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      font-weight: 600;
-    }
+function _isSameDay_(dateA, dateB) {
+  if (!(dateA instanceof Date) || !(dateB instanceof Date)) return false;
+  return dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate();
+}
 
-    button.primary { background: var(--primary); color: white; border-color: transparent; }
-    button.ghost { background: #0f1730; color: var(--text); }
+function _sumByDate_(rows, headers, valueCols, dateCols, dateRef) {
+  return rows.reduce(function(acc, row) {
+    var dt = _getCol_(row, headers, dateCols);
+    if (!_isSameDay_(dt, dateRef)) return acc;
+    return acc + _toNum_(_getCol_(row, headers, valueCols));
+  }, 0);
+}
 
-    .status {
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--muted);
-    }
+function _sumByFilter_(rows, headers, valueCols, filterFn) {
+  return rows.reduce(function(acc, row) {
+    return filterFn(row) ? acc + _toNum_(_getCol_(row, headers, valueCols)) : acc;
+  }, 0);
+}
 
-    pre {
-      background: #0b1328;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-      overflow: auto;
-      color: #d6e0ff;
-      max-height: 360px;
-    }
+function _topBy_(rows, headers, labelCols, valueCols, limit, order) {
+  var grouped = {};
 
-    .ok { color: var(--ok); }
-    .error { color: var(--danger); }
+  rows.forEach(function(r) {
+    var label = _getCol_(r, headers, labelCols) || 'SEM NOME';
+    var val = _toNum_(_getCol_(r, headers, valueCols));
+    grouped[label] = (grouped[label] || 0) + val;
+  });
 
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      aside { border-right: none; border-bottom: 1px solid var(--border); }
-      .row { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside>
-      <div class="brand">📦 Gestão de Depósito</div>
-      <div class="subtitle">Frontend web moderno + Apps Script API</div>
+  var list = Object.keys(grouped).map(function(k) {
+    return { label: k, value: grouped[k] };
+  });
 
-      <button class="menu-btn active">🏠 Dashboard</button>
-      <button class="menu-btn">🍺 Comandas</button>
-      <button class="menu-btn">🚚 Delivery</button>
-      <button class="menu-btn">🛅 Financeiro</button>
-      <button class="menu-btn">⚙️ Sistema</button>
-    </aside>
+  list.sort(function(a, b) {
+    return order === 'asc' ? a.value - b.value : b.value - a.value;
+  });
 
-    <main>
-      <h1>Painel Web</h1>
-      <div class="lead">
-        Esta página roda como <strong>Web App</strong> e chama funções do seu Google Apps Script usando <code>google.script.run</code>.
-      </div>
-
-      <div class="cards">
-        <div class="card">
-          <h3>Usuário atual</h3>
-          <div class="value" id="usuarioAtual">--</div>
-        </div>
-        <div class="card">
-          <h3>Status da API</h3>
-          <div class="value" id="apiStatus">Aguardando</div>
-        </div>
-        <div class="card">
-          <h3>Última ação</h3>
-          <div class="value" id="ultimaAcao">Nenhuma</div>
-        </div>
-      </div>
-
-      <section class="panel">
-        <h3 style="margin-top:0">Ações rápidas</h3>
-        <div class="actions">
-          <button class="ghost" onclick="chamarSemArgs('obterUsuarioAtual')">obterUsuarioAtual()</button>
-          <button class="ghost" onclick="chamarSemArgs('resumoFinanceiroHoje')">resumoFinanceiroHoje()</button>
-          <button class="ghost" onclick="chamarSemArgs('atualizarDashboards')">atualizarDashboards()</button>
-          <button class="ghost" onclick="chamarSemArgs('atualizarEstoque')">atualizarEstoque()</button>
-        </div>
-        <div class="status" id="statusAcoes">Pronto.</div>
-      </section>
-
-      <section class="panel">
-        <h3 style="margin-top:0">Runner de funções da API (genérico)</h3>
-        <div class="row">
-          <div>
-            <label for="nomeFuncao">Nome da função Apps Script</label>
-            <input id="nomeFuncao" value="obterUsuarioAtual" />
-          </div>
-          <div>
-            <label for="argsJson">Argumentos (JSON Array)</label>
-            <input id="argsJson" value="[]" />
-          </div>
-        </div>
-        <button class="primary" onclick="executarCustom()">Executar função</button>
-        <pre id="resultado">Resultado aparecerá aqui...</pre>
-      </section>
-    </main>
-  </div>
-
-  <script>
-    const el = (id) => document.getElementById(id);
-
-    function setStatus(msg, ok = true) {
-      const status = el('statusAcoes');
-      status.textContent = msg;
-      status.className = 'status ' + (ok ? 'ok' : 'error');
-      el('ultimaAcao').textContent = msg;
-      el('apiStatus').textContent = ok ? 'Online' : 'Erro';
-    }
-
-    function executar(funcName, args = []) {
-      return new Promise((resolve, reject) => {
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) return resolve(res.data);
-            reject(new Error((res && res.error) || 'Erro desconhecido da API'));
-          })
-          .withFailureHandler((err) => reject(err))
-          .executarApi(funcName, args);
-      });
-    }
-
-    async function chamarSemArgs(nome) {
-      try {
-        setStatus('Executando ' + nome + '...');
-        const data = await executar(nome, []);
-        el('resultado').textContent = JSON.stringify(data, null, 2);
-        setStatus(nome + ' executada com sucesso.');
-
-        if (nome === 'obterUsuarioAtual') {
-          const nomeUsuario = (data && (data.nome || data.NOME || data.usuario)) || JSON.stringify(data);
-          el('usuarioAtual').textContent = nomeUsuario || '--';
-        }
-      } catch (error) {
-        el('resultado').textContent = String(error.message || error);
-        setStatus('Falha em ' + nome + ': ' + (error.message || error), false);
-      }
-    }
-
-    async function executarCustom() {
-      const nomeFuncao = el('nomeFuncao').value.trim();
-      let args = [];
-
-      try {
-        args = JSON.parse(el('argsJson').value || '[]');
-        if (!Array.isArray(args)) throw new Error('Use um array JSON. Ex: ["A", 1]');
-      } catch (error) {
-        setStatus('JSON inválido: ' + error.message, false);
-        return;
-      }
-
-      try {
-        setStatus('Executando função custom: ' + nomeFuncao + '...');
-        const data = await executar(nomeFuncao, args);
-        el('resultado').textContent = JSON.stringify(data, null, 2);
-        setStatus('Função executada: ' + nomeFuncao);
-      } catch (error) {
-        el('resultado').textContent = String(error.message || error);
-        setStatus('Erro: ' + (error.message || error), false);
-      }
-    }
-
-    (async function init() {
-      await chamarSemArgs('obterUsuarioAtual');
-    })();
-  </script>
-</body>
-</html>
+  return list.slice(0, limit || 5);
+}
