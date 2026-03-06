@@ -6,320 +6,301 @@
   <title>Gestão de Depósito • Web</title>
   <style>
     :root {
-      --bg: #091126;
-      --panel: #121c36;
-      --panel-soft: #1b2a4f;
-      --text: #eef3ff;
-      --muted: #9fb0d8;
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel-soft: #1a2647;
+      --text: #e9eefc;
+      --muted: #9ca9cc;
       --primary: #5f8cff;
-      --ok: #21c48a;
-      --danger: #ff6f7d;
-      --border: #2a3d68;
+      --ok: #1ec28b;
+      --danger: #ff6b6b;
+      --border: #28385f;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      color: var(--text);
-      background: radial-gradient(circle at top right, #1b2b51 0%, var(--bg) 50%);
       font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #182446 0%, var(--bg) 55%);
       min-height: 100vh;
     }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .spin { display:inline-block; animation: spin 2.4s linear infinite; }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      backdrop-filter: blur(10px);
-      background: rgba(9, 17, 38, 0.85);
-      z-index: 30;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      min-height: calc(100vh - 56px);
-    }
-
+    .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     aside {
       border-right: 1px solid var(--border);
-      padding: 16px;
-      background: rgba(10, 15, 30, 0.6);
+      padding: 20px 14px;
+      background: rgba(10, 15, 30, 0.78);
+      backdrop-filter: blur(8px);
     }
 
-    .brand { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
-    .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+    .brand { font-weight: 700; margin-bottom: 4px; font-size: 18px; }
+    .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
 
     .menu-btn {
-      width: 100%;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--text);
-      border-radius: 12px;
-      text-align: left;
-      padding: 12px;
-      margin-bottom: 8px;
-      cursor: pointer;
+      width: 100%; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+      border-radius: 10px; text-align: left; padding: 11px; margin-bottom: 8px; cursor: pointer;
     }
+    .menu-btn.active, .menu-btn:hover { border-color: var(--primary); background: var(--panel-soft); }
 
-    .menu-btn.active, .menu-btn:hover {
-      background: var(--panel-soft);
-      border-color: var(--primary);
+    main { padding: 20px; }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .logout-btn, .whatsapp-btn, .primary-btn, .ghost-btn {
+      border-radius: 10px; border: 1px solid var(--border); cursor: pointer; padding: 10px 13px; font-weight: 600;
     }
+    .logout-btn { background: #3b1d2a; color: #ffd7e0; }
+    .whatsapp-btn { background: #0f3f2a; color: #bfffe0; text-decoration: none; display: inline-block; }
+    .primary-btn { background: var(--primary); color: white; border-color: transparent; }
+    .ghost-btn { background: #101a34; color: var(--text); }
 
-    main { padding: 16px; }
-    h1 { margin: 0 0 4px; }
-    .lead { color: var(--muted); margin-bottom: 14px; }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
+    .lead { color: var(--muted); margin-bottom: 16px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
     .card, .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
     }
+    .card h4 { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+    .value { font-size: 22px; font-weight: 700; }
 
-    .card h3 { margin: 0; font-size: 12px; color: var(--muted); }
-    .value { font-size: 20px; font-weight: 800; margin-top: 6px; }
+    .section { display: none; }
+    .section.active { display: block; }
 
-    .two-col {
-      display: grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap: 10px;
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    input, textarea, select {
+      width: 100%; background: #0f1730; color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px; margin-bottom: 8px;
     }
+    textarea { min-height: 80px; }
 
-    .actions-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 8px;
-    }
-
-    button {
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      color: var(--text);
-      background: #0f1830;
-      padding: 10px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    button.primary { background: var(--primary); border-color: transparent; }
-    button.danger { background: #4b1e28; border-color: #75313f; }
-
-    .status { margin-top: 8px; font-size: 13px; color: var(--muted); }
+    .status { font-size: 13px; color: var(--muted); margin-top: 8px; }
     .ok { color: var(--ok); }
     .error { color: var(--danger); }
 
-    pre {
-      background: #0b142b;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      max-height: 320px;
-      overflow: auto;
-      margin: 8px 0 0;
+    .list-item {
+      border: 1px solid var(--border); border-radius: 10px; padding: 9px; margin-bottom: 8px; background: #101a34;
+      display: flex; justify-content: space-between; gap: 6px;
     }
 
-    .hidden { display: none !important; }
+    .bars .bar { margin-bottom: 10px; }
+    .bars .label { font-size: 12px; color: var(--muted); }
+    .bars .track { height: 10px; border-radius: 999px; background: #0e1630; border: 1px solid var(--border); overflow: hidden; }
+    .bars .fill { height: 100%; background: linear-gradient(90deg, #5f8cff, #7fc0ff); }
 
-    .friendly-runner select,
-    .friendly-runner input,
-    .friendly-runner textarea,
-    .friendly-runner datalist {
-      width: 100%;
-      margin-bottom: 8px;
-      background: #0f1730;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
+    #iaMascot {
+      position: fixed; right: 16px; bottom: 16px; width: 320px; max-width: calc(100vw - 20px);
+      z-index: 30; border: 1px solid var(--border); border-radius: 14px; background: #111a34;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); overflow: hidden;
+    }
+    #iaMascot header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; background: #1a2850; font-weight: 700;
+    }
+    #iaMascot .body { padding: 10px; }
+    .chat-log { max-height: 190px; overflow: auto; margin-bottom: 8px; }
+    .chat-msg { padding: 8px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+    .chat-msg.user { background: #1e315f; }
+    .chat-msg.ai { background: #173625; }
+    #openIa { position: fixed; right: 16px; bottom: 16px; z-index: 20; display: none; }
+
+    #loginModal {
+      position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
+      background: rgba(5, 10, 20, 0.82);
+    }
+    #loginModal .box {
+      width: 380px; max-width: calc(100vw - 20px); border: 1px solid var(--border); border-radius: 14px;
+      background: #101a34; padding: 16px;
     }
 
-    #loginOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(5, 10, 20, 0.86);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 50;
-    }
-
-    .login-box {
-      width: min(440px, 94vw);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-    }
-
-    .login-box input {
-      width: 100%;
-      margin-bottom: 8px;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #0f1730;
-      color: var(--text);
-    }
-
-    #aiBubble {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      width: 56px;
-      height: 56px;
-      border-radius: 999px;
-      z-index: 45;
-      font-size: 24px;
-    }
-
-    #aiPanel {
-      position: fixed;
-      right: 16px;
-      bottom: 84px;
-      width: min(400px, 92vw);
-      max-height: 78vh;
-      overflow: auto;
-      z-index: 44;
-    }
-
-    #aiPanel textarea,
-    #aiPanel input,
-    #aiPanel select {
-      width: 100%;
-      min-height: 40px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #0f1730;
-      color: var(--text);
-      padding: 10px;
-      margin-bottom: 8px;
-    }
-
-    .ai-msg { padding: 8px; border-radius: 10px; margin-bottom: 8px; }
-    .ai-msg.user { background: #173261; }
-    .ai-msg.bot { background: #173828; }
-
-    @media (max-width: 980px) {
+    @media (max-width: 920px) {
       .layout { grid-template-columns: 1fr; }
       aside { border-right: none; border-bottom: 1px solid var(--border); }
-      .two-col { grid-template-columns: 1fr; }
+      .grid2, .row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <button class="danger" onclick="logout()">🔓 Logout</button>
-    <div>Usuário: <strong id="usuarioTopo">--</strong></div>
+  <div id="loginModal">
+    <div class="box">
+      <h3 style="margin-top:0">🔐 Login do sistema</h3>
+      <p class="lead">Faça login para usar o painel web.</p>
+      <label>Usuário / email</label>
+      <input id="loginUsuario" placeholder="Digite usuário ou email" />
+      <label>Senha</label>
+      <input id="loginSenha" type="password" placeholder="Digite a senha" />
+      <button class="primary-btn" onclick="fazerLoginWeb()">Entrar no painel</button>
+      <div id="loginStatus" class="status">Aguardando login...</div>
+    </div>
   </div>
+
+  <button id="openIa" class="primary-btn" onclick="toggleIa(true)">🤖 Abrir Assistente IA</button>
 
   <div class="layout">
     <aside>
       <div class="brand">📦 Gestão de Depósito</div>
-      <div class="subtitle" id="nomeDepositoSidebar">Carregando depósito...</div>
+      <div class="subtitle" id="nomeDepositoAside">Carregando depósito...</div>
 
-      <button class="menu-btn active" data-section="dashboard" onclick="abrirSecao('dashboard', this)">🏠 Dashboard</button>
-      <button class="menu-btn" data-section="comandas" onclick="abrirSecao('comandas', this)">🍺 Comandas</button>
-      <button class="menu-btn" data-section="delivery" onclick="abrirSecao('delivery', this)">🚚 Delivery</button>
-      <button class="menu-btn" data-section="financeiro" onclick="abrirSecao('financeiro', this)">🛅 Financeiro</button>
-      <button class="menu-btn" data-section="sistema" onclick="abrirSecao('sistema', this)"><span class="spin">⚙️</span> Sistema</button>
-      <button class="menu-btn" data-section="whatsapp" onclick="abrirSecao('whatsapp', this)">💬 WhatsApp</button>
+      <button class="menu-btn active" data-sec="dashboard" onclick="trocarSecao('dashboard', this)">🏠 Dashboard</button>
+      <button class="menu-btn" data-sec="comandas" onclick="trocarSecao('comandas', this)">🍺 Comandas</button>
+      <button class="menu-btn" data-sec="delivery" onclick="trocarSecao('delivery', this)">🚚 Delivery</button>
+      <button class="menu-btn" data-sec="financeiro" onclick="trocarSecao('financeiro', this)">🛅 Financeiro</button>
+      <button class="menu-btn" data-sec="sistema" onclick="trocarSecao('sistema', this)">⚙️ Sistema</button>
+      <button class="menu-btn" data-sec="ia" onclick="trocarSecao('ia', this)">🤖 Inteligência Artificial</button>
     </aside>
 
     <main>
-      <h1 id="tituloSecao">Dashboard</h1>
-      <div class="lead" id="descricaoSecao">Visão gerencial de vendas, compras, estoque e operação.</div>
-
-      <div class="cards" id="cardsMetricas"></div>
-
-      <div class="two-col">
-        <section class="panel">
-          <h3 style="margin-top:0">Ações do módulo</h3>
-          <div class="actions-grid" id="acoesModulo"></div>
-          <div id="statusAcoes" class="status">Pronto.</div>
-          <pre id="resultadoModulo">Selecione uma ação para ver os dados.</pre>
-        </section>
-
-        <section class="panel friendly-runner">
-          <h3 style="margin-top:0">Painel Gerencial (ação amigável)</h3>
-          <label>Ação disponível</label>
-          <select id="acaoSelect"></select>
-          <label>Parâmetros (JSON Array)</label>
-          <input id="argsJson" value="[]" />
-          <button class="primary" onclick="executarAcaoSelecionada()">▶ Executar Ação</button>
-        </section>
+      <div class="topbar">
+        <div>
+          <button class="logout-btn" onclick="logoutWeb()">🚪 Logout</button>
+        </div>
+        <a class="whatsapp-btn" id="whatsLink" href="https://wa.me/5500000000000" target="_blank" rel="noreferrer">💬 WhatsApp</a>
       </div>
+
+      <div class="cards" id="cardsGlobais"></div>
+      <div class="status" id="statusGlobal">Pronto.</div>
+
+      <section id="sec-dashboard" class="section active">
+        <div class="panel">
+          <h3 style="margin-top:0">Visão gerencial</h3>
+          <p class="lead">Vendas, compras, estoque e produtos mais/menos vendidos.</p>
+          <div class="grid2">
+            <div>
+              <h4>Vendas x Compras (dia)</h4>
+              <div id="graficoVendasCompras" class="bars"></div>
+            </div>
+            <div>
+              <h4>Estoque e Produtos</h4>
+              <div id="graficoEstoque" class="bars"></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="panel"><h4>Produtos + vendidos</h4><div id="maisVendidos"></div></div>
+          <div class="panel"><h4>Produtos - vendidos</h4><div id="menosVendidos"></div></div>
+        </div>
+      </section>
+
+      <section id="sec-comandas" class="section">
+        <div class="panel">
+          <h3 style="margin-top:0">Comandas</h3>
+          <div class="cards" id="cardsComanda"></div>
+          <div class="row">
+            <button class="primary-btn" onclick="executarAcaoDireta('popupComandaBalcao', [], 'Abrindo nova comanda...')">➕ Criar nova comanda</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('listarComandasAbertas', [], 'Abrindo comandas em aberto...')">📂 Continuar vendendo (abertas)</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-delivery" class="section">
+        <div class="panel">
+          <h3 style="margin-top:0">Delivery</h3>
+          <div class="cards" id="cardsDelivery"></div>
+          <div class="row">
+            <button class="primary-btn" onclick="executarAcaoDireta('popupDelivery', [], 'Abrindo novo delivery...')">➕ Novo delivery</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('popupPainelDelivery2', [], 'Abrindo painel delivery...')">📦 Painel de delivery</button>
+          </div>
+          <div id="listaDelivery"></div>
+        </div>
+      </section>
+
+      <section id="sec-financeiro" class="section">
+        <div class="panel">
+          <h3 style="margin-top:0">Financeiro</h3>
+          <div class="cards" id="cardsFinanceiro"></div>
+          <h4>Gráfico financeiro</h4>
+          <div id="graficoFinanceiro" class="bars"></div>
+          <div class="row">
+            <button class="ghost-btn" onclick="executarAcaoDireta('popupPainelFinanceiro', [], 'Abrindo painel financeiro...')">💵 Painel financeiro</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('fecharCaixaDia', [], 'Executando conferência de caixa...')">🔒 Conferência caixa</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('fecharFiscalDia', [], 'Executando fechamento fiscal...')">📑 Fechamento fiscal</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('popupFluxoCaixa', [], 'Abrindo fluxo de caixa...')">⚖️ Fluxo de caixa</button>
+            <button class="ghost-btn" onclick="executarAcaoDireta('popupPainelContasAPagar', [], 'Abrindo contas a pagar...')">🪙 Contas a pagar</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-sistema" class="section">
+        <div class="panel">
+          <h3 style="margin-top:0">Sistema e Configurações</h3>
+          <div class="cards" id="cardsSistema"></div>
+          <div class="lead">Ações de usuários, logs, backup e sessão ativa.</div>
+          <div class="row">
+            <select id="acaoAmigavel"></select>
+            <button class="primary-btn" onclick="executarAcaoAmigavel()">Executar ação selecionada</button>
+          </div>
+          <label>Telefone WhatsApp padrão (DDD + número)</label>
+          <input id="numeroWhats" placeholder="Ex.: 5511999999999" />
+          <button class="ghost-btn" onclick="atualizarWhatsApp()">Atualizar botão WhatsApp</button>
+        </div>
+      </section>
+
+      <section id="sec-ia" class="section">
+        <div class="panel">
+          <h3 style="margin-top:0">IA para gestão, prevenção e decisão</h3>
+          <p class="lead">Assistente para monitorar cenários, sugerir ações e apoiar precificação.</p>
+          <label>Pergunta para IA</label>
+          <textarea id="perguntaIA" placeholder="Ex.: Como melhorar meu caixa nas próximas 2 semanas?"></textarea>
+          <div class="row">
+            <button class="primary-btn" onclick="consultarIA()">Analisar cenário</button>
+            <button class="ghost-btn" onclick="toggleIa(true)">Abrir mascote IA</button>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Produto para sugestão de preço</label>
+              <input id="produtoPreco" placeholder="Ex.: Cerveja lata 350ml" />
+            </div>
+            <div>
+              <label>Custo unitário</label>
+              <input id="custoPreco" placeholder="Ex.: 4,50" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Margem mínima (%)</label>
+              <input id="margemPreco" value="30" />
+            </div>
+            <div>
+              <label>Pesquisa de preço de mercado</label>
+              <input id="produtoPesquisa" placeholder="Digite o produto para pesquisar" />
+            </div>
+          </div>
+          <div class="row">
+            <button class="ghost-btn" onclick="sugerirPreco()">💡 Sugerir preço</button>
+            <button class="ghost-btn" onclick="pesquisarMercado()">🌐 Buscar referência de mercado</button>
+          </div>
+          <div id="resultadoIA" class="status">Sem análises ainda.</div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <div id="loginOverlay" class="hidden">
-    <div class="login-box">
-      <h3 style="margin-top:0">🔐 Login do Sistema</h3>
-      <input id="loginUsuario" placeholder="Usuário / Email" />
-      <input id="loginSenha" type="password" placeholder="Senha" />
-      <button class="primary" onclick="fazerLoginWeb()">Entrar</button>
-      <div id="loginStatus" class="status">Informe suas credenciais.</div>
+  <div id="iaMascot">
+    <header>
+      <span>🤖 Mascote IA</span>
+      <button class="ghost-btn" onclick="toggleIa(false)">Fechar</button>
+    </header>
+    <div class="body">
+      <div id="chatLog" class="chat-log"></div>
+      <textarea id="chatInput" placeholder="Digite uma pergunta para o assistente..."></textarea>
+      <button class="primary-btn" onclick="enviarChatIA()">Enviar</button>
     </div>
   </div>
 
-  <button id="aiBubble" onclick="toggleAiPanel()">🤖</button>
-
-  <section id="aiPanel" class="panel hidden">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <h3 style="margin:0">Assistente IA (apoio gerencial)</h3>
-      <button onclick="toggleAiPanel()">✖</button>
-    </div>
-
-    <select id="iaTipoAcao">
-      <option value="chat">💡 Interação livre</option>
-      <option value="cenario">📊 Análise de cenário</option>
-      <option value="mercado">🌎 Buscar referência de mercado</option>
-      <option value="preco">🏷️ Sugestão de preço por produto</option>
-    </select>
-
-    <input id="iaProduto" list="listaProdutosIA" placeholder="Selecione ou digite um produto" />
-    <datalist id="listaProdutosIA"></datalist>
-
-    <textarea id="aiInput" placeholder="Ex: Quais ações devo priorizar hoje para aumentar margem?"></textarea>
-
-    <button class="primary" onclick="executarAcaoIA()">Executar IA</button>
-    <div id="aiMessages"></div>
-  </section>
-
   <script>
-    const state = {
-      resumo: null,
-      section: 'dashboard',
-      actionsMap: {},
-      produtosIA: []
-    };
-
     const el = (id) => document.getElementById(id);
+    let cacheDados = null;
+    let acoesAmigaveis = [];
 
     function setStatus(msg, ok = true) {
-      const status = el('statusAcoes');
+      const status = el('statusGlobal');
       status.textContent = msg;
       status.className = 'status ' + (ok ? 'ok' : 'error');
+    }
+
+    function moeda(v) {
+      const num = Number(v || 0);
+      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
 
     function executar(funcName, args = []) {
@@ -327,237 +308,282 @@
         google.script.run
           .withSuccessHandler((res) => {
             if (res && res.ok) return resolve(res.data);
-            reject(new Error((res && res.error) || 'Erro desconhecido da API'));
+            reject(new Error((res && res.error) || 'Erro na API'));
           })
-          .withFailureHandler((err) => reject(err))
+          .withFailureHandler(reject)
           .executarApi(funcName, args);
       });
     }
 
-    function addAiMessage(text, role) {
-      const box = document.createElement('div');
-      box.className = 'ai-msg ' + role;
-      box.textContent = text;
-      el('aiMessages').prepend(box);
+    function htmlBarChart(target, items = []) {
+      const max = Math.max(...items.map(x => Number(x.value || 0)), 1);
+      el(target).innerHTML = items.map(item => {
+        const val = Number(item.value || 0);
+        const pct = Math.max((val / max) * 100, 2);
+        return `
+          <div class="bar">
+            <div class="label">${item.label}: ${moeda(val).replace('R$', '').trim()}</div>
+            <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+          </div>
+        `;
+      }).join('');
     }
 
-    function toggleAiPanel() {
-      el('aiPanel').classList.toggle('hidden');
-    }
-
-    async function carregarProdutosIA() {
-      try {
-        const produtos = await executar('listarProdutosIA', []);
-        state.produtosIA = Array.isArray(produtos) ? produtos : [];
-
-        const dl = el('listaProdutosIA');
-        dl.innerHTML = '';
-
-        state.produtosIA.forEach((p) => {
-          const o = document.createElement('option');
-          o.value = p.nome;
-          dl.appendChild(o);
-        });
-      } catch (_) {
-        state.produtosIA = [];
+    function listaSimples(target, items = [], formatValue = (v) => v) {
+      if (!items.length) {
+        el(target).innerHTML = '<div class="status">Sem dados para exibir.</div>';
+        return;
       }
+      el(target).innerHTML = items.map(it => `
+        <div class="list-item"><strong>${it.label || it.produto || 'Item'}</strong><span>${formatValue(it.value || it.total || 0)}</span></div>
+      `).join('');
     }
 
-    async function executarAcaoIA() {
-      const modo = el('iaTipoAcao').value;
-      const produto = el('iaProduto').value.trim();
-      const pergunta = el('aiInput').value.trim();
-
-      try {
-        if (modo === 'cenario') {
-          const resp = await executar('analisarCenarioDepositoIA', []);
-          addAiMessage('📊 Análise de cenário: ' + JSON.stringify(resp, null, 2), 'bot');
-          return;
-        }
-
-        if (modo === 'mercado') {
-          if (!produto) {
-            addAiMessage('Informe um produto para buscar referência de mercado.', 'bot');
-            return;
-          }
-          const resp = await executar('buscarReferenciaMercado', [produto]);
-          addAiMessage('🌎 Referência de mercado: ' + JSON.stringify(resp, null, 2), 'bot');
-          return;
-        }
-
-        if (modo === 'preco') {
-          if (!produto) {
-            addAiMessage('Selecione um produto para sugestão de preço.', 'bot');
-            return;
-          }
-          const resp = await executar('sugerirPrecoIA', [produto]);
-          addAiMessage('🏷️ Sugestão de preço: ' + JSON.stringify(resp, null, 2), 'bot');
-          return;
-        }
-
-        if (!pergunta) {
-          addAiMessage('Digite uma pergunta para a IA.', 'bot');
-          return;
-        }
-
-        addAiMessage(pergunta, 'user');
-        const resp = await executar('gerarRespostaIA', [pergunta, { nomeDeposito: state.resumo?.app?.nomeDeposito || '' }]);
-        addAiMessage(String(resp || 'Sem resposta.'), 'bot');
-      } catch (e) {
-        addAiMessage('Falha IA: ' + (e.message || e), 'bot');
-      }
+    function trocarSecao(secao, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+      el('sec-' + secao).classList.add('active');
+      if (btn) btn.classList.add('active');
+      setStatus('Seção carregada: ' + secao);
     }
 
-    async function executarAcao(action) {
-      try {
-        setStatus('Executando: ' + action.label + '...');
-        const data = await executar(action.functionName, action.args || []);
-        el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
-        setStatus('Concluído: ' + action.label + '.');
-      } catch (error) {
-        el('resultadoModulo').textContent = String(error.message || error);
-        setStatus('Falha: ' + (error.message || error), false);
-      }
-    }
-
-    async function executarAcaoSelecionada() {
-      const id = el('acaoSelect').value;
-      const action = state.actionsMap[id];
-      if (!action) return setStatus('Ação não encontrada.', false);
-
-      try {
-        const args = JSON.parse(el('argsJson').value || '[]');
-        if (!Array.isArray(args)) throw new Error('Parâmetros devem ser JSON Array.');
-        action.args = args;
-      } catch (e) {
-        return setStatus('Parâmetros inválidos: ' + e.message, false);
-      }
-
-      await executarAcao(action);
-    }
-
-    function renderActions(actions) {
-      const wrap = el('acoesModulo');
-      const select = el('acaoSelect');
-      wrap.innerHTML = '';
-      select.innerHTML = '';
-      state.actionsMap = {};
-
-      (actions || []).forEach((action, idx) => {
-        const id = action.functionName + '_' + idx;
-        state.actionsMap[id] = { ...action };
-
-        const btn = document.createElement('button');
-        btn.textContent = action.label;
-        btn.onclick = () => executarAcao(action);
-        wrap.appendChild(btn);
-
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = action.label;
-        select.appendChild(option);
-      });
-    }
-
-    function renderCards(sectionData) {
-      const cards = el('cardsMetricas');
-      cards.innerHTML = '';
-
-      const base = [
-        { label: 'Depósito', value: state.resumo?.app?.nomeDeposito || '--' },
-        { label: 'Usuário ativo', value: (state.resumo?.app?.usuarioAtual?.nome || state.resumo?.app?.usuarioAtual?.NOME || 'Não identificado') },
-        { label: 'Módulo', value: sectionData?.titulo || '--' },
-        { label: 'Atualizado', value: new Date().toLocaleTimeString('pt-BR') }
+    function preencherCardsGlobais() {
+      const usuario = cacheDados.usuarioAtual || {};
+      const nomeUsuario = usuario.nome || usuario.NOME || usuario.usuario || 'Não identificado';
+      const cards = [
+        ['Depósito', cacheDados.nomeDeposito || '--'],
+        ['Usuário atual', nomeUsuario],
+        ['Comandas abertas', cacheDados.comandas.comandasAbertasHoje || 0],
+        ['Deliveries abertos', cacheDados.delivery.pedidosAbertos || 0]
       ];
 
-      if (state.section === 'dashboard') {
-        const extra = (sectionData?.metricas || []).map((m) => ({ label: 'Indicador', value: m }));
-        base.push(...extra.slice(0, 4));
-      }
-
-      base.forEach((item) => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = '<h3>' + item.label + '</h3><div class="value">' + item.value + '</div>';
-        cards.appendChild(card);
-      });
+      el('cardsGlobais').innerHTML = cards.map(([k, v]) => `
+        <div class="card"><h4>${k}</h4><div class="value">${v}</div></div>
+      `).join('');
     }
 
-    async function abrirSecao(section, btn) {
-      state.section = section;
-      document.querySelectorAll('.menu-btn').forEach((b) => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-
-      const data = state.resumo?.secoes?.[section] || {};
-      el('tituloSecao').textContent = data.titulo || section;
-      el('descricaoSecao').textContent = data.descricao || 'Módulo com ações e respostas conectadas ao Apps Script.';
-      renderCards(data);
-      renderActions(data.acoes || []);
-      el('resultadoModulo').textContent = JSON.stringify(data.dados || { info: 'Sem dados pré-carregados para esta seção.' }, null, 2);
-
-      if (section === 'whatsapp') {
-        if ((data.acoes || [])[0]) {
-          await executarAcao(data.acoes[0]);
-        }
-      }
+    function renderDashboard() {
+      const d = cacheDados.dashboard;
+      htmlBarChart('graficoVendasCompras', d.graficos.vendasCompras);
+      htmlBarChart('graficoEstoque', d.graficos.estoqueProdutos);
+      listaSimples('maisVendidos', d.graficos.maisVendidos, (v) => Number(v || 0).toFixed(2));
+      listaSimples('menosVendidos', d.graficos.menosVendidos, (v) => Number(v || 0).toFixed(2));
     }
 
-    async function carregarResumo() {
+    function renderComandas() {
+      const c = cacheDados.comandas;
+      const cards = [
+        ['Comandas abertas no dia', c.comandasAbertasHoje || 0],
+        ['Valor a receber (abertas)', moeda(c.valorReceberAbertas || 0)]
+      ];
+      el('cardsComanda').innerHTML = cards.map(([k, v]) => `<div class="card"><h4>${k}</h4><div class="value">${v}</div></div>`).join('');
+    }
+
+    function renderDelivery() {
+      const d = cacheDados.delivery;
+      const cards = [
+        ['Pedidos de delivery em aberto', d.pedidosAbertos || 0],
+        ['Valor total em aberto', moeda(d.valorAberto || 0)]
+      ];
+      el('cardsDelivery').innerHTML = cards.map(([k, v]) => `<div class="card"><h4>${k}</h4><div class="value">${v}</div></div>`).join('');
+
+      if (!d.ultimosPedidos || !d.ultimosPedidos.length) {
+        el('listaDelivery').innerHTML = '<div class="status">Sem pedidos em aberto para listar.</div>';
+        return;
+      }
+      el('listaDelivery').innerHTML = d.ultimosPedidos.slice(0, 8).map((r, idx) => `<div class="list-item"><span>Pedido ${idx + 1}</span><span>${JSON.stringify(r).slice(0, 60)}...</span></div>`).join('');
+    }
+
+    function renderFinanceiro() {
+      const f = cacheDados.financeiro;
+      const cards = [
+        ['Saldo de caixa', moeda(f.saldoCaixa || 0)],
+        ['Contas a pagar', moeda(f.totalPagar || 0)],
+        ['Contas a receber', moeda(f.totalReceber || 0)],
+        ['Resultado previsto', moeda(f.resultadoPrevisto || 0)]
+      ];
+      el('cardsFinanceiro').innerHTML = cards.map(([k, v]) => `<div class="card"><h4>${k}</h4><div class="value">${v}</div></div>`).join('');
+      htmlBarChart('graficoFinanceiro', f.graficos || []);
+    }
+
+    function renderSistema() {
+      const s = cacheDados.sistema;
+      const cards = [
+        ['Total de usuários', s.totalUsuarios || 0],
+        ['Usuários ativos', s.usuariosAtivos || 0],
+        ['Sessões ativas', s.sessoesAtivas || 0],
+        ['Registros de log', s.totalLogs || 0]
+      ];
+      el('cardsSistema').innerHTML = cards.map(([k, v]) => `<div class="card"><h4>${k}</h4><div class="value">${v}</div></div>`).join('');
+
+      const acaoSelect = el('acaoAmigavel');
+      acoesAmigaveis = (cacheDados.acoes || []).filter(a => a.secao === 'sistema' || a.secao === 'financeiro' || a.secao === 'comandas' || a.secao === 'delivery');
+      acaoSelect.innerHTML = acoesAmigaveis.map((a, i) => `<option value="${i}">${a.label}</option>`).join('');
+    }
+
+    async function carregarTudo() {
       try {
         setStatus('Carregando dados do painel...');
-        const resumo = await executar('obterResumoWeb', []);
-        state.resumo = resumo;
+        cacheDados = await executar('obterDadosPainelWeb', []);
+        el('nomeDepositoAside').textContent = cacheDados.nomeDeposito || 'Depósito';
+        preencherCardsGlobais();
+        renderDashboard();
+        renderComandas();
+        renderDelivery();
+        renderFinanceiro();
+        renderSistema();
 
-        el('nomeDepositoSidebar').textContent = resumo.app?.nomeDeposito || 'Depósito';
-        const userName = resumo.app?.usuarioAtual?.nome || resumo.app?.usuarioAtual?.NOME || resumo.app?.usuarioAtual?.EMAIL || 'Usuário web';
-        el('usuarioTopo').textContent = userName;
+        const u = cacheDados.usuarioAtual;
+        if (!u) {
+          abrirLogin('Faça login para continuar.');
+        } else {
+          fecharLogin();
+        }
 
-        await abrirSecao('dashboard', document.querySelector('.menu-btn[data-section="dashboard"]'));
-        setStatus('Painel carregado com sucesso.');
-      } catch (e) {
-        setStatus('Não foi possível carregar resumo inicial: ' + (e.message || e), false);
+        setStatus('Painel atualizado com sucesso.');
+      } catch (error) {
+        setStatus('Erro ao carregar painel: ' + (error.message || error), false);
       }
     }
 
-    async function logout() {
+    async function executarAcaoDireta(fn, args, msg) {
+      try {
+        setStatus(msg || ('Executando ' + fn + '...'));
+        const data = await executar(fn, args || []);
+        setStatus('Ação executada com sucesso.');
+        console.log('Resultado ação:', data);
+        await carregarTudo();
+      } catch (error) {
+        setStatus('Falha ao executar ação: ' + (error.message || error), false);
+      }
+    }
+
+    async function executarAcaoAmigavel() {
+      const idx = Number(el('acaoAmigavel').value || 0);
+      const acao = acoesAmigaveis[idx];
+      if (!acao) return setStatus('Selecione uma ação válida.', false);
+      await executarAcaoDireta(acao.fn, acao.args || [], 'Executando: ' + acao.label + '...');
+    }
+
+    function atualizarWhatsApp() {
+      const numero = (el('numeroWhats').value || '').replace(/\D/g, '');
+      if (!numero) return setStatus('Informe um número válido para WhatsApp.', false);
+      el('whatsLink').href = 'https://wa.me/' + numero;
+      setStatus('Botão WhatsApp atualizado.');
+    }
+
+    function toggleIa(open) {
+      el('iaMascot').style.display = open ? 'block' : 'none';
+      el('openIa').style.display = open ? 'none' : 'block';
+    }
+
+    function addChat(role, text) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + role;
+      div.textContent = text;
+      el('chatLog').appendChild(div);
+      el('chatLog').scrollTop = el('chatLog').scrollHeight;
+    }
+
+    async function consultarIA(textOverride) {
+      try {
+        const pergunta = textOverride || el('perguntaIA').value || '';
+        const data = await executar('gerarDiagnosticoIAWeb', [pergunta]);
+        const resumo = `Alertas: ${data.alertas.length} | Sugestões: ${data.sugestoes.length} | Caixa: ${moeda(data.resumo.saldoCaixa)}`;
+        el('resultadoIA').textContent = resumo;
+        return data;
+      } catch (error) {
+        el('resultadoIA').textContent = 'Erro na IA: ' + (error.message || error);
+        throw error;
+      }
+    }
+
+    async function enviarChatIA() {
+      const pergunta = (el('chatInput').value || '').trim();
+      if (!pergunta) return;
+      addChat('user', pergunta);
+      el('chatInput').value = '';
+
+      try {
+        const data = await consultarIA(pergunta);
+        const resposta = [
+          'Resumo rápido:',
+          ...(data.alertas || []).map(a => '• ' + a),
+          ...(data.sugestoes || []).map(s => '→ ' + s)
+        ].join('\n');
+        addChat('ai', resposta);
+      } catch (error) {
+        addChat('ai', 'Não consegui responder agora: ' + (error.message || error));
+      }
+    }
+
+    async function sugerirPreco() {
+      try {
+        const produto = el('produtoPreco').value;
+        const custo = el('custoPreco').value;
+        const margem = el('margemPreco').value;
+        const data = await executar('sugerirPrecoProdutoWeb', [produto, custo, margem]);
+        el('resultadoIA').textContent = `Preço sugerido para ${data.produto}: ${moeda(data.precoSugerido)} (margem ${data.margemPercentual}%)`;
+      } catch (error) {
+        el('resultadoIA').textContent = 'Erro ao sugerir preço: ' + (error.message || error);
+      }
+    }
+
+    async function pesquisarMercado() {
+      try {
+        const produto = el('produtoPesquisa').value;
+        const data = await executar('pesquisarPrecoMercadoWeb', [produto]);
+        el('resultadoIA').textContent = `${data.fonte}: ${data.resumo} ${data.url ? ' | ' + data.url : ''}`;
+      } catch (error) {
+        el('resultadoIA').textContent = 'Erro na busca de mercado: ' + (error.message || error);
+      }
+    }
+
+    async function logoutWeb() {
       try {
         await executar('rotinaLogout', []);
-      } catch (_) {
-        // fluxo continua
+      } catch (e) {
+        console.warn('rotinaLogout indisponível no contexto web:', e);
       }
-      el('loginOverlay').classList.remove('hidden');
-      el('usuarioTopo').textContent = '--';
-      setStatus('Sessão encerrada. Faça login novamente.', true);
+      abrirLogin('Sessão encerrada. Faça login novamente.');
+      setStatus('Logout realizado.');
+    }
+
+    function abrirLogin(msg) {
+      el('loginModal').style.display = 'flex';
+      el('loginStatus').textContent = msg || 'Aguardando login...';
+    }
+
+    function fecharLogin() {
+      el('loginModal').style.display = 'none';
+      el('loginUsuario').value = '';
+      el('loginSenha').value = '';
     }
 
     async function fazerLoginWeb() {
-      const usuario = el('loginUsuario').value.trim();
-      const senha = el('loginSenha').value;
-      if (!usuario || !senha) {
-        el('loginStatus').textContent = 'Preencha usuário e senha.';
-        return;
-      }
-
       try {
-        const resp = await executar('autenticarUsuario', [usuario, senha]);
-        if (!resp || resp.ok !== true) {
-          throw new Error((resp && (resp.msg || resp.mensagem)) || 'Credenciais inválidas.');
+        const usuario = el('loginUsuario').value;
+        const senha = el('loginSenha').value;
+        el('loginStatus').textContent = 'Validando login...';
+        const data = await executar('autenticarUsuario', [usuario, senha]);
+
+        if (data && (data.ok === true || data.sucesso === true || data.autenticado === true || data.usuario)) {
+          el('loginStatus').textContent = 'Login realizado com sucesso.';
+          fecharLogin();
+          await carregarTudo();
+          return;
         }
 
-        await executar('carregarAbasPosLoginWeb', [usuario]);
-        el('loginOverlay').classList.add('hidden');
-        el('usuarioTopo').textContent = resp.nomeUsuario || usuario;
-        await carregarResumo();
-        el('loginStatus').textContent = 'Login realizado com sucesso.';
-      } catch (e) {
-        el('loginStatus').textContent = 'Falha no login: ' + (e.message || e);
+        el('loginStatus').textContent = 'Login não autorizado. Verifique usuário e senha.';
+      } catch (error) {
+        el('loginStatus').textContent = 'Falha no login: ' + (error.message || error);
       }
     }
 
     (async function init() {
-      await carregarResumo();
-      await carregarProdutosIA();
-      addAiMessage('Olá! Posso ajudar com precificação, cenário e referências de mercado.', 'bot');
+      toggleIa(true);
+      addChat('ai', 'Olá! Sou seu assistente de gestão. Posso ajudar com financeiro, vendas e precificação.');
+      await carregarTudo();
     })();
   </script>
 </body>
