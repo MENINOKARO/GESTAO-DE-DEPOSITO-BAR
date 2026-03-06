@@ -10,7 +10,7 @@
  * Endpoint principal da Web App.
  */
 function doGet(e) {
-  const page = (e && e.parameter && e.parameter.page) || 'WebApp';
+  const page = (e && e.parameter && e.parameter.page) || 'WebApp2';
   const template = HtmlService.createTemplateFromFile(page);
 
   return template
