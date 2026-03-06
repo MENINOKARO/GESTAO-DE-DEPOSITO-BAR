@@ -1170,11 +1170,10 @@ function removerProtecoes(){
   });
 }
 
-function executarSeFuncao_(nomeFuncao, ...args){
+function executarSeFuncao_(nomeFuncao){
   try {
-    const fn = (typeof globalThis !== 'undefined') ? globalThis[nomeFuncao] : null;
-    if (typeof fn === 'function') {
-      fn.apply(null, args || []);
+    if (typeof this[nomeFuncao] === 'function') {
+      this[nomeFuncao]();
       return true;
     }
   } catch (e) {
@@ -1213,15 +1212,13 @@ function abrirSistemaPosLogin(emailUsuario){
     // garante que as operações anteriores foram aplicadas antes de criar a HOME
     SpreadsheetApp.flush();
 
-    // garante estrutura principal das abas ao autenticar
-    executarSeFuncao_('initSistema');
-
     executarSeFuncao_('criarHomeDashboard');
     executarSeFuncao_('abrirPainelFlutuante');
 
     // garante recarga de menu/fluxos após autenticação
-    executarSeFuncao_('recarregarMenu');
-    executarSeFuncao_('onOpen');
+    if (!executarSeFuncao_('recarregarMenu')) {
+      executarSeFuncao_('onOpen');
+    }
 
     // tenta inicialização complementar somente se existir
     executarSeFuncao_('inicializacaoSilenciosa');
