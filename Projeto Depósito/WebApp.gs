@@ -75,6 +75,17 @@ function executarApi(functionName, args) {
 function executarAcaoWebSegura(functionName, args) {
   try {
     const normalizedArgs = Array.isArray(args) ? args : [];
+    const isUiBound = /^(popup|abrirPopup|abrirPainel|abrirSistema|popupTela|popupLogout|popupLogin|popupCriar)/i.test(functionName || '');
+
+    if (isUiBound) {
+      return {
+        ok: false,
+        code: 'UI_CONTEXT_BLOCKED',
+        functionName: functionName,
+        message: 'Esta ação depende de interface do Google Sheets e não pode rodar direto no Web App.',
+        suggestion: sugerirAcaoWeb(functionName)
+      };
+    }
 
     const raw = executarApi(functionName, normalizedArgs);
     if (!raw || raw.ok !== true) {
@@ -142,4 +153,23 @@ function sugerirAcaoWeb(functionName) {
   };
 }
 
-// criarNovaComandaWeb foi movida para WebApiPainel.gs para usar gravação real em aba COMANDAS.
+/**
+ * Protótipo funcional para criação de comanda em ambiente web.
+ * Não depende de SpreadsheetApp.getUi().
+ */
+function criarNovaComandaWeb(payload) {
+  const data = payload || {};
+  const agora = new Date();
+  const id = 'CMD-' + Utilities.formatDate(agora, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+
+  return {
+    ok: true,
+    idComanda: id,
+    criadoEm: agora.toISOString(),
+    status: 'ABERTA',
+    cliente: data.cliente || 'Consumidor',
+    mesa: data.mesa || 'Balcão',
+    observacoes: data.observacoes || '',
+    mensagem: 'Comanda criada no modo web (protótipo). Conecte este retorno ao fluxo definitivo de gravação.'
+  };
+}
