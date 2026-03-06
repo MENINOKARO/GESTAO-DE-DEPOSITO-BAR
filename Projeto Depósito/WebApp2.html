@@ -646,15 +646,6 @@
         el('resultadoModulo').textContent = JSON.stringify(data, null, 2);
         renderResultadoBonito(data);
         renderGraficosGerenciais(data);
-
-        if (action.functionName === 'abrirDriveWeb') {
-          if (data && data.ok && data.url) {
-            window.open(data.url, '_blank');
-          } else {
-            throw new Error((data && data.mensagem) || 'Link do Drive não configurado.');
-          }
-        }
-
         setStatus('Concluído: ' + action.label + '.');
       } catch (error) {
         el('resultadoModulo').textContent = String(error.message || error);

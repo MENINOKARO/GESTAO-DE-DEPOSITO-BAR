@@ -19,10 +19,6 @@ function obterResumoWeb() {
   const financeiroHoje = calcularFinanceiroHojeWeb();
   const estoqueValores = obterValorTotalEstoqueSafe();
   const rentabilidade = analisarRentabilidadeEstoqueSafe();
-  const vendas = obterResumoVendasWeb();
-  const compras = obterResumoComprasWeb();
-  const comandas = obterResumoComandasWeb();
-  const delivery = obterResumoDeliveryWeb();
 
   return {
     app: {
@@ -40,19 +36,13 @@ function obterResumoWeb() {
           'Rentabilidade'
         ],
         dados: {
-          vendas: vendas,
-          compras: compras,
-          comandas: comandas,
-          delivery: delivery,
-          financeiro: financeiroHoje,
           fluxoCaixa: fluxoCaixa,
+          financeiroHoje: financeiroHoje,
           estoqueValores: estoqueValores,
           rentabilidade: rentabilidade
         },
         acoes: [
           { label: 'Atualizar Dashboard', functionName: 'obterResumoWeb', args: [] },
-          { label: 'Resumo de Vendas', functionName: 'obterResumoVendasWeb', args: [] },
-          { label: 'Resumo de Compras', functionName: 'obterResumoComprasWeb', args: [] },
           { label: 'Fluxo de Caixa (Hoje)', functionName: 'calcularFluxoCaixaWeb', args: [] },
           { label: 'Financeiro (Hoje)', functionName: 'calcularFinanceiroHojeWeb', args: [] }
         ]
@@ -98,7 +88,6 @@ function obterResumoWeb() {
         },
         acoes: [
           { label: 'Resumo do Sistema', functionName: 'obterResumoSistemaWeb', args: [] },
-          { label: 'Abrir Drive', functionName: 'abrirDriveWeb', args: [] },
           { label: 'Gerar Relatório Estoque (sem popup)', functionName: 'gerarRelatorioEstoqueComValoresWeb', args: [] }
         ]
       },
@@ -436,57 +425,6 @@ function calcularFinanceiroHojeWeb() {
     saida: fluxo.saidas,
     saldo: fluxo.resultado
   };
-}
-
-
-function obterResumoVendasWeb() {
-  const sh = SpreadsheetApp.getActive().getSheetByName('VENDAS');
-  if (!sh) return { registros: 0, total: 0 };
-  const dados = sh.getDataRange().getValues();
-  if (dados.length <= 1) return { registros: 0, total: 0 };
-  const headers = dados[0].map(function(h){ return String(h || '').trim().toUpperCase(); });
-  const idxValor = indexHeader(headers, ['VALOR','TOTAL','VALOR_TOTAL']);
-  const total = dados.slice(1).reduce(function(s, r){ return s + (Number(idxValor >= 0 ? r[idxValor] : 0) || 0); }, 0);
-  return { registros: dados.length - 1, total: Number(total.toFixed(2)) };
-}
-
-function obterResumoComprasWeb() {
-  const sh = SpreadsheetApp.getActive().getSheetByName('COMPRAS');
-  if (!sh) return { registros: 0, total: 0 };
-  const dados = sh.getDataRange().getValues();
-  if (dados.length <= 1) return { registros: 0, total: 0 };
-  const headers = dados[0].map(function(h){ return String(h || '').trim().toUpperCase(); });
-  const idxValor = indexHeader(headers, ['VALOR','TOTAL','VALOR_TOTAL']);
-  const total = dados.slice(1).reduce(function(s, r){ return s + (Number(idxValor >= 0 ? r[idxValor] : 0) || 0); }, 0);
-  return { registros: dados.length - 1, total: Number(total.toFixed(2)) };
-}
-
-function obterResumoComandasWeb() {
-  const abertas = listarComandasAbertasWeb();
-  return { abertas: abertas.length };
-}
-
-function abrirDriveWeb() {
-  const link = obterLinkDriveWeb();
-  if (!link) {
-    return { ok: false, mensagem: 'Link do Drive não configurado na aba CONFIG.' };
-  }
-  return { ok: true, url: link, mensagem: 'Link do Drive carregado.' };
-}
-
-function obterLinkDriveWeb() {
-  try {
-    const sh = SpreadsheetApp.getActive().getSheetByName('CONFIG');
-    if (!sh) return '';
-    const dados = sh.getDataRange().getValues();
-    for (var i = 0; i < dados.length; i++) {
-      const key = String(dados[i][0] || '').toUpperCase();
-      if (key.indexOf('DRIVE') !== -1) {
-        return String(dados[i][1] || '').trim();
-      }
-    }
-  } catch (_) {}
-  return '';
 }
 
 function indexHeader(headers, options) {
