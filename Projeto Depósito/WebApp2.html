@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gestão de Depósito • Web</title>
+  <title id="titlePagina">Painel do Depósito</title>
   <style>
     :root {
       --bg: #091126;
@@ -32,6 +32,9 @@
     }
 
     .spin { display:inline-block; animation: spin 2.4s linear infinite; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    .emoji-anim { display:inline-block; animation: bob 1.6s ease-in-out infinite; }
+
 
     .topbar {
       display: flex;
@@ -306,12 +309,12 @@
       <div class="brand">📦 Gestão de Depósito</div>
       <div class="subtitle" id="nomeDepositoSidebar">Carregando depósito...</div>
 
-      <button class="menu-btn active" data-section="dashboard" onclick="abrirSecao('dashboard', this)">🏠 Dashboard</button>
-      <button class="menu-btn" data-section="comandas" onclick="abrirSecao('comandas', this)">🍺 Comandas</button>
-      <button class="menu-btn" data-section="delivery" onclick="abrirSecao('delivery', this)">🚚 Delivery</button>
-      <button class="menu-btn" data-section="financeiro" onclick="abrirSecao('financeiro', this)">🛅 Financeiro</button>
-      <button class="menu-btn" data-section="sistema" onclick="abrirSecao('sistema', this)"><span class="spin">⚙️</span> Sistema</button>
-      <button class="menu-btn" data-section="whatsapp" onclick="abrirSecao('whatsapp', this)">💬 WhatsApp</button>
+      <button class="menu-btn active" data-section="dashboard" onclick="abrirSecao('dashboard', this)"><span class="emoji-anim">🏠</span> Dashboard</button>
+      <button class="menu-btn" data-section="comandas" onclick="abrirSecao('comandas', this)"><span class="emoji-anim">🍺</span> Comandas</button>
+      <button class="menu-btn" data-section="delivery" onclick="abrirSecao('delivery', this)"><span class="emoji-anim">🚚</span> Delivery</button>
+      <button class="menu-btn" data-section="financeiro" onclick="abrirSecao('financeiro', this)"><span class="emoji-anim">🛅</span> Financeiro</button>
+      <button class="menu-btn" data-section="sistema" onclick="abrirSecao('sistema', this)"><span class="spin emoji-anim">⚙️</span> Sistema</button>
+      <button class="menu-btn" data-section="whatsapp" onclick="abrirSecao('whatsapp', this)"><span class="emoji-anim">💬</span> WhatsApp</button>
     </aside>
 
     <main>
@@ -749,7 +752,9 @@
         const resumo = await executar('obterResumoWeb', []);
         state.resumo = resumo;
 
-        el('nomeDepositoSidebar').textContent = resumo.app?.nomeDeposito || 'Depósito';
+        const nomeDeposito = resumo.app?.nomeDeposito || 'Depósito';
+        el('nomeDepositoSidebar').textContent = nomeDeposito;
+        document.title = nomeDeposito + ' • Painel Web';
         const userName = resumo.app?.usuarioAtual?.nome || resumo.app?.usuarioAtual?.NOME || resumo.app?.usuarioAtual?.EMAIL || 'Usuário web';
         el('usuarioTopo').textContent = userName;
 

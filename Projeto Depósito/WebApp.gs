@@ -13,9 +13,16 @@ function doGet(e) {
   const page = (e && e.parameter && e.parameter.page) || 'WebApp2';
   const template = HtmlService.createTemplateFromFile(page);
 
+  let titulo = 'Painel do Depósito';
+  try {
+    if (typeof obterNomeDepositoWebSafe === 'function') {
+      titulo = obterNomeDepositoWebSafe() || titulo;
+    }
+  } catch (_) {}
+
   return template
     .evaluate()
-    .setTitle('Gestão de Depósito - Web')
+    .setTitle(titulo + ' • Web')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
