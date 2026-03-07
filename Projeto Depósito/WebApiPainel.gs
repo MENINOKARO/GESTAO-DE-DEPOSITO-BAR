@@ -368,7 +368,7 @@ function exportarRelatorioEstoquePdfDriveWeb(sheet) {
       };
     }
 
-    const folderRelatorio = obterPastaDestinoRelatorioEstoqueWeb(rootFolder);
+    const folderRelatorio = obterOuCriarSubpastaWeb(rootFolder, 'Relatorio Estoque');
     const ss = SpreadsheetApp.getActive();
     const timezone = Session.getScriptTimeZone();
     const stamp = Utilities.formatDate(new Date(), timezone, 'yyyyMMdd_HHmmss');
@@ -439,45 +439,6 @@ function obterOuCriarSubpastaWeb(parent, nome) {
     return iterator.next();
   }
   return parent.createFolder(nome);
-}
-
-
-function obterPastaDestinoRelatorioEstoqueWeb(rootFolder) {
-  const pastaRelatorio = obterOuCriarSubpastaPorNomesWeb(rootFolder, [
-    'Relatorio',
-    'Relatórios',
-    'Relatorios'
-  ]);
-
-  return obterOuCriarSubpastaPorNomesWeb(pastaRelatorio, ['Estoque']);
-}
-
-function obterOuCriarSubpastaPorNomesWeb(parent, nomesPossiveis) {
-  for (var i = 0; i < nomesPossiveis.length; i++) {
-    var it = parent.getFoldersByName(nomesPossiveis[i]);
-    if (it.hasNext()) {
-      return it.next();
-    }
-  }
-
-  const alvoNormalizado = normalizarNomePastaWeb(nomesPossiveis[0]);
-  const existentes = parent.getFolders();
-  while (existentes.hasNext()) {
-    var pasta = existentes.next();
-    if (normalizarNomePastaWeb(pasta.getName()) === alvoNormalizado) {
-      return pasta;
-    }
-  }
-
-  return parent.createFolder(nomesPossiveis[0]);
-}
-
-function normalizarNomePastaWeb(nome) {
-  return String(nome || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
 }
 
 function listarComandasAbertasWeb() {
