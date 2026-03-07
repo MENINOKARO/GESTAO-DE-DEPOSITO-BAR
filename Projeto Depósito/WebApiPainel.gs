@@ -358,15 +358,23 @@ function gerarRelatorioEstoqueComValoresWeb() {
 
 function exportarRelatorioEstoquePdfDriveWeb(sheet) {
   try {
-    const estrutura = garantirEstruturaDriveSistemaWeb(new Date());
-    if (!estrutura || !estrutura.ok) {
+    const linkDrive = obterLinkDriveWeb();
+    if (!linkDrive) {
       return {
         ok: false,
-        mensagem: (estrutura && estrutura.mensagem) || 'Não foi possível preparar a estrutura de pastas no Drive.'
+        mensagem: 'Link do Drive não configurado na aba CONFIG.'
       };
     }
 
-    const folderRelatorio = estrutura.pastas.relatorios.estoque;
+    const rootFolder = obterPastaDrivePorLinkWeb(linkDrive);
+    if (!rootFolder) {
+      return {
+        ok: false,
+        mensagem: 'Não foi possível acessar a pasta do Drive configurada.'
+      };
+    }
+
+    const folderRelatorio = obterOuCriarSubpastaWeb(rootFolder, 'Relatorio Estoque');
     const ss = SpreadsheetApp.getActive();
     const timezone = Session.getScriptTimeZone();
     const stamp = Utilities.formatDate(new Date(), timezone, 'yyyyMMdd_HHmmss');
@@ -392,7 +400,6 @@ function exportarRelatorioEstoquePdfDriveWeb(sheet) {
 
     const statusCode = response.getResponseCode();
     if (statusCode !== 200) {
-      registrarEventoDriveWeb('ERRO_EXPORTACAO_PDF', 'Falha ao exportar PDF de relatório', '', 'HTTP ' + statusCode);
       return {
         ok: false,
         mensagem: 'Falha ao exportar PDF do relatório. Código: ' + statusCode
@@ -402,100 +409,20 @@ function exportarRelatorioEstoquePdfDriveWeb(sheet) {
     const blob = response.getBlob().setName(nomeArquivo);
     const file = folderRelatorio.createFile(blob);
 
-    registrarEventoDriveWeb('RELATORIO_PDF', 'Relatório de estoque exportado para Drive', '', file.getName());
-
     return {
       ok: true,
       id: file.getId(),
       nome: file.getName(),
       url: file.getUrl(),
       pasta: folderRelatorio.getName(),
-      caminho: estrutura.caminhos.relatoriosEstoque,
       mensagem: 'PDF do relatório salvo no Drive com sucesso.'
     };
   } catch (e) {
-    registrarEventoDriveWeb('ERRO_RELATORIO_PDF', 'Erro ao salvar PDF no Drive', '', e.message || String(e));
     return {
       ok: false,
       mensagem: 'Erro ao salvar PDF no Drive: ' + e.message
     };
   }
-}
-
-function garantirEstruturaDriveSistemaWeb(dataRef) {
-  try {
-    const data = dataRef || new Date();
-    const timezone = Session.getScriptTimeZone();
-    const ano = Utilities.formatDate(data, timezone, 'yyyy');
-    const mes = Utilities.formatDate(data, timezone, 'MM');
-
-    const root = obterPastaRaizDriveSistemaWeb();
-    if (!root) {
-      return { ok: false, mensagem: 'Não foi possível localizar/criar pasta raiz do Drive.' };
-    }
-
-    const rootNome = root.getName();
-    const backup = obterOuCriarSubpastaComRegistroWeb(root, ['Backup'], rootNome + '/Backup');
-
-    const logs = obterOuCriarSubpastaComRegistroWeb(root, ['Logs'], rootNome + '/Logs');
-    const logsPdf = obterOuCriarSubpastaComRegistroWeb(logs, ['PDF'], rootNome + '/Logs/PDF');
-
-    const relatorios = obterOuCriarSubpastaComRegistroWeb(root, ['Relatorios', 'Relatórios', 'Relatorio'], rootNome + '/Relatorios');
-    const relatoriosFinanceiro = obterOuCriarSubpastaComRegistroWeb(relatorios, ['Financeiro'], rootNome + '/Relatorios/Financeiro');
-    const relatoriosEstoque = obterOuCriarSubpastaComRegistroWeb(relatorios, ['Estoque'], rootNome + '/Relatorios/Estoque');
-    const relatoriosCompras = obterOuCriarSubpastaComRegistroWeb(relatorios, ['Compras'], rootNome + '/Relatorios/Compras');
-
-    const compras = obterOuCriarSubpastaComRegistroWeb(root, ['Compras'], rootNome + '/Compras');
-    const notas = obterOuCriarSubpastaComRegistroWeb(compras, ['Notas'], rootNome + '/Compras/Notas');
-    const anoFolder = obterOuCriarSubpastaComRegistroWeb(notas, [ano], rootNome + '/Compras/Notas/' + ano);
-    const mesFolder = obterOuCriarSubpastaComRegistroWeb(anoFolder, [mes], rootNome + '/Compras/Notas/' + ano + '/' + mes);
-
-    return {
-      ok: true,
-      rootId: root.getId(),
-      pastas: {
-        root: root,
-        backup: backup,
-        logs: logs,
-        logsPdf: logsPdf,
-        relatorios: {
-          root: relatorios,
-          financeiro: relatoriosFinanceiro,
-          estoque: relatoriosEstoque,
-          compras: relatoriosCompras
-        },
-        compras: compras,
-        notas: notas,
-        notasAno: anoFolder,
-        notasMes: mesFolder
-      },
-      caminhos: {
-        root: rootNome,
-        logsPdf: rootNome + '/Logs/PDF',
-        relatoriosEstoque: rootNome + '/Relatorios/Estoque',
-        notasMes: rootNome + '/Compras/Notas/' + ano + '/' + mes
-      }
-    };
-  } catch (e) {
-    registrarEventoDriveWeb('ERRO_ESTRUTURA_DRIVE', 'Falha ao garantir estrutura no Drive', '', e.message || String(e));
-    return { ok: false, mensagem: 'Erro ao garantir estrutura no Drive: ' + e.message };
-  }
-}
-
-function obterPastaRaizDriveSistemaWeb() {
-  const linkDrive = obterLinkDriveWeb();
-  if (linkDrive) {
-    const byLink = obterPastaDrivePorLinkWeb(linkDrive);
-    if (byLink) return byLink;
-  }
-
-  const nomeDeposito = obterNomeDepositoWebSafe();
-  const pastas = DriveApp.getFoldersByName(nomeDeposito);
-  if (pastas.hasNext()) return pastas.next();
-
-  const root = DriveApp.createFolder(nomeDeposito);
-  registrarEventoDriveWeb('CRIAR_PASTA_RAIZ', 'Pasta raiz criada no Drive', '', nomeDeposito);
-  return root;
 }
 
 function obterPastaDrivePorLinkWeb(linkDrive) {
@@ -518,166 +445,6 @@ function obterOuCriarSubpastaWeb(parent, nome) {
     return iterator.next();
   }
   return parent.createFolder(nome);
-}
-
-function obterPastaDestinoRelatorioEstoqueWeb(rootFolder) {
-  const estrutura = garantirEstruturaDriveSistemaWeb(new Date());
-  if (estrutura && estrutura.ok) {
-    return estrutura.pastas.relatorios.estoque;
-  }
-
-  const pastaRelatorio = obterOuCriarSubpastaPorNomesWeb(rootFolder, ['Relatorio', 'Relatórios', 'Relatorios']);
-  return obterOuCriarSubpastaPorNomesWeb(pastaRelatorio, ['Estoque']);
-}
-
-function obterOuCriarSubpastaComRegistroWeb(parent, nomesPossiveis, caminhoLogico) {
-  const existente = encontrarSubpastaPorNomesWeb(parent, nomesPossiveis);
-  if (existente) return existente;
-
-  const nova = parent.createFolder(nomesPossiveis[0]);
-  registrarEventoDriveWeb('CRIAR_PASTA', 'Pasta criada no Drive', '', caminhoLogico || nomesPossiveis[0]);
-  return nova;
-}
-
-function encontrarSubpastaPorNomesWeb(parent, nomesPossiveis) {
-  for (var i = 0; i < nomesPossiveis.length; i++) {
-    var it = parent.getFoldersByName(nomesPossiveis[i]);
-    if (it.hasNext()) {
-      return it.next();
-    }
-  }
-
-  const normalizados = nomesPossiveis.map(function(nome){ return normalizarNomePastaWeb(nome); });
-  const existentes = parent.getFolders();
-  while (existentes.hasNext()) {
-    var pasta = existentes.next();
-    if (normalizados.indexOf(normalizarNomePastaWeb(pasta.getName())) !== -1) {
-      return pasta;
-    }
-  }
-
-  return null;
-}
-
-function obterOuCriarSubpastaPorNomesWeb(parent, nomesPossiveis) {
-  const encontrada = encontrarSubpastaPorNomesWeb(parent, nomesPossiveis);
-  if (encontrada) return encontrada;
-  return parent.createFolder(nomesPossiveis[0]);
-}
-
-function normalizarNomePastaWeb(nome) {
-  return String(nome || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
-
-function garantirAbaLogWeb() {
-  const ss = SpreadsheetApp.getActive();
-  let sh = ss.getSheetByName('LOG_SISTEMA');
-  if (!sh) {
-    sh = ss.insertSheet('LOG_SISTEMA');
-    sh.getRange(1, 1, 1, 7).setValues([['Data', 'Hora', 'Usuário', 'Ação', 'Detalhes', 'Antes', 'Depois']]);
-  }
-  return sh;
-}
-
-function registrarEventoDriveWeb(acao, detalhes, antes, depois) {
-  try {
-    if (typeof registrarLog === 'function') {
-      registrarLog(acao, detalhes, antes, depois);
-      return;
-    }
-
-    const sh = garantirAbaLogWeb();
-    const now = new Date();
-    const tz = Session.getScriptTimeZone();
-    const user = Session.getActiveUser().getEmail() || 'Desconhecido';
-
-    sh.appendRow([
-      Utilities.formatDate(now, tz, 'yyyy-MM-dd'),
-      Utilities.formatDate(now, tz, 'HH:mm:ss'),
-      user,
-      acao,
-      detalhes,
-      JSON.stringify(antes || ''),
-      JSON.stringify(depois || '')
-    ]);
-  } catch (_) {}
-}
-
-function diagnosticarRegistroDriveWeb() {
-  const estrutura = garantirEstruturaDriveSistemaWeb(new Date());
-  if (!estrutura || !estrutura.ok) {
-    return estrutura || { ok: false, mensagem: 'Falha ao diagnosticar estrutura Drive.' };
-  }
-
-  return {
-    ok: true,
-    mensagem: 'Estrutura de Drive validada.',
-    rootId: estrutura.rootId,
-    caminhos: estrutura.caminhos,
-    ids: {
-      logsPdf: estrutura.pastas.logsPdf.getId(),
-      relatoriosEstoque: estrutura.pastas.relatorios.estoque.getId(),
-      notasMes: estrutura.pastas.notasMes.getId()
-    },
-    urls: {
-      logsPdf: estrutura.pastas.logsPdf.getUrl(),
-      relatoriosEstoque: estrutura.pastas.relatorios.estoque.getUrl(),
-      notasMes: estrutura.pastas.notasMes.getUrl()
-    }
-  };
-}
-
-function gerarLogSistemaPDFWeb() {
-  try {
-    const ss = SpreadsheetApp.getActive();
-    const aba = ss.getSheetByName('LOG_SISTEMA');
-    if (!aba) {
-      return { ok: false, mensagem: 'Aba LOG_SISTEMA não encontrada.' };
-    }
-
-    const estrutura = garantirEstruturaDriveSistemaWeb(new Date());
-    if (!estrutura || !estrutura.ok) {
-      return { ok: false, mensagem: (estrutura && estrutura.mensagem) || 'Estrutura do Drive indisponível.' };
-    }
-
-    const now = new Date();
-    const tz = Session.getScriptTimeZone();
-    const stamp = Utilities.formatDate(now, tz, 'yyyyMMdd_HHmmss');
-    const url = ss.getUrl().replace(/edit$/, '') + 'export?format=pdf&gid=' + aba.getSheetId();
-
-    const token = ScriptApp.getOAuthToken();
-    const blob = UrlFetchApp.fetch(url, {
-      headers: { Authorization: 'Bearer ' + token }
-    }).getBlob().setName('LOG_SISTEMA_' + stamp + '.pdf');
-
-    const file = estrutura.pastas.logsPdf.createFile(blob);
-    registrarEventoDriveWeb('LOG_PDF', 'Exportação de LOG_SISTEMA para PDF', '', file.getName());
-
-    return { ok: true, id: file.getId(), nome: file.getName(), url: file.getUrl(), pasta: estrutura.caminhos.logsPdf };
-  } catch (e) {
-    registrarEventoDriveWeb('ERRO_LOG_PDF', 'Falha ao gerar LOG_SISTEMA PDF', '', e.message || String(e));
-    return { ok: false, mensagem: 'Erro ao gerar LOG_SISTEMA PDF: ' + e.message };
-  }
-}
-
-function obterPastaNotasMesAtualWeb() {
-  const estrutura = garantirEstruturaDriveSistemaWeb(new Date());
-  if (!estrutura || !estrutura.ok) {
-    return { ok: false, mensagem: (estrutura && estrutura.mensagem) || 'Estrutura do Drive indisponível.' };
-  }
-
-  registrarEventoDriveWeb('NOTAS_PASTA_OK', 'Pasta mensal de notas validada', '', estrutura.caminhos.notasMes);
-  return {
-    ok: true,
-    id: estrutura.pastas.notasMes.getId(),
-    nome: estrutura.pastas.notasMes.getName(),
-    url: estrutura.pastas.notasMes.getUrl(),
-    caminho: estrutura.caminhos.notasMes
-  };
 }
 
 function listarComandasAbertasWeb() {
