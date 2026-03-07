@@ -177,6 +177,7 @@ function onOpen() {
           .addItem('🔄 Recarregar Menu', 'recarregarMenu')
           .addItem('💾 Fazer Backup Agora', 'fazerBackupSistema')
           .addItem('📜 Ver Logs', 'abrirAbaLog')
+          .addItem('🧹 Padronizar Todas as Abas', 'padronizarTodasAbasSistema')
           .addItem('📖 Manual do Sistema', 'abrirManualDoSistema')
           .addSeparator()
           .addItem('🔀 Trocar Login', 'trocarLogin')
@@ -293,6 +294,10 @@ function initSistema() {
   // 🔹 PROTEGE PLANILHAS (exceto gerencial será protegido ao login)
   if(typeof aplicarProtecoesPlanilhas === 'function'){
     aplicarProtecoesPlanilhas();
+  }
+
+  if(typeof padronizarTodasAbasSistema === 'function'){
+    padronizarTodasAbasSistema();
   }
   
   SpreadsheetApp.getUi().alert(
@@ -722,6 +727,7 @@ function abrirNovoPainelSistema(){
             ['🔄', 'Recarregar Menu', 'recarregarMenu'],
             ['💾', 'Backup', 'fazerBackupSistema'],
             ['📜', 'Ver Logs', 'abrirAbaLog'],
+            ['🧹', 'Padronizar Abas', 'padronizarTodasAbasSistema'],
             ['📖', 'Manual', 'abrirManualDoSistema'],
             ['🔀', 'Trocar Login', 'trocarLogin'],
             ['🚪', 'Logout', 'fazerLogout'],
@@ -806,38 +812,69 @@ function abrirNovoPainelSistema(){
 // Painel específico de gestão de estoque
 // ---------------------------
 function abrirPainelGestaoEstoque(){
-  // prepara relatório interno (não atualiza aba)
-  const rel = typeof gerarRelatorioEstoqueComValores === 'function' ?
-                gerarRelatorioEstoqueComValores() : null;
+  const rel = typeof gerarRelatorioEstoqueComValores === 'function'
+    ? gerarRelatorioEstoqueComValores()
+    : null;
+
   if(!rel){
-    SpreadsheetApp.getUi().alert('❌ Falha ao gerar relatório de estoque.');
+    SpreadsheetApp.getUi().alert('❌ Falha ao gerar dados da gestão de estoque.');
     return;
   }
 
-  let html = '<div style="font-family:Arial;padding:16px;max-width:380px;">';
-  html += '<h2>📦 Gestão de Estoque</h2>';
-  html += `<p><strong>Valor Total:</strong> R$ ${rel.resumo.totalValorEstoque.toFixed(2)}</p>`;
-  html += `<p><strong>Lucro Potencial:</strong> R$ ${rel.resumo.lucroEstoque.toFixed(2)}</p>`;
-  html += `<p><strong>Margem Média:</strong> ${rel.resumo.margemMedia}%</p>`;
+  const analise = (typeof analisarRentabilidadeEstoque === 'function')
+    ? analisarRentabilidadeEstoque()
+    : { maisRentaveis: [], estoqueCritico: [], altaRotacao: [], quaseNenhumavenda: [] };
 
-  const crit = rel.itens.filter(i=>i.status && i.status.includes('Crítico'));
-  if(crit.length){
-    html += '<h4>Produtos Críticos:</h4><ul>';
-    crit.forEach(i=> html += `<li>${i.produto} (${i.qtdAtual})</li>`);
-    html += '</ul>';
-  }
+  const ranking = (typeof gerarRankingProdutos === 'function')
+    ? gerarRankingProdutos()
+    : { top: [], flop: [] };
 
-  const driveUrl = getConfig('DRIVE_URL');
-  if(driveUrl){
-    html += `<p><a href="${driveUrl}" target="_blank">🔗 Abrir Drive</a></p>`;
-  }
-  html += '</div>';
+  const topVende = ranking.top.slice(0, 5)
+    .map((i,idx)=>`${idx+1}. ${i.produto} (${i.qtd} un)`)
+    .join('<br>') || 'Sem dados de vendas';
 
-  const output = HtmlService
-    .createHtmlOutput(html)
-    .setTitle('Painel Gestão Estoque')
-    .setWidth(400);
-  SpreadsheetApp.getUi().showSidebar(output);
+  const menosSai = ranking.flop.slice(0, 5)
+    .map((i,idx)=>`${idx+1}. ${i.produto} (${i.qtd} un)`)
+    .join('<br>') || 'Sem dados de vendas';
+
+  const maisLucrativos = analise.maisRentaveis.slice(0, 5)
+    .map((i,idx)=>`${idx+1}. ${i.produto} (R$ ${Number(i.lucroVendido || i.lucroEstoque || 0).toFixed(2)})`)
+    .join('<br>') || 'Sem dados de lucratividade';
+
+  const criticos = analise.estoqueCritico.slice(0, 10)
+    .map((i,idx)=>`${idx+1}. ${i.produto} (${i.qtdAtual || i.quantidade || 0} un)`)
+    .join('<br>') || 'Nenhum produto em nível crítico';
+
+  abrirPopup('📦 Painel de Gestão de Estoque', `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:10px">
+        <strong>💰 Valor total em estoque:</strong> R$ ${Number(rel.resumo.totalValorEstoque || 0).toFixed(2)}<br>
+        <strong>💸 Custo total:</strong> R$ ${Number(rel.resumo.totalCustoEstoque || 0).toFixed(2)}<br>
+        <strong>💹 Lucro potencial:</strong> R$ ${Number(rel.resumo.lucroEstoque || 0).toFixed(2)}<br>
+        <strong>📈 Margem média:</strong> ${Number(rel.resumo.margemMedia || 0).toFixed(2)}%
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">
+        <strong>🏆 Produtos que mais vendem</strong><br>${topVende}
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">
+        <strong>💰 Produtos mais lucrativos</strong><br>${maisLucrativos}
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">
+        <strong>🐢 Produtos que menos saem</strong><br>${menosSai}
+      </div>
+
+      <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:10px">
+        <strong>🚨 Estoque crítico</strong><br>${criticos}
+      </div>
+
+      <button class="btn-primary" onclick="google.script.run.gerarRelatorioValoresEstoque();google.script.host.close();">
+        📊 Gerar aba de Relatório Valores
+      </button>
+    </div>
+  `, 540, 670);
 }
 
 function abrirEstoqueOpcoes(){
