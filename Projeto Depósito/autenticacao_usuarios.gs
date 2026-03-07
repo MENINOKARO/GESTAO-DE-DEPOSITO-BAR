@@ -791,38 +791,238 @@ function popupListarUsuarios(){
 
   let rows = '';
   dados.forEach(r=>{
-    const id = r[0];
-    const nome = r[1];
-    const email = r[2];
-    const perfil = r[4];
-    const ativo = r[5];
+    const id = r[0] || '';
+    const nome = r[1] || '';
+    const email = r[2] || '-';
+    const perfil = r[4] || 'OPERACIONAL';
+    const ativo = String(r[5] || 'SIM').toUpperCase();
+    const badgeClass = ativo === 'SIM' ? 'badge-on' : 'badge-off';
+
     rows += `
       <tr>
-        <td>${id}</td>
-        <td>${nome}</td>
-        <td>${email}</td>
-        <td>${perfil}</td>
-        <td>${ativo}</td>
+        <td class="mono">${id}</td>
         <td>
-          <button onclick="google.script.run.editarUsuario('${id}')">✏️</button>
-          <button onclick="google.script.run.deletarUsuario('${id}')">🗑️</button>
+          <div class="nome">${nome}</div>
+          <div class="email-mobile">${email}</div>
+        </td>
+        <td class="hide-mobile">${email}</td>
+        <td><span class="badge-perfil">${perfil}</span></td>
+        <td><span class="badge-status ${badgeClass}">${ativo}</span></td>
+        <td class="acoes">
+          <button class="btn-icon btn-edit" title="Editar usuário" onclick="google.script.run.editarUsuario('${id}')">✏️</button>
+          <button class="btn-icon btn-delete" title="Excluir usuário" onclick="confirmarExclusao('${id}','${nome.replace(/'/g, "\\'")}')">🗑️</button>
         </td>
       </tr>`;
   });
 
   const html = `
-    <html><body style="font-family:Arial">
-      <h3>👥 Lista de Usuários</h3>
-      <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:12px">
-        <tr><th>ID</th><th>Nome</th><th>Email</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr>
-        ${rows || '<tr><td colspan="6" style="text-align:center;color:#64748b">Nenhum usuário encontrado.</td></tr>'}
-      </table>
-      <br>
-      <button onclick="google.script.run.popupCriarUsuario()">➕ Novo Usuário</button>
-      <button onclick="google.script.host.close()">❌ Fechar</button>
-    </body></html>`;
+  <html>
+    <head>
+      <style>
+        :root {
+          --bg: #f8fafc;
+          --card: #ffffff;
+          --primary: #1d4ed8;
+          --primary-dark: #1e40af;
+          --border: #e2e8f0;
+          --text: #0f172a;
+          --muted: #64748b;
+          --success-bg: #dcfce7;
+          --success-text: #166534;
+          --danger-bg: #fee2e2;
+          --danger-text: #991b1b;
+        }
 
-  const ui = HtmlService.createHtmlOutput(html).setWidth(650).setHeight(500);
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          padding: 18px;
+          font-family: Arial, sans-serif;
+          color: var(--text);
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .wrap {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+          overflow: hidden;
+        }
+
+        .header {
+          padding: 16px 18px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .title {
+          margin: 0;
+          font-size: 18px;
+        }
+
+        .subtitle {
+          margin: 4px 0 0;
+          color: var(--muted);
+          font-size: 12px;
+        }
+
+        .toolbar {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .search {
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 8px 10px;
+          min-width: 190px;
+          font-size: 12px;
+        }
+
+        .btn {
+          border: none;
+          border-radius: 10px;
+          padding: 9px 12px;
+          font-weight: bold;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-neutral { background: #e2e8f0; color: #0f172a; }
+        .btn-neutral:hover { background: #cbd5e1; }
+
+        .table-wrap { padding: 12px 14px 14px; }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+
+        th, td {
+          border-bottom: 1px solid var(--border);
+          padding: 10px 8px;
+          text-align: left;
+          vertical-align: middle;
+        }
+
+        th {
+          color: var(--muted);
+          font-weight: 700;
+          background: #f8fafc;
+        }
+
+        .mono { font-family: monospace; color: #334155; }
+        .nome { font-weight: 700; color: #0f172a; }
+        .email-mobile { display: none; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        .badge-perfil,
+        .badge-status {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .badge-perfil { background: #e0e7ff; color: #3730a3; }
+        .badge-on { background: var(--success-bg); color: var(--success-text); }
+        .badge-off { background: var(--danger-bg); color: var(--danger-text); }
+
+        .acoes { white-space: nowrap; }
+        .btn-icon {
+          border: 1px solid var(--border);
+          background: #fff;
+          border-radius: 8px;
+          padding: 6px 8px;
+          margin-right: 4px;
+          cursor: pointer;
+        }
+        .btn-edit:hover { background: #e0e7ff; }
+        .btn-delete:hover { background: #fee2e2; }
+
+        .empty {
+          text-align: center;
+          color: var(--muted);
+          padding: 24px 10px;
+        }
+
+        @media (max-width: 720px) {
+          .hide-mobile { display: none; }
+          .email-mobile { display: block; }
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="wrap">
+        <div class="header">
+          <div>
+            <h3 class="title">👥 Gerenciar Usuários</h3>
+            <p class="subtitle">Total de registros: <strong id="totalUsuarios">${dados.length}</strong></p>
+          </div>
+          <div class="toolbar">
+            <input id="searchInput" class="search" type="text" placeholder="Buscar por nome, e-mail ou perfil" oninput="filtrar()" />
+            <button class="btn btn-primary" onclick="google.script.run.popupCriarUsuario()">➕ Novo Usuário</button>
+            <button class="btn btn-neutral" onclick="google.script.host.close()">Fechar</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="tabelaUsuarios">
+            <thead>
+              <tr>
+                <th style="width:100px">ID</th>
+                <th>Nome</th>
+                <th class="hide-mobile">E-mail</th>
+                <th style="width:130px">Perfil</th>
+                <th style="width:90px">Ativo</th>
+                <th style="width:90px">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="6" class="empty">Nenhum usuário encontrado.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <script>
+        function filtrar(){
+          const termo = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+          const linhas = Array.from(document.querySelectorAll('#tabelaUsuarios tbody tr'));
+          let visiveis = 0;
+
+          linhas.forEach(tr => {
+            const txt = (tr.innerText || '').toLowerCase();
+            const show = !termo || txt.includes(termo);
+            tr.style.display = show ? '' : 'none';
+            if(show) visiveis++;
+          });
+
+          document.getElementById('totalUsuarios').innerText = visiveis;
+        }
+
+        function confirmarExclusao(id, nome){
+          const ok = confirm('Deseja realmente excluir o usuário "' + nome + '"?');
+          if(!ok) return;
+          google.script.run.deletarUsuario(id);
+        }
+      </script>
+    </body>
+  </html>`;
+
+  const ui = HtmlService.createHtmlOutput(html).setWidth(900).setHeight(560);
   SpreadsheetApp.getUi().showModalDialog(ui,'👥 Gerenciar Usuários');
 }
 

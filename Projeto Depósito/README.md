@@ -3460,125 +3460,193 @@ function popupCliente(){
     .map(c => c.toUpperCase());
 
   abrirPopup('👤➕ Novo Cliente', `
-    <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="cli-wrap">
+      <div class="cli-card">
+        <div class="cli-header">
+          <h3>👤 Cadastro de Cliente</h3>
+          <p>Preencha as informações relevantes para atendimento, delivery e fiado.</p>
+        </div>
 
-      <div>
-        <label>👤 Nome do Cliente</label>
-        <input id="nome" placeholder="Digite o nome completo">
+        <div class="cli-grid">
+          <div class="field field-2">
+            <label>👤 Nome do Cliente <span>*</span></label>
+            <input id="nome" placeholder="Ex.: João da Silva" maxlength="80">
+          </div>
+
+          <div class="field">
+            <label>📞 Telefone (WhatsApp) <span>*</span></label>
+            <input id="tel" placeholder="(11) 91234-5678" inputmode="numeric" maxlength="15">
+            <small>Formato brasileiro (DDD + número).</small>
+          </div>
+
+          <div class="field">
+            <label>📍 Referência</label>
+            <input id="ref" placeholder="Ex.: Próximo ao mercado / portão azul" maxlength="120">
+          </div>
+
+          <div class="field field-2">
+            <label>🏠 Endereço</label>
+            <input id="end" placeholder="Rua, número, bairro, complemento" maxlength="140">
+          </div>
+
+          <div class="field field-2">
+            <label>📝 Observações</label>
+            <textarea id="obs" rows="3" placeholder="Ex.: Preferência de contato, horário de entrega, restrições..."></textarea>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <strong>Informações relevantes:</strong>
+          <ul>
+            <li>Telefone válido acelera contato no delivery.</li>
+            <li>Endereço + referência reduz erro de entrega.</li>
+            <li>Observações ajudam no histórico do cliente.</li>
+          </ul>
+        </div>
+
+        <div class="actions">
+          <button id="btnSalvar" class="btn-save" onclick="salvar(this)">💾 Salvar Cliente</button>
+          <button class="btn-cancel" onclick="cancelar()">Cancelar</button>
+        </div>
       </div>
-
-      <div>
-        <label>📞 Telefone</label>
-        <input id="tel" placeholder="Digite apenas números">
-      </div>
-
-      <div>
-        <label>🏠 Endereço</label>
-        <input id="end" placeholder="Rua, número, bairro">
-      </div>
-
-      <div>
-        <label>📍 Referência</label>
-        <input id="ref" placeholder="Ponto de referência (opcional)">
-      </div>
-
-      <hr>
-
-      <button id="btnSalvar" class="btn-success" onclick="salvar(this)">
-        💾 Salvar Cliente
-      </button>
-
-      <button class="btn-secondary" onclick="cancelar()">
-        ❌ Cancelar
-      </button>
     </div>
 
-    <script>
+    <style>
+      .cli-wrap { font-family: Arial, sans-serif; }
+      .cli-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgba(15,23,42,.08);
+        padding: 14px;
+      }
+      .cli-header h3 { margin: 0; font-size: 18px; color: #0f172a; }
+      .cli-header p { margin: 6px 0 0; color: #64748b; font-size: 12px; }
 
+      .cli-grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .field { display: flex; flex-direction: column; gap: 5px; }
+      .field-2 { grid-column: span 2; }
+      label { font-weight: 700; font-size: 12px; color: #0f172a; }
+      label span { color: #dc2626; }
+      input, textarea {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      input:focus, textarea:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+      }
+      small { color: #64748b; font-size: 11px; }
+
+      .info-box {
+        margin-top: 12px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 12px;
+        color: #1e3a8a;
+      }
+      .info-box ul { margin: 6px 0 0 18px; padding: 0; }
+
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .btn-save, .btn-cancel {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn-save { background: #16a34a; color: #fff; }
+      .btn-save:hover { background: #15803d; }
+      .btn-cancel { background: #e2e8f0; color: #0f172a; }
+      .btn-cancel:hover { background: #cbd5e1; }
+    </style>
+
+    <script>
       const nome = document.getElementById('nome');
       const tel  = document.getElementById('tel');
       const end  = document.getElementById('end');
       const ref  = document.getElementById('ref');
+      const obs  = document.getElementById('obs');
 
-      // 🎯 foco automático
       nome.focus();
 
-      // 📞 máscara progressiva
+      // 📞 máscara telefone pt-BR: (11) 91234-5678
       tel.addEventListener('input', () => {
-
-        let n = tel.value.replace(/\\D/g,'').slice(0,11);
-        let f = '';
-
-        if(n.length >= 1){
-          f = '(' + n.slice(0,2);
+        let n = tel.value.replace(/\D/g,'').slice(0,11);
+        if (n.length <= 10) {
+          n = n.replace(/(\d{2})(\d)/, '($1) $2');
+          n = n.replace(/(\d{4})(\d)/, '$1-$2');
+        } else {
+          n = n.replace(/(\d{2})(\d)/, '($1) $2');
+          n = n.replace(/(\d{5})(\d)/, '$1-$2');
         }
-        if(n.length >= 3){
-          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3);
-        }
-        if(n.length >= 4){
-          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3) + '.' + n.slice(3,7);
-        }
-        if(n.length >= 8){
-          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3) + '.' + n.slice(3,7) + '-' + n.slice(7,11);
-        }
-
-        tel.value = f;
+        tel.value = n;
       });
 
-      // ✅ cancelar correto
       function cancelar(){
         google.script.host.close();
         google.script.run.voltarTelaCliente();
       }
 
       function salvar(btn){
-
-        if(!nome.value){
+        if(!nome.value.trim()){
           alert('Informe o nome do cliente 👤');
           return;
+        }
+
+        if(tel.value.replace(/\D/g,'').length < 10){
+          const okTel = confirm('Telefone parece incompleto. Deseja salvar mesmo assim?');
+          if(!okTel) return;
         }
 
         const nomeUpper = nome.value.trim().toUpperCase();
         const existe = ${JSON.stringify(clientes)}.includes(nomeUpper);
 
         if(existe){
-          const ok = confirm(
-            '⚠️ Cliente já cadastrado com este nome.\\n\\nDeseja salvar mesmo assim?'
-          );
+          const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
           if(!ok) return;
         }
 
-        // 🔒 bloqueia clique duplo
         btn.disabled = true;
         btn.innerText = '⏳ Salvando...';
 
         google.script.run
           .withFailureHandler(err => {
-
             alert(err.message || err);
-
             btn.disabled = false;
             btn.innerText = '💾 Salvar Cliente';
-
           })
           .withSuccessHandler(() => {
-
             google.script.host.close();
             google.script.run.voltarTelaCliente();
-
           })
           .salvarCliente(
             nome.value.trim(),
             tel.value,
             end.value,
-            ref.value
+            ref.value,
+            obs.value
           );
       }
-
     </script>
-  `, 520, 600);
+  `, 640, 700);
 }
-function salvarCliente(nome, tel, end, ref){
+function salvarCliente(nome, tel, end, ref, obs){
 
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('CLIENTES');
@@ -3593,7 +3661,7 @@ function salvarCliente(nome, tel, end, ref){
     tel,
     end,
     ref,
-    ''
+    obs ? obs.toString().trim() : ''
   ]);
 
   // ============================
@@ -12267,4 +12335,46 @@ function enviarRelatorioEmail(destinatario) {
  *
  * A tela Web usa google.script.run.executarApi(nomeFuncao, args)
  * para reaproveitar as funções já existentes deste projeto.
+ */
+
+/*
+ * ===============================================
+ * ✅ CHECKLIST RÁPIDO DE PUBLICAÇÃO (ANTI "is not defined")
+ * ===============================================
+ * Objetivo: garantir que TODAS as funções estejam na versão publicada.
+ *
+ * 1) Salvar todos os arquivos no editor Apps Script
+ *    - Verifique se aparecem no projeto: gestao_estoque_valores.gs,
+ *      integracao_estoque_valores.gs, WebApiPainel.gs e WebApp.gs.
+ *
+ * 2) Validar funções críticas antes do deploy (Executar > função)
+ *    - abrirPainelGestaoEstoque
+ *    - abrirPainelEstoqueValores
+ *    - abrirAnalisRentabilidade
+ *    - exibirValorCategoria
+ *    - exibirValorTotalEstoque
+ *
+ * 3) Criar nova versão ANTES de implantar
+ *    - Implantar > Gerenciar implantações > Editar > Versão: "Nova versão"
+ *    - Nunca reutilizar versão antiga quando houver mudança de .gs.
+ *
+ * 4) Publicar Web App atualizado
+ *    - Executar como: você
+ *    - Acesso: usuários autorizados
+ *    - Copiar a URL da implantação recém-atualizada.
+ *
+ * 5) Simulação pós-publicação (obrigatória)
+ *    - Acesse o painel web e clique no grupo:
+ *      🎯 Painel Gestão | 📊 Relatório Valores | 📈 Análise de Rentabilidade |
+ *      🏷️ Valor por Categoria | 💹 Valor Total Estoque
+ *    - Critério de aceite: nenhum erro "is not defined".
+ *
+ * 6) Se ainda ocorrer "is not defined"
+ *    - Confirme se a implantação ativa está apontando para a versão nova.
+ *    - Faça "hard refresh" do navegador (Ctrl+Shift+R).
+ *    - Reabra o editor, salve novamente os .gs e publique nova versão.
+ *
+ * 7) Evidência mínima de validação
+ *    - Captura do histórico de Execuções sem erro nas funções acima.
+ *    - Registro de data/hora e versão implantada.
  */
