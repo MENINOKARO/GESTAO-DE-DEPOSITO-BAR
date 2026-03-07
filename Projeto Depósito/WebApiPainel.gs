@@ -337,7 +337,108 @@ function gerarRelatorioEstoqueComValoresWeb() {
   const estoque = obterDadosEstoque();
   const produtos = obterDadosProdutos();
   const vendas = obterDadosVendas();
-  return calcularValoresEstoque(estoque, produtos, vendas);
+  const relatorio = calcularValoresEstoque(estoque, produtos, vendas);
+
+  const shRelatorio = criarAbaRelatorioEstoque();
+  preencherRelatorioEstoque(shRelatorio, relatorio);
+
+  const pdf = exportarRelatorioEstoquePdfDriveWeb(shRelatorio);
+
+  return {
+    relatorio: relatorio,
+    pdf: pdf
+  };
+}
+
+function exportarRelatorioEstoquePdfDriveWeb(sheet) {
+  try {
+    const linkDrive = obterLinkDriveWeb();
+    if (!linkDrive) {
+      return {
+        ok: false,
+        mensagem: 'Link do Drive não configurado na aba CONFIG.'
+      };
+    }
+
+    const rootFolder = obterPastaDrivePorLinkWeb(linkDrive);
+    if (!rootFolder) {
+      return {
+        ok: false,
+        mensagem: 'Não foi possível acessar a pasta do Drive configurada.'
+      };
+    }
+
+    const folderRelatorio = obterOuCriarSubpastaWeb(rootFolder, 'Relatorio Estoque');
+    const ss = SpreadsheetApp.getActive();
+    const timezone = Session.getScriptTimeZone();
+    const stamp = Utilities.formatDate(new Date(), timezone, 'yyyyMMdd_HHmmss');
+    const nomeArquivo = 'RELATORIO_ESTOQUE_VALORES_' + stamp + '.pdf';
+
+    const exportUrl = 'https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export' +
+      '?format=pdf' +
+      '&gid=' + sheet.getSheetId() +
+      '&size=A4' +
+      '&portrait=false' +
+      '&fitw=true' +
+      '&sheetnames=false' +
+      '&printtitle=false' +
+      '&pagenumbers=true' +
+      '&gridlines=false' +
+      '&fzr=true';
+
+    const token = ScriptApp.getOAuthToken();
+    const response = UrlFetchApp.fetch(exportUrl, {
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+
+    const statusCode = response.getResponseCode();
+    if (statusCode !== 200) {
+      return {
+        ok: false,
+        mensagem: 'Falha ao exportar PDF do relatório. Código: ' + statusCode
+      };
+    }
+
+    const blob = response.getBlob().setName(nomeArquivo);
+    const file = folderRelatorio.createFile(blob);
+
+    return {
+      ok: true,
+      id: file.getId(),
+      nome: file.getName(),
+      url: file.getUrl(),
+      pasta: folderRelatorio.getName(),
+      mensagem: 'PDF do relatório salvo no Drive com sucesso.'
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      mensagem: 'Erro ao salvar PDF no Drive: ' + e.message
+    };
+  }
+}
+
+function obterPastaDrivePorLinkWeb(linkDrive) {
+  const link = String(linkDrive || '').trim();
+  if (!link) return null;
+
+  const idMatch = link.match(/[-\w]{25,}/);
+  if (!idMatch) return null;
+
+  try {
+    return DriveApp.getFolderById(idMatch[0]);
+  } catch (_) {
+    return null;
+  }
+}
+
+function obterOuCriarSubpastaWeb(parent, nome) {
+  const iterator = parent.getFoldersByName(nome);
+  if (iterator.hasNext()) {
+    return iterator.next();
+  }
+  return parent.createFolder(nome);
 }
 
 function listarComandasAbertasWeb() {
