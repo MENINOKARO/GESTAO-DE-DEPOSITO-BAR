@@ -12,9 +12,10 @@
  * Versão: 1.0
  * =====================================================
  */
-
-🎯 FUNÇÃO PRINCIPAL
-Gera relatório completo de estoque com valores totais e após vendas
+ /**
+ * 🎯 FUNÇÃO PRINCIPAL
+ * Gera relatório completo de estoque com valores totais e após vendas
+ */
 
  function gerarRelatorioEstoqueComValores() {
    const ss = SpreadsheetApp.getActive();
@@ -50,8 +51,9 @@ Gera relatório completo de estoque com valores totais e após vendas
    }
  }
  
-
-📦 Obtém dados da aba ESTOQUE
+ /**
+ * 📦 Obtém dados da aba ESTOQUE
+ */
 
 function obterDadosEstoque() {
    const ss = SpreadsheetApp.getActive();
@@ -68,8 +70,9 @@ function obterDadosEstoque() {
    );
  }
  
-
-🏷️ Obtém dados da aba PRODUTOS com preços e custos
+ /**
+ *🏷️ Obtém dados da aba PRODUTOS com preços e custos
+ */
 
 function obterDadosProdutos() {
   const ss = SpreadsheetApp.getActive();
