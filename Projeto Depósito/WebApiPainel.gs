@@ -109,6 +109,9 @@ function obterResumoWeb() {
           { label: 'Resumo do Sistema', functionName: 'obterResumoSistemaWeb', args: [] },
           { label: 'Carregar Painel Inteligente', functionName: 'obterPainelInteligenteWeb', args: [] },
           { label: 'Abrir Drive', functionName: 'abrirDriveWeb', args: [] },
+          { label: 'Diagnóstico de Registro no Drive', functionName: 'diagnosticarRegistroDriveWeb', args: [] },
+          { label: 'Gerar LOG_SISTEMA em PDF', functionName: 'gerarLogSistemaPDFWeb', args: [] },
+          { label: 'Ver Pasta Mensal de Notas', functionName: 'obterPastaNotasMesAtualWeb', args: [] },
           { label: 'Gerar Relatório Estoque (sem popup)', functionName: 'gerarRelatorioEstoqueComValoresWeb', args: [] }
         ]
       },
@@ -174,7 +177,10 @@ function catalogoFuncoesReaisWeb() {
     { nome: 'listarComandasAbertasWeb', modulo: 'WebApiPainel.gs', finalidade: 'Lista comandas abertas.', webCompativel: true },
     { nome: 'criarNovaComandaWeb', modulo: 'WebApiPainel.gs', finalidade: 'Cria comanda na aba COMANDAS.', webCompativel: true },
     { nome: 'obterResumoDeliveryWeb', modulo: 'WebApiPainel.gs', finalidade: 'Resumo de status do delivery.', webCompativel: true },
-    { nome: 'abrirDriveWeb', modulo: 'WebApiPainel.gs', finalidade: 'Retorna URL do Drive configurado.', webCompativel: true }
+    { nome: 'abrirDriveWeb', modulo: 'WebApiPainel.gs', finalidade: 'Retorna URL do Drive configurado.', webCompativel: true },
+    { nome: 'diagnosticarRegistroDriveWeb', modulo: 'WebApiPainel.gs', finalidade: 'Valida estrutura de Logs/Relatorios/Notas no Drive.', webCompativel: true },
+    { nome: 'gerarLogSistemaPDFWeb', modulo: 'WebApiPainel.gs', finalidade: 'Exporta LOG_SISTEMA para Logs/PDF no Drive.', webCompativel: true },
+    { nome: 'obterPastaNotasMesAtualWeb', modulo: 'WebApiPainel.gs', finalidade: 'Retorna pasta mensal de notas em Compras/Notas.', webCompativel: true }
   ];
 }
 
