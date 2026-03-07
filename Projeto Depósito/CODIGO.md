@@ -9425,6 +9425,18 @@ function uploadNotaFiscal(idCompra, blob){
     file.getName()
   );
 
+  registrarInformacaoImportanteNoDrive(
+    'COMPRA',
+    `Upload de nota fiscal ${idCompra}`,
+    [
+      `Compra: ${idCompra}`,
+      `Arquivo: ${file.getName()}`,
+      `File ID: ${file.getId()}`,
+      `URL: ${file.getUrl()}`
+    ].join('\n'),
+    { subcategoria: 'Notas' }
+  );
+
   return file.getId();
 }
 function gerarLinkUploadNF(idCompra){
@@ -9555,6 +9567,85 @@ function obterOuCriarPastaPorNome(pastaPai, nome, acaoLog, caminho){
   );
 
   return nova;
+}
+function obterPastaDestinoRegistroDrive(tipo, subcategoria, dataRef){
+  const estrutura = garantirEstruturaDriveSistema(dataRef);
+
+  if(!estrutura || !estrutura.rootId){
+    throw new Error('Estrutura raiz do Drive não encontrada.');
+  }
+
+  const root = DriveApp.getFolderById(estrutura.rootId);
+  const tipoNormalizado = String(tipo || '').toUpperCase();
+
+  if(tipoNormalizado === 'BACKUP'){
+    const backup = obterOuCriarPastaPorNome(root, 'Backup', 'CRIAR_PASTA', `${getNomeDeposito()}/Backup`);
+    const registros = obterOuCriarPastaPorNome(backup, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Backup/Registros`);
+    return subcategoria
+      ? obterOuCriarPastaPorNome(registros, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Backup/Registros/${subcategoria}`)
+      : registros;
+  }
+
+  if(tipoNormalizado === 'COMPRA'){
+    const compras = obterOuCriarPastaPorNome(root, 'Compras', 'CRIAR_PASTA', `${getNomeDeposito()}/Compras`);
+    const registros = obterOuCriarPastaPorNome(compras, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Compras/Registros`);
+    return subcategoria
+      ? obterOuCriarPastaPorNome(registros, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Compras/Registros/${subcategoria}`)
+      : registros;
+  }
+
+  if(tipoNormalizado === 'RELATORIO' || tipoNormalizado === 'RELATÓRIO'){
+    const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios`);
+    const registros = obterOuCriarPastaPorNome(relatorios, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros`);
+    return subcategoria
+      ? obterOuCriarPastaPorNome(registros, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros/${subcategoria}`)
+      : registros;
+  }
+
+  const logs = obterOuCriarPastaPorNome(root, 'Logs', 'CRIAR_PASTA', `${getNomeDeposito()}/Logs`);
+  const eventos = obterOuCriarPastaPorNome(logs, 'Eventos', 'CRIAR_PASTA', `${getNomeDeposito()}/Logs/Eventos`);
+  return subcategoria
+    ? obterOuCriarPastaPorNome(eventos, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Logs/Eventos/${subcategoria}`)
+    : eventos;
+}
+function registrarInformacaoImportanteNoDrive(tipo, titulo, conteudo, opcoes){
+  try {
+    const cfg = opcoes || {};
+    const data = cfg.dataRef || new Date();
+    const dataFmt = Utilities.formatDate(data, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const horaFmt = Utilities.formatDate(data, Session.getScriptTimeZone(), 'HH-mm-ss');
+    const nomeSanitizado = String(titulo || 'registro').replace(/[\\/:*?"<>|]/g, '-').substring(0, 80);
+    const pasta = obterPastaDestinoRegistroDrive(tipo, cfg.subcategoria, data);
+    const cabecalho = [
+      `Tipo: ${String(tipo || 'GERAL').toUpperCase()}`,
+      `Título: ${titulo || 'Registro sem título'}`,
+      `Data: ${dataFmt} ${horaFmt.replace(/-/g, ':')}`,
+      `Usuário: ${Session.getActiveUser().getEmail() || 'Desconhecido'}`,
+      '--------------------------------------------------'
+    ].join('\n');
+
+    const arquivo = pasta.createFile(
+      `${dataFmt}_${horaFmt}_${nomeSanitizado}.txt`,
+      `${cabecalho}\n${String(conteudo || '').trim()}`,
+      MimeType.PLAIN_TEXT
+    );
+
+    registrarLog(
+      'REGISTRO_IMPORTANTE_DRIVE',
+      `Registro ${String(tipo || 'GERAL').toUpperCase()} salvo no Drive`,
+      '',
+      arquivo.getUrl()
+    );
+
+    return {
+      id: arquivo.getId(),
+      nome: arquivo.getName(),
+      url: arquivo.getUrl()
+    };
+  } catch (e) {
+    console.warn('Falha ao registrar informação importante no Drive:', e.message || e);
+    return null;
+  }
 }
 function obterPastaBackupSistema(){
 
@@ -9748,6 +9839,17 @@ function fazerBackupSistema() {
     `Backup realizado: ${nomeDiario}`,
     '',
     pasta.getName()
+  );
+
+  registrarInformacaoImportanteNoDrive(
+    'BACKUP',
+    `Execução de backup ${nomeDiario}`,
+    [
+      `Arquivo diário: ${nomeDiario}`,
+      'Arquivo fixo atualizado: backup_atual',
+      `Pasta de destino: ${pasta.getName()}`,
+      `Data/Hora: ${new Date().toLocaleString('pt-BR')}`
+    ].join('\n')
   );
 
   SpreadsheetApp.getUi().alert('✅ Backup realizado com sucesso!\\n\\n📁 Pasta: ' + pasta.getName());
@@ -12134,6 +12236,12 @@ function exportarAnaliseEstoqueCSV() {
 }
 function gerarRelatórioExecutivo() {
   try {
+    const registroRelatorio = registrarInformacaoImportanteNoDrive(
+      'RELATORIO',
+      'Relatório executivo de estoque',
+      `Relatório executivo solicitado em ${new Date().toLocaleString('pt-BR')}`,
+      { subcategoria: 'Estoque' }
+    );
     const relatorio = gerarRelatorioEstoqueComValores();
     const analise = analisarRentabilidadeEstoque();
     
@@ -12168,6 +12276,11 @@ function gerarRelatórioExecutivo() {
       ).join('\n');
     
     console.log(texto);
+
+    if(registroRelatorio && registroRelatorio.url){
+      console.log('Relatório executivo registrado no Drive:', registroRelatorio.url);
+    }
+
     SpreadsheetApp.getUi().alert(texto);
     
   } catch (e) {
