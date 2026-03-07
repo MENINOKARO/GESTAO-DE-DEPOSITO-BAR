@@ -699,7 +699,7 @@ function abrirNovoPainelSistema(){
           estilo: 'info',
           acoes: [
             ['🎯', 'Painel Gestão', 'abrirPainelGestaoEstoque'],
-            ['📊', 'Resumo de Valores em Popup', 'popupResumoValoresEstoque'],
+            ['📊', 'Gerar Relatório Valores', 'gerarRelatorioValoresEstoque'],
             ['📈', 'Análise de Rentabilidade', 'abrirAnalisRentabilidade'],
             ['🏷️', 'Valor por Categoria', 'exibirValorCategoria'],
             ['💹', 'Valor Total Estoque', 'exibirValorTotalEstoque']
@@ -907,7 +907,7 @@ function abrirEstoqueOpcoes(){
       <div class="card">
         <div class="card-title">💰 ESTOQUE FINANCEIRO</div>
         <button class="btn" onclick="run('painelGestao')">🎯 Painel Gestão</button>
-        <button class="btn" onclick="run('relatorioValores')">📊 Resumo de Valores (Popup)</button>
+        <button class="btn" onclick="run('relatorioValores')">📊 Gerar Relatório Valores</button>
         <button class="btn" onclick="run('rentabilidade')">📈 Análise de Rentabilidade</button>
         <button class="btn" onclick="run('categoria')">🏷️ Valor por Categoria</button>
         <button class="btn" onclick="run('total')">💹 Valor Total Estoque</button>
@@ -959,7 +959,7 @@ function executarEstoque(tipo){
       break;
 
     case 'relatorioValores':
-      popupResumoValoresEstoque();
+      gerarRelatorioValoresEstoque();
       break;
 
     case 'rentabilidade':
@@ -11894,7 +11894,7 @@ function gerarPainelFinanceiroMesAtual(){
     Utilities.formatDate(fim, Session.getScriptTimeZone(), 'yyyy-MM-dd')
   );
 }
-function gerarRelatorioFinanceiroCompleto(exibirAlert = true) {
+function gerarRelatorioFinanceiroCompleto() {
   const ss = SpreadsheetApp.getActive();
   const caixa = ss.getSheetByName('CAIXA');
   const vendas = ss.getSheetByName('VENDAS');
@@ -11983,9 +11983,9 @@ function gerarRelatorioFinanceiroCompleto(exibirAlert = true) {
   );
 
   ss.setActiveSheet(sh);
-  if(exibirAlert){ SpreadsheetApp.getUi().alert('✅ Relatório financeiro completo gerado!'); }
+  SpreadsheetApp.getUi().alert('✅ Relatório financeiro completo gerado!');
 }
-function gerarRelatorioCompras(exibirAlert = true) {
+function gerarRelatorioCompras() {
   const ss = SpreadsheetApp.getActive();
   const compras = ss.getSheetByName('COMPRAS');
   if(!compras){
@@ -12012,7 +12012,7 @@ function gerarRelatorioCompras(exibirAlert = true) {
   itens.forEach(l => {
     const qtd = Number(l[2]) || 0;
     const valor = Number(l[3]) || 0;
-    const total = valor; // coluna Valor já representa o subtotal da linha
+    const total = qtd * valor;
     totalGeral += total;
 
     rows.push([
@@ -12058,9 +12058,9 @@ function gerarRelatorioCompras(exibirAlert = true) {
   );
 
   ss.setActiveSheet(sh);
-  if(exibirAlert){ SpreadsheetApp.getUi().alert('✅ Relatório de compras gerado!'); }
+  SpreadsheetApp.getUi().alert('✅ Relatório de compras gerado!');
 }
-function gerarRelatorioLogsSistema(exibirAlert = true) {
+function gerarRelatorioLogsSistema() {
   const ss = SpreadsheetApp.getActive();
   const logs = ss.getSheetByName('LOG_SISTEMA');
   if(!logs){
@@ -12134,12 +12134,11 @@ function gerarRelatorioLogsSistema(exibirAlert = true) {
   );
 
   ss.setActiveSheet(sh);
-  if(exibirAlert){ SpreadsheetApp.getUi().alert('✅ Relatório de logs gerado!'); }
+  SpreadsheetApp.getUi().alert('✅ Relatório de logs gerado!');
 }
-function padronizarTodasAbasSistema() {
+function aplicarFormatacaoFinanceiraTodasAbas() {
   const ss = SpreadsheetApp.getActive();
-  const chavesMoeda = ['VALOR', 'PREÇO', 'PRECO', 'CUSTO', 'TOTAL', 'SALDO', 'LUCRO', 'RECEBIDO'];
-  const chavesData = ['DATA', 'FECHADO EM', 'LANCAMENTO', 'LANÇAMENTO', 'HORA'];
+  const padraoMoeda = ['VALOR', 'PREÇO', 'PRECO', 'CUSTO', 'TOTAL', 'SALDO', 'LUCRO'];
 
   ss.getSheets().forEach(sh => {
     aplicarFormatacaoPadrao(sh);
@@ -12148,104 +12147,33 @@ function padronizarTodasAbasSistema() {
     const lastCol = sh.getLastColumn();
     if(lastCol <= 0) return;
 
-    if(lastRow > 1){
-      sh.getRange(2, 1, lastRow - 1, lastCol)
-        .setBackground('#ffffff')
-        .setFontColor('#0f172a')
-        .setFontWeight('normal')
-        .setVerticalAlignment('middle');
-
-      sh.getRange(2, 1, lastRow - 1, lastCol)
-        .setBorder(true, true, true, true, true, true, '#e2e8f0', SpreadsheetApp.BorderStyle.SOLID);
-    }
-
     for(let c=1;c<=lastCol;c++){
-      const cab = String(sh.getRange(1, c).getValue() || '').toUpperCase().trim();
-      const isMoeda = chavesMoeda.some(k => cab.includes(k));
-      const isData = chavesData.some(k => cab.includes(k));
-
-      if(lastRow > 1 && isMoeda){
+      const header = String(sh.getRange(1, c).getValue() || '').toUpperCase();
+      const isMoeda = padraoMoeda.some(k => header.includes(k));
+      if(isMoeda && lastRow > 1){
         sh.getRange(2, c, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
       }
 
-      if(lastRow > 1 && isData){
-        sh.getRange(2, c, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm');
-      }
-
-      const largura = isMoeda ? 160 : Math.max(sh.getColumnWidth(c), 140);
+      const largura = isMoeda ? 150 : Math.max(sh.getColumnWidth(c), 130);
       sh.setColumnWidth(c, largura);
     }
-
-    sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, lastCol)
-      .setBackground('#020617')
-      .setFontColor('#ffffff')
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center');
   });
 
-  SpreadsheetApp.getUi().alert('✅ Todas as abas foram padronizadas com formatação financeira.');
-}
-function aplicarFormatacaoFinanceiraTodasAbas() {
-  padronizarTodasAbasSistema();
-}
-function obterPastaRelatorioDrive(subcategoria){
-  const estrutura = garantirEstruturaDriveSistema();
-  if(!estrutura || !estrutura.rootId){
-    throw new Error('Estrutura do Drive não encontrada para relatórios.');
-  }
-
-  const root = DriveApp.getFolderById(estrutura.rootId);
-  const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios`);
-  return obterOuCriarPastaPorNome(relatorios, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/${subcategoria}`);
-}
-function exportarAbaParaPdfNoDrive(nomeAba, subcategoria, nomeArquivo){
-  const ss = SpreadsheetApp.getActive();
-  const aba = ss.getSheetByName(nomeAba);
-  if(!aba) return null;
-
-  const pasta = obterPastaRelatorioDrive(subcategoria);
-  const gid = aba.getSheetId();
-  const url = ss.getUrl().replace(/edit$/, '') + `export?format=pdf&size=A4&portrait=false&fitw=true&sheetnames=false&printtitle=false&pagenumbers=true&gridlines=false&fzr=true&gid=${gid}`;
-  const token = ScriptApp.getOAuthToken();
-
-  const blob = UrlFetchApp.fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  }).getBlob().setName(nomeArquivo || `${nomeAba}_${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm')}.pdf`);
-
-  const file = pasta.createFile(blob);
-  return { id:file.getId(), url:file.getUrl(), nome:file.getName() };
+  SpreadsheetApp.getUi().alert('✅ Formatação padrão aplicada em todas as abas (incluindo colunas monetárias).');
 }
 function gerarPacoteRelatoriosGerenciais() {
-  gerarRelatorioValoresEstoque(false);
-  gerarRelatorioFinanceiroCompleto(false);
-  gerarRelatorioCompras(false);
-  gerarRelatorioLogsSistema(false);
-  padronizarTodasAbasSistema();
-
-  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm');
-  const arquivos = [];
-
-  const a1 = exportarAbaParaPdfNoDrive('ESTOQUE_VALORES', 'Estoque', `Relatorio_Estoque_Valores_${timestamp}.pdf`);
-  if(a1) arquivos.push(`Estoque: ${a1.url}`);
-
-  const a2 = exportarAbaParaPdfNoDrive('RELATORIO_FINANCEIRO', 'Financeiro', `Relatorio_Financeiro_Completo_${timestamp}.pdf`);
-  if(a2) arquivos.push(`Financeiro: ${a2.url}`);
-
-  const a3 = exportarAbaParaPdfNoDrive('RELATORIO_COMPRAS', 'Compras', `Relatorio_Compras_${timestamp}.pdf`);
-  if(a3) arquivos.push(`Compras: ${a3.url}`);
-
-  const a4 = exportarAbaParaPdfNoDrive('RELATORIO_LOGS', 'Logs', `Relatorio_Logs_${timestamp}.pdf`);
-  if(a4) arquivos.push(`Logs: ${a4.url}`);
+  gerarRelatorioValoresEstoque();
+  gerarRelatorioFinanceiroCompleto();
+  gerarRelatorioCompras();
+  gerarRelatorioLogsSistema();
+  aplicarFormatacaoFinanceiraTodasAbas();
 
   registrarInformacaoImportanteNoDrive(
     'RELATORIO',
-    'Pacote de relatórios gerenciais (PDF)',
-    ['Foram gerados e salvos em PDF no Drive:', ...arquivos].join('\n'),
+    'Pacote de relatórios gerenciais',
+    'Foram gerados relatórios: Estoque Valores, Financeiro Completo, Compras e Logs.',
     { subcategoria: 'Gerencial' }
   );
-
-  SpreadsheetApp.getUi().alert('✅ Pacote de relatórios concluído com PDFs salvos no Drive.');
 }
 
 /*************************************************
@@ -12484,7 +12412,7 @@ function gerarRelatorioEstoqueComValores() {
 
   return relatorio;
 }
-function gerarRelatorioValoresEstoque(exibirAlert = true) {
+function gerarRelatorioValoresEstoque() {
   const relatorio = gerarRelatorioEstoqueComValores();
   if(!relatorio){
     SpreadsheetApp.getUi().alert('❌ Não foi possível gerar o relatório de valores.');
@@ -12496,52 +12424,7 @@ function gerarRelatorioValoresEstoque(exibirAlert = true) {
     SpreadsheetApp.getActive().setActiveSheet(sh);
   }
 
-  if(exibirAlert){ SpreadsheetApp.getUi().alert('✅ Relatório de valores do estoque atualizado!'); }
-}
-function popupResumoValoresEstoque(){
-  const rel = gerarRelatorioEstoqueComValores();
-  if(!rel || !rel.itens || !rel.itens.length){
-    SpreadsheetApp.getUi().alert('⚠️ Sem dados de estoque para exibir.');
-    return;
-  }
-
-  const linhas = rel.itens
-    .slice()
-    .sort((a,b)=>Number(b.valorTotalEstoque)-Number(a.valorTotalEstoque))
-    .slice(0, 25)
-    .map(i=>`<tr>
-      <td>${i.produto}</td>
-      <td style="text-align:right">${Number(i.qtdAtual).toFixed(0)}</td>
-      <td style="text-align:right">R$ ${Number(i.precoVenda).toFixed(2)}</td>
-      <td style="text-align:right">R$ ${Number(i.valorTotalEstoque).toFixed(2)}</td>
-      <td style="text-align:right">R$ ${Number(i.lucroVendido).toFixed(2)}</td>
-    </tr>`)
-    .join('');
-
-  abrirPopup('📊 Resumo de Valores do Estoque', `
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:10px">
-        <strong>Valor total estoque:</strong> R$ ${Number(rel.resumo.totalValorEstoque || 0).toFixed(2)}<br>
-        <strong>Custo total:</strong> R$ ${Number(rel.resumo.totalCustoEstoque || 0).toFixed(2)}<br>
-        <strong>Lucro potencial:</strong> R$ ${Number(rel.resumo.lucroEstoque || 0).toFixed(2)}
-      </div>
-      <div style="max-height:340px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead style="position:sticky;top:0;background:#020617;color:#fff">
-            <tr>
-              <th style="padding:8px;text-align:left">Produto</th>
-              <th style="padding:8px;text-align:right">Qtd</th>
-              <th style="padding:8px;text-align:right">Valor un.</th>
-              <th style="padding:8px;text-align:right">Valor total</th>
-              <th style="padding:8px;text-align:right">Ganho vendido</th>
-            </tr>
-          </thead>
-          <tbody>${linhas}</tbody>
-        </table>
-      </div>
-      <button class="btn-primary" onclick="google.script.run.gerarRelatorioValoresEstoque();google.script.host.close();">📄 Gerar aba detalhada</button>
-    </div>
-  `, 700, 620);
+  SpreadsheetApp.getUi().alert('✅ Relatório de valores do estoque atualizado!');
 }
 function obterValorTotalEstoque() {
   const relatorio = gerarRelatorioEstoqueComValores();
