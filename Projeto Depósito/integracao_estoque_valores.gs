@@ -31,6 +31,54 @@
  */
 function abrirPainelGestaoEstoque() {
   try {
+    const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
+
+    if (!relatorio || !relatorio.resumo) {
+      uiNotificar('Falha ao gerar relatório de estoque.','erro','Painel Gestão');
+      return;
+    }
+
+    const resumo = relatorio.resumo;
+    const itens = Array.isArray(relatorio.itens) ? relatorio.itens : [];
+    const criticos = itens.filter(item => String(item.status || '').includes('Crítico'));
+
+    let html = '<div style="font-family:Arial;padding:16px;max-width:380px;">';
+    html += '<h2>📦 Gestão de Estoque</h2>';
+    html += `<p><strong>Valor Total:</strong> R$ ${Number(resumo.totalValorEstoque || 0).toFixed(2)}</p>`;
+    html += `<p><strong>Lucro Potencial:</strong> R$ ${Number(resumo.lucroEstoque || 0).toFixed(2)}</p>`;
+    html += `<p><strong>Margem Média:</strong> ${Number(resumo.margemMedia || 0).toFixed(2)}%</p>`;
+
+    if (criticos.length) {
+      html += '<h4>Produtos Críticos:</h4><ul>';
+      criticos.slice(0, 10).forEach(item => {
+        html += `<li>${item.produto} (${item.qtdAtual})</li>`;
+      });
+      html += '</ul>';
+    }
+
+    if (typeof getConfig === 'function') {
+      const driveUrl = getConfig('DRIVE_URL');
+      if (driveUrl) {
+        html += `<p><a href="${driveUrl}" target="_blank">🔗 Abrir Drive</a></p>`;
+      }
+    }
+
+    html += '</div>';
+
+    const output = HtmlService
+      .createHtmlOutput(html)
+      .setTitle('Painel Gestão Estoque')
+      .setWidth(400);
+
+    SpreadsheetApp.getUi().showSidebar(output);
+  } catch (e) {
+    console.error('Erro em abrirPainelGestaoEstoque:', e);
+    uiNotificar('Erro ao abrir painel de gestão: ' + e.message,'erro','Painel Gestão');
+  }
+}
+
+function abrirPainelGestaoEstoque() {
+  try {
     const relatorio = gerarRelatorioEstoqueComValores();
 
     if (!relatorio || !relatorio.resumo) {
@@ -82,10 +130,10 @@ function abrirPainelGestaoEstoque() {
  */
 function abrirAnalisRentabilidade() {
   try {
-    const analise = analisarRentabilidadeEstoque();
+    const analise = _ievAnalisarRentabilidadeEstoqueSafe();
     
     if (!analise) {
-      SpreadsheetApp.getUi().alert('❌ Erro ao gerar análise');
+      uiNotificar('Erro ao gerar análise','erro','Rentabilidade');
       return;
     }
     
@@ -144,11 +192,11 @@ function abrirAnalisRentabilidade() {
     });
     
     sh.setColumnWidths(1, 8, 150);
-    SpreadsheetApp.getUi().alert('✅ Análise de rentabilidade atualizada!');
+    uiNotificar('Análise de rentabilidade atualizada!','sucesso','Rentabilidade');
     
   } catch (e) {
     console.error('Erro em abrirAnalisRentabilidade:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -157,7 +205,7 @@ function abrirAnalisRentabilidade() {
  */
 function exibirValorCategoria() {
   try {
-    const porCategoria = obterValorEstoquesPorCategoria();
+    const porCategoria = _ievObterValorEstoquesPorCategoriaSafe();
     
     const ss = SpreadsheetApp.getActive();
     let sh = ss.getSheetByName('ESTOQUE_CATEGORIAS');
@@ -236,11 +284,11 @@ function exibirValorCategoria() {
     }
     
     sh.setColumnWidths(1, headers.length, 150);
-    SpreadsheetApp.getUi().alert('✅ Tabela de categorias atualizada!');
+    uiNotificar('Tabela de categorias atualizada!','sucesso','Categorias');
     
   } catch (e) {
     console.error('Erro em exibirValorCategoria:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -249,9 +297,9 @@ function exibirValorCategoria() {
  */
 function exibirValorTotalEstoque() {
   try {
-    const valor = obterValorTotalEstoque();
-    const estoque = obterDadosEstoque();
-    const produtos = obterDadosProdutos();
+    const valor = _ievObterValorTotalEstoqueSafe();
+    const estoque = _ievObterDadosEstoqueSafe();
+    const produtos = _ievObterDadosProdutosSafe();
     
     let custTotal = 0;
     estoque.forEach(linha => {
@@ -274,11 +322,11 @@ function exibirValorTotalEstoque() {
       `💹 Lucro Potencial: R$ ${lucro.toFixed(2)}\n` +
       `📈 Margem: ${((lucro / valor) * 100).toFixed(2)}%`;
     
-    SpreadsheetApp.getUi().alert(mensagem);
+    uiNotificar(mensagem,'info','Valor Total do Estoque');
     
   } catch (e) {
     console.error('Erro em exibirValorTotalEstoque:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -296,7 +344,7 @@ function atualizarWidgetValorEstoque() {
     
     if (!sh) return;
     
-    const valor = obterValorTotalEstoque();
+    const valor = _ievObterValorTotalEstoqueSafe();
     
     // Encontrar célula com "Valor Estoque" e atualizar
     const dados = sh.getDataRange().getValues();
@@ -318,13 +366,13 @@ function atualizarWidgetValorEstoque() {
  */
 function verificarEstoqueCriticoAuto() {
   try {
-    const analise = analisarRentabilidadeEstoque();
+    const analise = _ievAnalisarRentabilidadeEstoqueSafe();
     
     if (!analise || analise.estoqueCritico.length === 0) {
       return;
     }
     
-    const relatorio = gerarRelatorioEstoqueComValores();
+    const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
     
     const criticos = relatorio.itens.filter(item => 
       item.status.includes('Crítico')
@@ -375,7 +423,7 @@ function setupMonitoramentoEstoque() {
     .everyHours(1)
     .create();
   
-  SpreadsheetApp.getUi().alert('✅ Monitoramento ativado!');
+  uiNotificar('Monitoramento ativado!','sucesso','Monitoramento');
 }
 
 /**
@@ -384,7 +432,7 @@ function setupMonitoramentoEstoque() {
 function monitorarEstoqueAuto() {
   try {
     // Atualiza relatório
-    gerarRelatorioEstoqueComValores();
+    _ievGerarRelatorioEstoqueComValoresSafe();
     
     // Verifica críticos
     verificarEstoqueCriticoAuto();
@@ -408,7 +456,7 @@ function monitorarEstoqueAuto() {
  */
 function exportarAnaliseEstoqueCSV() {
   try {
-    const relatorio = gerarRelatorioEstoqueComValores();
+    const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
     
     if (!relatorio) return;
     
@@ -419,7 +467,7 @@ function exportarAnaliseEstoqueCSV() {
     });
     
     console.log(csv);
-    SpreadsheetApp.getUi().alert('✅ CSV gerado (veja console)');
+    uiNotificar('CSV gerado (veja console)','sucesso','Exportação');
     
   } catch (e) {
     console.error('Erro ao exportar CSV:', e);
@@ -435,8 +483,8 @@ function exportarAnaliseEstoqueCSV() {
  */
 function gerarRelatórioExecutivo() {
   try {
-    const relatorio = gerarRelatorioEstoqueComValores();
-    const analise = analisarRentabilidadeEstoque();
+    const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
+    const analise = _ievAnalisarRentabilidadeEstoqueSafe();
     
     if (!relatorio || !analise) return;
     
@@ -469,7 +517,7 @@ function gerarRelatórioExecutivo() {
       ).join('\n');
     
     console.log(texto);
-    SpreadsheetApp.getUi().alert(texto);
+    uiNotificar(texto,'info','Relatório Executivo');
     
   } catch (e) {
     console.error('Erro ao gerar relatório executivo:', e);
@@ -481,7 +529,7 @@ function gerarRelatórioExecutivo() {
  */
 function enviarRelatorioEmail(destinatario) {
   try {
-    const relatorio = gerarRelatorioEstoqueComValores();
+    _ievGerarRelatorioEstoqueComValoresSafe();
     
     if (!relatorio) return;
     
@@ -503,3 +551,195 @@ function enviarRelatorioEmail(destinatario) {
     console.error('Erro ao enviar email:', e);
   }
 }
+
+
+/**
+ * =====================================================
+ * SAFETY HELPERS (fallback quando módulo base não está carregado)
+ * =====================================================
+ */
+function _ievObterDadosEstoqueSafe() {
+  if (typeof obterDadosEstoque === 'function') return obterDadosEstoque();
+  const sh = SpreadsheetApp.getActive().getSheetByName('ESTOQUE');
+  if (!sh) return [];
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 1) return [];
+  return dados.slice(1).filter(linha => linha[0] && String(linha[0]).trim() !== '');
+}
+
+function _ievObterDadosProdutosSafe() {
+  if (typeof obterDadosProdutos === 'function') return obterDadosProdutos();
+  const sh = SpreadsheetApp.getActive().getSheetByName('PRODUTOS');
+  if (!sh) return {};
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 1) return {};
+
+  const mapa = {};
+  dados.slice(1).forEach(linha => {
+    const produto = linha[0];
+    if (!produto) return;
+    mapa[String(produto).trim()] = {
+      nome: produto,
+      categoria: linha[1] || '',
+      preco: Number(linha[4]) || 0,
+      custMedio: Number(linha[6]) || 0,
+      margem: Number(linha[7]) || 0,
+      status: linha[9] || 'Normal'
+    };
+  });
+
+  return mapa;
+}
+
+function _ievObterDadosVendasSafe() {
+  if (typeof obterDadosVendas === 'function') return obterDadosVendas();
+  const sh = SpreadsheetApp.getActive().getSheetByName('VENDAS');
+  if (!sh) return [];
+  const dados = sh.getDataRange().getValues();
+  if (dados.length <= 1) return [];
+  return dados.slice(1).filter(linha => linha[1] && String(linha[1]).trim() !== '');
+}
+
+function _ievObterValorTotalEstoqueSafe() {
+  if (typeof obterValorTotalEstoque === 'function') return obterValorTotalEstoque();
+  const estoque = _ievObterDadosEstoqueSafe();
+  const produtos = _ievObterDadosProdutosSafe();
+
+  let total = 0;
+  estoque.forEach(linha => {
+    const nome = String(linha[0] || '').trim();
+    const qtd = Number(linha[1]) || 0;
+    const p = produtos[nome] || {};
+    total += qtd * (Number(p.preco) || 0);
+  });
+
+  return Number(total.toFixed(2));
+}
+
+function _ievObterValorEstoquesPorCategoriaSafe() {
+  if (typeof obterValorEstoquesPorCategoria === 'function') return obterValorEstoquesPorCategoria();
+  const estoque = _ievObterDadosEstoqueSafe();
+  const produtos = _ievObterDadosProdutosSafe();
+  const out = {};
+
+  estoque.forEach(linha => {
+    const nome = String(linha[0] || '').trim();
+    const quantidade = Number(linha[1]) || 0;
+    const produto = produtos[nome];
+    if (!produto) return;
+
+    const categoria = produto.categoria || 'Sem Categoria';
+    if (!out[categoria]) {
+      out[categoria] = { quantidade: 0, valor: 0, custo: 0 };
+    }
+
+    out[categoria].quantidade += quantidade;
+    out[categoria].valor += quantidade * (Number(produto.preco) || 0);
+    out[categoria].custo += quantidade * (Number(produto.custMedio) || 0);
+  });
+
+  return out;
+}
+
+function _ievGerarRelatorioEstoqueComValoresSafe() {
+  if (typeof gerarRelatorioEstoqueComValores === 'function') return gerarRelatorioEstoqueComValores();
+
+  const estoque = _ievObterDadosEstoqueSafe();
+  const produtos = _ievObterDadosProdutosSafe();
+  const vendas = _ievObterDadosVendasSafe();
+
+  const relatorio = { itens: [], resumo: { totalValorEstoque: 0, totalCustoEstoque: 0, lucroEstoque: 0, totalVendido: 0, lucroVendido: 0, margemMedia: 0 } };
+
+  estoque.forEach(linha => {
+    const nomeProduto = String(linha[0] || '').trim();
+    const qtdAtual = Number(linha[1]) || 0;
+    const minimo = Number(linha[2]) || 0;
+    const p = produtos[nomeProduto];
+    if (!p) return;
+
+    const precoVenda = Number(p.preco) || 0;
+    const custMedio = Number(p.custMedio) || 0;
+    const valorTotalEstoque = qtdAtual * precoVenda;
+    const custoTotalEstoque = qtdAtual * custMedio;
+    const lucroEstoque = valorTotalEstoque - custoTotalEstoque;
+
+    let qtdVendida = 0;
+    vendas.forEach(v => {
+      const produtoVenda = v[1] ? String(v[1]).trim() : '';
+      if (produtoVenda === nomeProduto) qtdVendida += Number(v[2]) || 0;
+    });
+
+    const valorVendido = qtdVendida * precoVenda;
+    const lucroVendido = valorVendido - (qtdVendida * custMedio);
+    const taxaRotacao = (qtdAtual + qtdVendida) > 0 ? Math.round((qtdVendida / (qtdAtual + qtdVendida)) * 10000) / 100 : 0;
+
+    let status = 'Normal';
+    if (qtdAtual <= minimo) status = '🚨 Crítico';
+    else if (qtdAtual <= minimo * 1.5) status = '⚠️ Baixo';
+    else if (qtdAtual > minimo * 3) status = '📈 Alto';
+
+    relatorio.itens.push({
+      produto: nomeProduto,
+      categoria: p.categoria || '',
+      precoVenda: precoVenda,
+      custMedio: custMedio,
+      margem: Number(p.margem) || 0,
+      qtdAtual: qtdAtual,
+      valorTotalEstoque: valorTotalEstoque,
+      custTotalEstoque: custoTotalEstoque,
+      lucroEstoque: lucroEstoque,
+      qtdVendida: qtdVendida,
+      valorVendido: valorVendido,
+      lucroVendido: lucroVendido,
+      taxaRotacao: taxaRotacao,
+      status: status
+    });
+
+    relatorio.resumo.totalValorEstoque += valorTotalEstoque;
+    relatorio.resumo.totalCustoEstoque += custoTotalEstoque;
+    relatorio.resumo.totalVendido += valorVendido;
+    relatorio.resumo.lucroVendido += lucroVendido;
+  });
+
+  relatorio.resumo.lucroEstoque = relatorio.resumo.totalValorEstoque - relatorio.resumo.totalCustoEstoque;
+  const somaMargens = relatorio.itens.reduce((soma, item) => soma + (Number(item.margem) || 0), 0);
+  relatorio.resumo.margemMedia = relatorio.itens.length ? Math.round((somaMargens / relatorio.itens.length) * 100) / 100 : 0;
+
+  return relatorio;
+}
+
+function _ievAnalisarRentabilidadeEstoqueSafe() {
+  if (typeof analisarRentabilidadeEstoque === 'function') return analisarRentabilidadeEstoque();
+
+  const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
+  if (!relatorio || !Array.isArray(relatorio.itens)) return null;
+
+  const analise = {
+    maisRentaveis: [],
+    menosRentaveis: [],
+    estoqueCritico: [],
+    altaRotacao: [],
+    quaseNenhumavenda: []
+  };
+
+  relatorio.itens.forEach(item => {
+    analise.maisRentaveis.push({ produto: item.produto, lucro: item.lucroEstoque, margem: item.margem });
+
+    if (String(item.status || '').includes('Crítico')) {
+      analise.estoqueCritico.push({ produto: item.produto, quantidade: item.qtdAtual, valor: item.valorTotalEstoque });
+    }
+
+    if (Number(item.taxaRotacao) > 70) {
+      analise.altaRotacao.push({ produto: item.produto, taxaRotacao: item.taxaRotacao });
+    }
+
+    if ((Number(item.qtdVendida) || 0) === 0 && (Number(item.qtdAtual) || 0) > 0) {
+      analise.quaseNenhumavenda.push({ produto: item.produto, quantidade: item.qtdAtual, valor: item.valorTotalEstoque });
+    }
+  });
+
+  analise.maisRentaveis.sort((a, b) => (Number(b.lucro) || 0) - (Number(a.lucro) || 0));
+  analise.altaRotacao.sort((a, b) => (Number(b.taxaRotacao) || 0) - (Number(a.taxaRotacao) || 0));
+  return analise;
+}
+
