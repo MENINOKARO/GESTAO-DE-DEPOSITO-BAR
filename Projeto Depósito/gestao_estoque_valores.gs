@@ -27,7 +27,7 @@ function gerarRelatorioEstoqueComValores() {
     const vendas = obterDadosVendas();
     
     if (!estoque || estoque.length === 0) {
-      SpreadsheetApp.getUi().alert('❌ Nenhum produto encontrado no estoque');
+      uiNotificar('Nenhum produto encontrado no estoque','aviso','Estoque');
       return null;
     }
     
@@ -40,13 +40,13 @@ function gerarRelatorioEstoqueComValores() {
     // Popula dados
     preencherRelatorioEstoque(shRelatorio, relatorio);
     
-    SpreadsheetApp.getUi().alert('✅ Relatório de estoque gerado com sucesso!');
+    uiNotificar('Relatório de estoque gerado com sucesso!','sucesso','Estoque');
     
     return relatorio;
     
   } catch (e) {
     console.error('Erro em gerarRelatorioEstoqueComValores:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao gerar relatório: ' + e.message);
+    uiNotificar('Erro ao gerar relatório: ' + e.message,'erro','Estoque');
     return null;
   }
 }
@@ -521,6 +521,6 @@ function abrirPainelEstoqueValores() {
     
   } catch (e) {
     console.error('Erro em abrirPainelEstoqueValores:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao abrir painel: ' + e.message);
+    uiNotificar('Erro ao abrir painel: ' + e.message,'erro','Estoque');
   }
 }

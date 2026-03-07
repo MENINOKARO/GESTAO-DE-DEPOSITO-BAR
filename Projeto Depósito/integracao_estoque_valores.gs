@@ -34,7 +34,7 @@ function abrirPainelGestaoEstoque() {
     const relatorio = _ievGerarRelatorioEstoqueComValoresSafe();
 
     if (!relatorio || !relatorio.resumo) {
-      SpreadsheetApp.getUi().alert('❌ Falha ao gerar relatório de estoque.');
+      uiNotificar('Falha ao gerar relatório de estoque.','erro','Painel Gestão');
       return;
     }
 
@@ -73,7 +73,7 @@ function abrirPainelGestaoEstoque() {
     SpreadsheetApp.getUi().showSidebar(output);
   } catch (e) {
     console.error('Erro em abrirPainelGestaoEstoque:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao abrir painel de gestão: ' + e.message);
+    uiNotificar('Erro ao abrir painel de gestão: ' + e.message,'erro','Painel Gestão');
   }
 }
 
@@ -85,7 +85,7 @@ function abrirAnalisRentabilidade() {
     const analise = _ievAnalisarRentabilidadeEstoqueSafe();
     
     if (!analise) {
-      SpreadsheetApp.getUi().alert('❌ Erro ao gerar análise');
+      uiNotificar('Erro ao gerar análise','erro','Rentabilidade');
       return;
     }
     
@@ -144,11 +144,11 @@ function abrirAnalisRentabilidade() {
     });
     
     sh.setColumnWidths(1, 8, 150);
-    SpreadsheetApp.getUi().alert('✅ Análise de rentabilidade atualizada!');
+    uiNotificar('Análise de rentabilidade atualizada!','sucesso','Rentabilidade');
     
   } catch (e) {
     console.error('Erro em abrirAnalisRentabilidade:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -236,11 +236,11 @@ function exibirValorCategoria() {
     }
     
     sh.setColumnWidths(1, headers.length, 150);
-    SpreadsheetApp.getUi().alert('✅ Tabela de categorias atualizada!');
+    uiNotificar('Tabela de categorias atualizada!','sucesso','Categorias');
     
   } catch (e) {
     console.error('Erro em exibirValorCategoria:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -274,11 +274,11 @@ function exibirValorTotalEstoque() {
       `💹 Lucro Potencial: R$ ${lucro.toFixed(2)}\n` +
       `📈 Margem: ${((lucro / valor) * 100).toFixed(2)}%`;
     
-    SpreadsheetApp.getUi().alert(mensagem);
+    uiNotificar(mensagem,'info','Valor Total do Estoque');
     
   } catch (e) {
     console.error('Erro em exibirValorTotalEstoque:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro: ' + e.message);
+    uiNotificar('Erro: ' + e.message,'erro','Estoque');
   }
 }
 
@@ -375,7 +375,7 @@ function setupMonitoramentoEstoque() {
     .everyHours(1)
     .create();
   
-  SpreadsheetApp.getUi().alert('✅ Monitoramento ativado!');
+  uiNotificar('Monitoramento ativado!','sucesso','Monitoramento');
 }
 
 /**
@@ -419,7 +419,7 @@ function exportarAnaliseEstoqueCSV() {
     });
     
     console.log(csv);
-    SpreadsheetApp.getUi().alert('✅ CSV gerado (veja console)');
+    uiNotificar('CSV gerado (veja console)','sucesso','Exportação');
     
   } catch (e) {
     console.error('Erro ao exportar CSV:', e);
@@ -469,7 +469,7 @@ function gerarRelatórioExecutivo() {
       ).join('\n');
     
     console.log(texto);
-    SpreadsheetApp.getUi().alert(texto);
+    uiNotificar(texto,'info','Relatório Executivo');
     
   } catch (e) {
     console.error('Erro ao gerar relatório executivo:', e);

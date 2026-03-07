@@ -84,7 +84,7 @@ function abrirPopupLogin() {
     popupLogin();
   } catch(e) {
     console.error('Erro ao abrir popupLogin:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao abrir formulário de login');
+    uiNotificar('Erro ao abrir formulário de login','erro','Login');
   }
 }
 
@@ -96,7 +96,7 @@ function abrirPopupCriarUsuario() {
     popupCriarUsuario();
   } catch(e) {
     console.error('Erro ao abrir popupCriarUsuario:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao abrir formulário de criação');
+    uiNotificar('Erro ao abrir formulário de criação','erro','Usuários');
   }
 }
 
@@ -662,9 +662,14 @@ function popupCriarUsuario(){
             .withSuccessHandler((resultado) => {
               console.log('[DEBUG] Sucesso em criarNovoUsuario: ' + JSON.stringify(resultado));
               if(resultado.ok) {
-                alert('✅ Usuário criado com sucesso!');
-                google.script.run.popupLogin();
-                google.script.host.close();
+                error.textContent = '✅ Usuário criado com sucesso! Redirecionando para login...';
+                error.style.display = 'block';
+                error.style.background = '#dcfce7';
+                error.style.color = '#166534';
+                setTimeout(function(){
+                  google.script.run.popupLogin();
+                  google.script.host.close();
+                }, 600);
               } else {
                 error.textContent = '❌ ' + resultado.msg;
                 error.style.display = 'block';
@@ -1036,7 +1041,7 @@ function editarUsuario(id){
   for(let i=1;i<dados.length;i++){
     if(dados[i][0] === id){ linha = i+1; row = dados[i]; break; }
   }
-  if(linha === -1){ SpreadsheetApp.getUi().alert('Usuário não encontrado.'); return; }
+  if(linha === -1){ uiNotificar('Usuário não encontrado.','aviso','Usuários'); return; }
 
   const nome = row[1] || '';
   const email = row[2] || '';
@@ -1094,19 +1099,24 @@ function atualizarUsuario(id, nome, perfil, ativo){
 }
 
 function deletarUsuario(id){
-  const ui = SpreadsheetApp.getUi();
-  const resp = ui.alert('Excluir usuário', 'Deseja realmente excluir o usuário '+id+' ?', ui.ButtonSet.YES_NO);
-  if(resp !== ui.Button.YES) return;
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('USUARIOS');
   const dados = sh.getDataRange().getValues();
+
+  let excluido = false;
   for(let i=1;i<dados.length;i++){
     if(dados[i][0] === id){
       sh.deleteRow(i+1);
       registrarAuditoria(id,'USUARIO_EXCLUIDO','');
+      excluido = true;
       break;
     }
   }
+
+  if (!excluido) {
+    uiNotificar('Usuário não encontrado para exclusão.','aviso','Usuários');
+  }
+
   // recarrega lista
   popupListarUsuarios();
 }
