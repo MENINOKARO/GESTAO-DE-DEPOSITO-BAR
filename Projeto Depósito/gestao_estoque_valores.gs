@@ -13,65 +13,64 @@
  * =====================================================
  */
 
-/**
- * 🎯 FUNÇÃO PRINCIPAL
- * Gera relatório completo de estoque com valores totais e após vendas
- */
-function gerarRelatorioEstoqueComValores() {
-  const ss = SpreadsheetApp.getActive();
-  
-  try {
-    // Busca dados
-    const estoque = obterDadosEstoque();
-    const produtos = obterDadosProdutos();
-    const vendas = obterDadosVendas();
-    
-    if (!estoque || estoque.length === 0) {
-      SpreadsheetApp.getUi().alert('❌ Nenhum produto encontrado no estoque');
-      return null;
-    }
-    
-    // Calcula valores
-    const relatorio = calcularValoresEstoque(estoque, produtos, vendas);
-    
-    // Cria ou atualiza aba de relatório
-    const shRelatorio = criarAbaRelatorioEstoque();
-    
-    // Popula dados
-    preencherRelatorioEstoque(shRelatorio, relatorio);
-    
-    SpreadsheetApp.getUi().alert('✅ Relatório de estoque gerado com sucesso!');
-    
-    return relatorio;
-    
-  } catch (e) {
-    console.error('Erro em gerarRelatorioEstoqueComValores:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao gerar relatório: ' + e.message);
-    return null;
-  }
-}
+🎯 FUNÇÃO PRINCIPAL
+Gera relatório completo de estoque com valores totais e após vendas
 
-/**
- * 📦 Obtém dados da aba ESTOQUE
- */
+ function gerarRelatorioEstoqueComValores() {
+   const ss = SpreadsheetApp.getActive();
+   
+   try {
+     // Busca dados
+     const estoque = obterDadosEstoque();
+     const produtos = obterDadosProdutos();
+     const vendas = obterDadosVendas();
+     
+     if (!estoque || estoque.length === 0) {
+     uiNotificar('Nenhum produto encontrado no estoque','aviso','Estoque');
+       return null;
+     }
+     
+     // Calcula valores
+     const relatorio = calcularValoresEstoque(estoque, produtos, vendas);
+     
+     // Cria ou atualiza aba de relatório
+     const shRelatorio = criarAbaRelatorioEstoque();
+     
+     // Popula dados
+     preencherRelatorioEstoque(shRelatorio, relatorio);
+     
+      uiNotificar('Relatório de estoque gerado com sucesso!','sucesso','Estoque');
+     
+     return relatorio;
+     
+   } catch (e) {
+     console.error('Erro em gerarRelatorioEstoqueComValores:', e);
+     uiNotificar('Erro ao gerar relatório: ' + e.message,'erro','Estoque');
+     return null;
+   }
+ }
+ 
+
+📦 Obtém dados da aba ESTOQUE
+
 function obterDadosEstoque() {
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('ESTOQUE');
-  
-  if (!sh) return [];
-  
-  const dados = sh.getDataRange().getValues();
-  
-  if (dados.length <= 1) return [];
-  
-  return dados.slice(1).filter(linha => 
-    linha[0] && linha[0].toString().trim() !== ''
-  );
-}
+   const ss = SpreadsheetApp.getActive();
+   const sh = ss.getSheetByName('ESTOQUE');
+   
+   if (!sh) return [];
+   
+   const dados = sh.getDataRange().getValues();
+   
+   if (dados.length <= 1) return [];
+   
+   return dados.slice(1).filter(linha => 
+     linha[0] && linha[0].toString().trim() !== ''
+   );
+ }
+ 
 
-/**
- * 🏷️ Obtém dados da aba PRODUTOS com preços e custos
- */
+🏷️ Obtém dados da aba PRODUTOS com preços e custos
+
 function obterDadosProdutos() {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('PRODUTOS');
@@ -521,6 +520,6 @@ function abrirPainelEstoqueValores() {
     
   } catch (e) {
     console.error('Erro em abrirPainelEstoqueValores:', e);
-    SpreadsheetApp.getUi().alert('❌ Erro ao abrir painel: ' + e.message);
+    uiNotificar('Erro ao abrir painel: ' + e.message,'erro','Estoque');
   }
 }
