@@ -1,0 +1,186 @@
+==================================================
+KARO PRO - PLANO TÉCNICO DE PRODUÇÃO
+Versão: 2.0
+Status: Produção Assistida
+Plataforma: Google Apps Script + Google Sheets
+==================================================
+
+OBJETIVO DA VERSÃO
+-------------------
+Encerrar fase de desenvolvimento e iniciar operação real
+para identificar bugs, gargalos e melhorias.
+
+Esta fase tem como foco:
+
+- estabilidade
+- coleta de dados reais
+- monitoramento de erros
+- validação dos fluxos
+
+--------------------------------------------------
+
+ARQUITETURA DO SISTEMA
+----------------------
+
+CORE
+  utilidades
+  logs
+  configurações
+
+PRODUTOS
+  cadastro
+  análise de margem
+  ajustes
+
+ESTOQUE
+  controle
+  custo médio
+  ajustes manuais
+
+VENDAS
+  balcão
+  comandas
+  delivery
+
+COMPRAS
+  registro
+  cancelamento
+  notas fiscais
+
+FINANCEIRO
+  caixa
+  contas a pagar
+  contas a receber
+  fluxo de caixa
+
+DASHBOARD
+
+DRIVE
+  backup
+  logs
+  relatórios
+
+INTERFACE
+  popups
+  menus
+  painéis
+
+
+--------------------------------------------------
+
+PLANILHAS DO SISTEMA
+--------------------
+
+PRODUTOS
+ESTOQUE
+COMPRAS
+VENDAS
+COMANDAS
+CAIXA
+CONTAS_A_PAGAR
+CONTAS_A_RECEBER
+LOG_SISTEMA
+CONFIG
+
+--------------------------------------------------
+
+FLUXO DE COMPRAS
+----------------
+
+Fornecedor
+   ↓
+Nova compra
+   ↓
+Registro em COMPRAS
+   ↓
+Atualiza custo médio
+   ↓
+Atualiza estoque
+   ↓
+Registra saída no caixa
+
+--------------------------------------------------
+
+FLUXO DE VENDAS
+---------------
+
+Venda
+   ↓
+Validação de estoque
+   ↓
+Baixa estoque
+   ↓
+Registro de venda
+   ↓
+Entrada no caixa
+
+--------------------------------------------------
+
+FLUXO DE COMANDA
+----------------
+
+Nova comanda
+     ↓
+Status ABERTA
+     ↓
+Adicionar produtos
+     ↓
+AGUARDANDO_PGTO
+     ↓
+Pagamento
+     ↓
+FECHADA
+
+--------------------------------------------------
+
+BACKUP
+------
+
+backup_atual
+backup_YYYY-MM-DD_HH-mm
+
+Organização:
+
+Backup/
+   backup_2026-03/
+   backup_2026-04/
+
+--------------------------------------------------
+
+POLÍTICA DE LOG
+---------------
+
+Toda ação crítica deve registrar log:
+
+VENDA
+COMPRA
+ALTERAÇÃO DE PRODUTO
+PAGAMENTO
+CANCELAMENTO
+AJUSTE DE ESTOQUE
+
+--------------------------------------------------
+
+INDICADORES OPERACIONAIS
+------------------------
+
+Vendas do dia
+Caixa do dia
+Margem média
+Estoque crítico
+Contas vencidas
+
+--------------------------------------------------
+
+PROCEDIMENTO DE CORREÇÃO DE BUG
+-------------------------------
+
+Bug detectado
+    ↓
+Registrar log
+    ↓
+Identificar função
+    ↓
+Ajuste mínimo
+    ↓
+Teste isolado
