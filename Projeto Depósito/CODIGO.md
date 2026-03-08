@@ -2,49 +2,49 @@
  *       GESTÃO DE DEPÓSITO 
  *            VERSÃO 1.0
  *************************************************
- *
- * ===============================================
- * SISTEMA DE GESTÃO – KARO PRO v1.0
- * Status: ✅ ESTÁVEL 
- * Data de fechamento: 2026-02
- * Última atualização: Março 2026
- * ===============================================
- *
- * 📌 IMPORTANTE - LEIA PRIMEIRO:
- * ==============================
- * 📋 DOCUMENTAÇÃO (Abra estes arquivos):
- * ─────────────────────────────────────────────────
- * 1. RESUMO_AJUSTES_REALIZADOS.md       ← COMECE AQUI (visão geral)
- * 2. README_FUNCIONAMENTO_CORRIGIDO.md  ← Guia completo (manual operacional)
- * 3. ESTUDO_FUNCIONAMENTO_SISTEMA.md    ← Análise profunda (arquitetura)
- * 4. BUGS_ENCONTRADOS_E_CORRECOES.md    ← Detalhes técnicos (para devs)
- * 5. INDICE_DOCUMENTACAO.md             ← MAPA COMPLETO (você está aqui!)
- *
- * 🎯 COMPORTAMENTO ESPERADO 
- * ─────────────────────────────────────────────
- * 🍺 COMANDA BALCÃO:
- *    • Estoque baixa IMEDIATAMENTE
- *    • Cliente fica TRAVADO após 1º item
- *    • Pode continuar vendendo depois
- *    • Pagamento parcial funciona corretamente
- *    • ✅ NÃO gera falso erro "sem estoque" (chaves normalizadas)
- *
- * 📂 COMANDA ABERTA:
- *    • Itens históricos aparecem TRAVADOS (cinza)
- *    • Itens novos podem ser REMOVIDOS (colorido)
- *    • Saldo calcula: total - pagamentos parciais
- *    • Estoque validado ANTES de cada operação
- *    • ✅ Produtos com espaços/capitalização diferentes funcionam
- *
- * 🚚 DELIVERY:
- *    • Estoque NÃO baixa ao criar (PEDIDO FEITO)
- *    • Estoque BAIXA ao encaminhar (EM ANDAMENTO)
- *    • Cancelamento DEVOLVE estoque se foi encaminhado
- *    • Fiado BLOQUEADO (não permitido)
- *    • ✅ Todos os produtos aparecem no dropdown (não filtra por estoque)
- *
- * ===============================================
- */
+  *
+  * ===============================================
+  * SISTEMA DE GESTÃO – KARO PRO v1.0
+  * Status: ✅ ESTÁVEL 
+  * Data de fechamento: 2026-02
+  * Última atualização: Março 2026
+  * ===============================================
+  *
+  * 📌 IMPORTANTE - LEIA PRIMEIRO:
+  * ==============================
+  * 📋 DOCUMENTAÇÃO (Abra estes arquivos):
+  * ─────────────────────────────────────────────────
+  * 1. RESUMO_AJUSTES_REALIZADOS.md       ← COMECE AQUI (visão geral)
+  * 2. README_FUNCIONAMENTO_CORRIGIDO.md  ← Guia completo (manual operacional)
+  * 3. ESTUDO_FUNCIONAMENTO_SISTEMA.md    ← Análise profunda (arquitetura)
+  * 4. BUGS_ENCONTRADOS_E_CORRECOES.md    ← Detalhes técnicos (para devs)
+  * 5. INDICE_DOCUMENTACAO.md             ← MAPA COMPLETO (você está aqui!)
+  *
+  * 🎯 COMPORTAMENTO ESPERADO 
+  * ─────────────────────────────────────────────
+  * 🍺 COMANDA BALCÃO:
+  *    • Estoque baixa IMEDIATAMENTE
+  *    • Cliente fica TRAVADO após 1º item
+  *    • Pode continuar vendendo depois
+  *    • Pagamento parcial funciona corretamente
+  *    • ✅ NÃO gera falso erro "sem estoque" (chaves normalizadas)
+  *
+  * 📂 COMANDA ABERTA:
+  *    • Itens históricos aparecem TRAVADOS (cinza)
+  *    • Itens novos podem ser REMOVIDOS (colorido)
+  *    • Saldo calcula: total - pagamentos parciais
+  *    • Estoque validado ANTES de cada operação
+  *    • ✅ Produtos com espaços/capitalização diferentes funcionam
+  *
+  * 🚚 DELIVERY:
+  *    • Estoque NÃO baixa ao criar (PEDIDO FEITO)
+  *    • Estoque BAIXA ao encaminhar (EM ANDAMENTO)
+  *    • Cancelamento DEVOLVE estoque se foi encaminhado
+  *    • Fiado BLOQUEADO (não permitido)
+  *    • ✅ Todos os produtos aparecem no dropdown (não filtra por estoque)
+  *
+  * ===============================================
+  */
 
 // ===============================
 // MENU / INICIALIZAÇÃO
@@ -6527,723 +6527,724 @@
 // ===============================
 // DASHBOARD
 // ===============================
+  // DASHBOARD - BASE
+    function resumoFinanceiroHoje(){
+      const cx = SpreadsheetApp.getActive()
+        .getSheetByName('CAIXA')
+        .getDataRange()
+        .getValues();
 
-// DASHBOARD - BASE
-  function resumoFinanceiroHoje(){
-    const cx = SpreadsheetApp.getActive()
-      .getSheetByName('CAIXA')
-      .getDataRange()
-      .getValues();
+      const agora = new Date();
 
-    const agora = new Date();
-
-    const hoje = Utilities.formatDate(
-      agora,
-      Session.getScriptTimeZone(),
-      'yyyyMMdd'
-    );
-
-    const ontem = Utilities.formatDate(
-      new Date(agora.getTime() - 86400000),
-      Session.getScriptTimeZone(),
-      'yyyyMMdd'
-    );
-
-    let entrada = 0;
-    let saida = 0;
-
-    cx.forEach((c,i)=>{
-      if(i===0) return;
-      if(!(c[0] instanceof Date)) return;
-
-      const dataObj = new Date(c[0]);
-      const data = Utilities.formatDate(
-        dataObj,
+      const hoje = Utilities.formatDate(
+        agora,
         Session.getScriptTimeZone(),
         'yyyyMMdd'
       );
 
-      const hora = dataObj.getHours();
-
-      // dia operacional até 03:59
-      if(data !== hoje && !(data === ontem && hora < 4)) return;
-
-      const tipo = String(c[1] || '').toUpperCase();
-
-      if(tipo === 'ENTRADA') entrada += Number(c[2]) || 0;
-      if(tipo === 'SAIDA')   saida   += Number(c[2]) || 0;
-    });
-
-    return {
-      entrada,
-      saida,
-      saldo: entrada - saida
-    };
-  }
-  function entradaMesAtual(){
-    const cx = SpreadsheetApp.getActive()
-      .getSheetByName('CAIXA')
-      .getDataRange()
-      .getValues();
-
-    const agora = new Date();
-    const refMes = Utilities.formatDate(agora, Session.getScriptTimeZone(), 'yyyyMM');
-
-    let total = 0;
-
-    cx.forEach((c,i)=>{
-      if(i===0) return;
-      if(!(c[0] instanceof Date)) return;
-      if(c[1] !== 'Entrada') return;
-
-      const mes = Utilities.formatDate(
-        new Date(c[0]),
+      const ontem = Utilities.formatDate(
+        new Date(agora.getTime() - 86400000),
         Session.getScriptTimeZone(),
-        'yyyyMM'
+        'yyyyMMdd'
       );
 
-      if(mes === refMes){
-        total += Number(c[2]) || 0;
-      }
-    });
+      let entrada = 0;
+      let saida = 0;
 
-    return total;
-  }
-  function indicadoresOperacionaisHoje(){
-    const ss = SpreadsheetApp.getActive();
-
-    const hoje = Utilities.formatDate(
-      new Date(),
-      Session.getScriptTimeZone(),
-      'yyyyMMdd'
-    );
-
-    let comandasAbertas = 0;
-    let comandasFechadasHoje = 0;
-    let deliveryHoje = 0;
-    let deliveryCanceladoHoje = 0;
-
-    // COMANDAS
-    ss.getSheetByName('COMANDAS')
-      .getDataRange()
-      .getValues()
-      .forEach((c,i)=>{
+      cx.forEach((c,i)=>{
         if(i===0) return;
-        if(!(c[1] instanceof Date)) return;
+        if(!(c[0] instanceof Date)) return;
 
-        const dia = Utilities.formatDate(
-          new Date(c[1]),
+        const dataObj = new Date(c[0]);
+        const data = Utilities.formatDate(
+          dataObj,
           Session.getScriptTimeZone(),
           'yyyyMMdd'
         );
 
-        // abertas do dia
-        if(c[4] === 'ABERTA' && dia === hoje){
-          comandasAbertas++;
-        }
+        const hora = dataObj.getHours();
 
-        // fechadas hoje
-        if(c[4] === 'FECHADA' && dia === hoje){
-          comandasFechadasHoje++;
-        }
+        // dia operacional até 03:59
+        if(data !== hoje && !(data === ontem && hora < 4)) return;
+
+        const tipo = String(c[1] || '').toUpperCase();
+
+        if(tipo === 'ENTRADA') entrada += Number(c[2]) || 0;
+        if(tipo === 'SAIDA')   saida   += Number(c[2]) || 0;
       });
 
-    // DELIVERY
-    ss.getSheetByName('DELIVERY')
-      .getDataRange()
-      .getValues()
-      .forEach((d,i)=>{
-        if(i===0) return;
-        if(!(d[1] instanceof Date)) return;
+      return {
+        entrada,
+        saida,
+        saldo: entrada - saida
+      };
+    }
+    function entradaMesAtual(){
+      const cx = SpreadsheetApp.getActive()
+        .getSheetByName('CAIXA')
+        .getDataRange()
+        .getValues();
 
-        const dia = Utilities.formatDate(
-          new Date(d[1]),
+      const agora = new Date();
+      const refMes = Utilities.formatDate(agora, Session.getScriptTimeZone(), 'yyyyMM');
+
+      let total = 0;
+
+      cx.forEach((c,i)=>{
+        if(i===0) return;
+        if(!(c[0] instanceof Date)) return;
+        if(c[1] !== 'Entrada') return;
+
+        const mes = Utilities.formatDate(
+          new Date(c[0]),
           Session.getScriptTimeZone(),
-          'yyyyMMdd'
+          'yyyyMM'
         );
 
-        if(dia === hoje){
-          deliveryHoje++;
-          if(d[7] === 'CANCELADO') deliveryCanceladoHoje++;
+        if(mes === refMes){
+          total += Number(c[2]) || 0;
         }
       });
 
-    const taxaCancelamentoDelivery =
-      deliveryHoje > 0
-        ? (deliveryCanceladoHoje / deliveryHoje)
-        : 0;
+      return total;
+    }
+    function indicadoresOperacionaisHoje(){
+      const ss = SpreadsheetApp.getActive();
 
-    return {
-      comandasAbertas,
-      comandasFechadasHoje,
-      mediaComandasDia: comandasFechadasHoje,
-      deliveryHoje,
-      deliveryCanceladoHoje,
-      taxaCancelamentoDelivery
-    };
-  }
-  function prepararMovimentoDiario(){
-    const ss = SpreadsheetApp.getActive();
-    const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
-    const mapa = {};
-
-    vendas.forEach((v,i)=>{
-      if(i===0) return;
-      if(!(v[0] instanceof Date)) return;
-
-      const data = Utilities.formatDate(
-        new Date(v[0]),
+      const hoje = Utilities.formatDate(
+        new Date(),
         Session.getScriptTimeZone(),
-        'dd/MM/yyyy'
+        'yyyyMMdd'
       );
 
-      const valor = Number(v[3]) || 0;
-      mapa[data] = (mapa[data] || 0) + valor;
-    });
+      let comandasAbertas = 0;
+      let comandasFechadasHoje = 0;
+      let deliveryHoje = 0;
+      let deliveryCanceladoHoje = 0;
 
-    const dados = [['Data','Faturamento']];
-    Object.keys(mapa).sort((a,b)=>{
-      const da = a.split('/').reverse().join('');
-      const db = b.split('/').reverse().join('');
-      return da.localeCompare(db);
-    }).forEach(d=>{
-      dados.push([d, mapa[d]]);
-    });
+      // COMANDAS
+      ss.getSheetByName('COMANDAS')
+        .getDataRange()
+        .getValues()
+        .forEach((c,i)=>{
+          if(i===0) return;
+          if(!(c[1] instanceof Date)) return;
 
-    return dados;
-  }
-  function prepararEvolucaoDiariaCaixa(){
+          const dia = Utilities.formatDate(
+            new Date(c[1]),
+            Session.getScriptTimeZone(),
+            'yyyyMMdd'
+          );
 
-    const cache = CacheService.getScriptCache();
-    const cacheKey = 'EVOLUCAO_CAIXA_HOJE';
+          // abertas do dia
+          if(c[4] === 'ABERTA' && dia === hoje){
+            comandasAbertas++;
+          }
 
-    const cached = cache.get(cacheKey);
-    if(cached){
-      return JSON.parse(cached);
+          // fechadas hoje
+          if(c[4] === 'FECHADA' && dia === hoje){
+            comandasFechadasHoje++;
+          }
+        });
+
+      // DELIVERY
+      ss.getSheetByName('DELIVERY')
+        .getDataRange()
+        .getValues()
+        .forEach((d,i)=>{
+          if(i===0) return;
+          if(!(d[1] instanceof Date)) return;
+
+          const dia = Utilities.formatDate(
+            new Date(d[1]),
+            Session.getScriptTimeZone(),
+            'yyyyMMdd'
+          );
+
+          if(dia === hoje){
+            deliveryHoje++;
+            if(d[7] === 'CANCELADO') deliveryCanceladoHoje++;
+          }
+        });
+
+      const taxaCancelamentoDelivery =
+        deliveryHoje > 0
+          ? (deliveryCanceladoHoje / deliveryHoje)
+          : 0;
+
+      return {
+        comandasAbertas,
+        comandasFechadasHoje,
+        mediaComandasDia: comandasFechadasHoje,
+        deliveryHoje,
+        deliveryCanceladoHoje,
+        taxaCancelamentoDelivery
+      };
     }
+    function prepararMovimentoDiario(){
+      const ss = SpreadsheetApp.getActive();
+      const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
+      const mapa = {};
 
-    const sh = SpreadsheetApp.getActive().getSheetByName('CAIXA');
-    if(!sh) return [['Hora','Entradas','Saídas','Saldo']];
+      vendas.forEach((v,i)=>{
+        if(i===0) return;
+        if(!(v[0] instanceof Date)) return;
 
-    const dados = sh.getDataRange().getValues();
+        const data = Utilities.formatDate(
+          new Date(v[0]),
+          Session.getScriptTimeZone(),
+          'dd/MM/yyyy'
+        );
 
-    const agora = new Date();
-    const tz = Session.getScriptTimeZone();
+        const valor = Number(v[3]) || 0;
+        mapa[data] = (mapa[data] || 0) + valor;
+      });
 
-    const inicioHoje = new Date(agora);
-    inicioHoje.setHours(4,0,0,0); // dia operacional começa 04:00
+      const dados = [['Data','Faturamento']];
+      Object.keys(mapa).sort((a,b)=>{
+        const da = a.split('/').reverse().join('');
+        const db = b.split('/').reverse().join('');
+        return da.localeCompare(db);
+      }).forEach(d=>{
+        dados.push([d, mapa[d]]);
+      });
 
-    const inicioOntem = new Date(inicioHoje);
-    inicioOntem.setDate(inicioOntem.getDate() - 1);
+      return dados;
+    }
+    function prepararEvolucaoDiariaCaixa(){
 
-    const eventos = [];
+      const cache = CacheService.getScriptCache();
+      const cacheKey = 'EVOLUCAO_CAIXA_HOJE';
 
-    for(let i=1; i<dados.length; i++){
+      const cached = cache.get(cacheKey);
+      if(cached){
+        return JSON.parse(cached);
+      }
 
-      const data = dados[i][0];
-      if(!(data instanceof Date)) continue;
+      const sh = SpreadsheetApp.getActive().getSheetByName('CAIXA');
+      if(!sh) return [['Hora','Entradas','Saídas','Saldo']];
 
-      const ts = data.getTime();
+      const dados = sh.getDataRange().getValues();
 
-      if(ts < inicioOntem.getTime()) continue;
+      const agora = new Date();
+      const tz = Session.getScriptTimeZone();
 
-      const tipo = String(dados[i][1] || '').toUpperCase();
-      const valor = Number(dados[i][2]) || 0;
-      if(valor <= 0) continue;
+      const inicioHoje = new Date(agora);
+      inicioHoje.setHours(4,0,0,0); // dia operacional começa 04:00
 
-      eventos.push({
-        hora: Utilities.formatDate(data, tz, 'HH:mm'),
-        entrada: tipo === 'ENTRADA' ? valor : null,
-        saida:   tipo === 'SAIDA'   ? -valor : null
+      const inicioOntem = new Date(inicioHoje);
+      inicioOntem.setDate(inicioOntem.getDate() - 1);
+
+      const eventos = [];
+
+      for(let i=1; i<dados.length; i++){
+
+        const data = dados[i][0];
+        if(!(data instanceof Date)) continue;
+
+        const ts = data.getTime();
+
+        if(ts < inicioOntem.getTime()) continue;
+
+        const tipo = String(dados[i][1] || '').toUpperCase();
+        const valor = Number(dados[i][2]) || 0;
+        if(valor <= 0) continue;
+
+        eventos.push({
+          hora: Utilities.formatDate(data, tz, 'HH:mm'),
+          entrada: tipo === 'ENTRADA' ? valor : null,
+          saida:   tipo === 'SAIDA'   ? -valor : null
+        });
+      }
+
+      eventos.sort((a,b)=> a.hora.localeCompare(b.hora));
+
+      const resultado = [['Hora','Entradas','Saídas','Saldo']];
+      let saldo = 0;
+
+      eventos.forEach(e=>{
+        if(e.entrada !== null) saldo += e.entrada;
+        if(e.saida   !== null) saldo += e.saida;
+
+        resultado.push([
+          e.hora,
+          e.entrada,
+          e.saida,
+          saldo
+        ]);
+      });
+
+      // cache por 1 minuto
+      cache.put(cacheKey, JSON.stringify(resultado), 60);
+
+      return resultado;
+    }
+    function calcularLucroPorPeriodo(){
+      const ss = SpreadsheetApp.getActive();
+      const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
+      const produtos = ss.getSheetByName('PRODUTOS').getDataRange().getValues();
+
+      // 🔹 mapa de custo médio por produto
+      const custoMap = {};
+      produtos.forEach((p,i)=>{
+        if(i > 0 && p[0]){
+          custoMap[p[0]] = Number(p[6]) || 0; // custo médio
+        }
+      });
+
+      const mapa = {};
+
+      vendas.forEach((v,i)=>{
+        if(i === 0) return;
+        if(!(v[0] instanceof Date)) return;
+
+        const data = Utilities.formatDate(
+          v[0],
+          Session.getScriptTimeZone(),
+          'dd/MM/yyyy'
+        );
+
+        const produto = v[1];
+        const qtd = Number(v[2]) || 0;
+        const receita = Number(v[3]) || 0;
+        const custoUnit = custoMap[produto] || 0;
+
+        const custoTotal = qtd * custoUnit;
+
+        // lucro confiável
+        const lucro = custoUnit > 0
+          ? (receita - custoTotal)
+          : 0;
+
+        if(!mapa[data]){
+          mapa[data] = {
+            receita: 0,
+            custo: 0,
+            lucro: 0,
+            margem: 0,
+            vendas: 0,
+            ticketMedio: 0
+          };
+        }
+
+        mapa[data].receita += receita;
+        mapa[data].custo += custoTotal;
+        mapa[data].lucro += lucro;
+        mapa[data].vendas += 1;
+      });
+
+      // 🔹 calcula margem (%) e ticket médio
+      Object.keys(mapa).forEach(d=>{
+        const r = mapa[d].receita;
+        const l = mapa[d].lucro;
+        const v = mapa[d].vendas;
+
+        mapa[d].margem = r > 0 ? (l / r) : 0;
+        mapa[d].ticketMedio = v > 0 ? (r / v) : 0;
+      });
+
+      return mapa;
+    }
+    function calcularLucroMensal(){
+      const ss = SpreadsheetApp.getActive();
+      const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
+      const produtos = ss.getSheetByName('PRODUTOS').getDataRange().getValues();
+
+      // mapa de custo médio
+      const custoMap = {};
+      produtos.forEach((p,i)=>{
+        if(i>0 && p[0]){
+          custoMap[p[0]] = Number(p[6]) || 0;
+        }
+      });
+
+      const mapa = {};
+
+      vendas.forEach((v,i)=>{
+        if(i===0) return;
+
+        const data = new Date(v[0]);
+        const mes = Utilities.formatDate(
+          data,
+          Session.getScriptTimeZone(),
+          'MM/yyyy'
+        );
+
+        const produto = v[1];
+        const qtd = Number(v[2]) || 0;
+        const valorVenda = Number(v[3]) || 0;
+        const custoUnit = custoMap[produto] || 0;
+
+        const custoTotal = qtd * custoUnit;
+        const lucro = valorVenda - custoTotal;
+
+        if(!mapa[mes]){
+          mapa[mes] = { receita:0, custo:0, lucro:0 };
+        }
+
+        mapa[mes].receita += valorVenda;
+        mapa[mes].custo += custoTotal;
+        mapa[mes].lucro += lucro;
+      });
+
+      return mapa;
+    }
+  // DASHBOARD - GRÁFICOS
+    function atualizarGraficosDashboard(){
+
+      const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
+      if(!sh) return;
+
+      // Gráfico Resumo do Dia
+      if(typeof criarGraficoResumoDia === 'function'){
+        criarGraficoResumoDia();
+      }
+
+      // Gráfico Evolução do Caixa
+      if(typeof criarGraficoEvolucaoCaixa === 'function'){
+        criarGraficoEvolucaoCaixa(sh);
+      }
+
+    }
+    function criarGraficoResumoDia(){
+
+      const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
+      if(!sh) return;
+
+      removerGraficoPorTitulo(sh, '📊 Resumo Financeiro do Dia');
+
+      const fin = resumoFinanceiroHoje();
+
+      const dados = [
+        ['Tipo','Valor'],
+        ['Entrada', fin.entrada],
+        ['Saída',  -Math.abs(fin.saida)], // negativo só no gráfico
+        ['Saldo',  fin.saldo]
+      ];
+
+      const baseRow = 20;
+      sh.getRange(baseRow,1,dados.length,2).setValues(dados);
+
+      const chart = sh.newChart()
+        .setChartType(Charts.ChartType.COLUMN)
+        .addRange(sh.getRange(baseRow,1,dados.length,2))
+        .setPosition(3,4,0,0)
+        .setOption('title','📊 Resumo Financeiro do Dia')
+        .setOption('legend',{ position:'none' })
+        .setOption('colors',['#16a34a','#dc2626','#2563eb'])
+        .build();
+
+      sh.insertChart(chart);
+    }
+    function criarGraficoEvolucaoCaixa(sh){
+
+      const dados = prepararEvolucaoDiariaCaixa();
+      if(dados.length < 2) return;
+
+      removerGraficoPorTitulo(sh, '📊 Evolução Financeira do Dia');
+
+      const baseCol = 20;
+      const baseRow = 2;
+
+      sh.getRange(baseRow, baseCol, dados.length, 4).setValues(dados);
+      sh.hideColumns(baseCol, 4);
+
+      const chart = sh.newChart()
+        .setChartType(Charts.ChartType.LINE)
+        .addRange(sh.getRange(baseRow, baseCol, dados.length, 4))
+        .setPosition(21, 4, 0, 0)
+        .setOption('title','📊 Evolução Financeira do Dia')
+        .setOption('curveType','function')
+        .setOption('legend',{position:'bottom'})
+        .build();
+
+      sh.insertChart(chart);
+    }
+    function removerGraficoPorTitulo(sh, titulo){
+      sh.getCharts().forEach(chart => {
+        if(chart.getOptions().title === titulo){
+          sh.removeChart(chart);
+        }
       });
     }
+  // DASHBOARD - TELAS
+    function dashboardGeralLeve(){
 
-    eventos.sort((a,b)=> a.hora.localeCompare(b.hora));
+      const ss = SpreadsheetApp.getActive();
+      let sh = ss.getSheetByName('DASHBOARD');
 
-    const resultado = [['Hora','Entradas','Saídas','Saldo']];
-    let saldo = 0;
-
-    eventos.forEach(e=>{
-      if(e.entrada !== null) saldo += e.entrada;
-      if(e.saida   !== null) saldo += e.saida;
-
-      resultado.push([
-        e.hora,
-        e.entrada,
-        e.saida,
-        saldo
-      ]);
-    });
-
-    // cache por 1 minuto
-    cache.put(cacheKey, JSON.stringify(resultado), 60);
-
-    return resultado;
-  }
-  function calcularLucroPorPeriodo(){
-    const ss = SpreadsheetApp.getActive();
-    const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
-    const produtos = ss.getSheetByName('PRODUTOS').getDataRange().getValues();
-
-    // 🔹 mapa de custo médio por produto
-    const custoMap = {};
-    produtos.forEach((p,i)=>{
-      if(i > 0 && p[0]){
-        custoMap[p[0]] = Number(p[6]) || 0; // custo médio
+      if(!sh){
+        sh = ss.insertSheet('DASHBOARD');
       }
-    });
 
-    const mapa = {};
+      sh.setHiddenGridlines(true);
 
-    vendas.forEach((v,i)=>{
-      if(i === 0) return;
-      if(!(v[0] instanceof Date)) return;
+      // ======================
+      // CABEÇALHO (criado 1x)
+      // ======================
+      sh.getRange('A1:E1').merge()
+        .setValue(`📊 DASHBOARD GERAL — ${getNomeDeposito()}`)
+        .setFontSize(18)
+        .setFontWeight('bold')
+        .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle');
 
-      const data = Utilities.formatDate(
-        v[0],
-        Session.getScriptTimeZone(),
-        'dd/MM/yyyy'
-      );
+      // ======================
+      // KPIs (dados leves)
+      // ======================
+      const fin = resumoFinanceiroHoje();
+      const mes = entradaMesAtual();
+      const ops = indicadoresOperacionaisHoje();
+      const saldoTotal = calcularSaldoTotal();
 
-      const produto = v[1];
-      const qtd = Number(v[2]) || 0;
-      const receita = Number(v[3]) || 0;
-      const custoUnit = custoMap[produto] || 0;
+      const dados = [
+        ['⚖️ Resultado Líquido do Dia', fin.saldo],
+        ['', ''],
+        ['💰 Entrada Hoje', fin.entrada],
+        ['💸 Saída Hoje', fin.saida],
+        ['📆 Entrada do Mês', mes],
+        ['', ''],
+        ['🎟️ Média de Comandas / Dia', ops.mediaComandasDia],
+        ['🍺 Comandas Abertas', ops.comandasAbertas],
+        ['🧾 Comandas Fechadas Hoje', ops.comandasFechadasHoje],
+        ['', ''],
+        ['🚚 Deliveries Hoje', ops.deliveryHoje],
+        ['❌ Cancelamento Delivery (%)', ops.taxaCancelamentoDelivery],
+        ['', ''],
+        ['📦 Saldo Total Geral', saldoTotal],
+      ];
 
-      const custoTotal = qtd * custoUnit;
+      // 🔒 Limpa SOMENTE área de KPIs
+      sh.getRange(3,1,30,5).clearContent();
 
-      // lucro confiável
-      const lucro = custoUnit > 0
-        ? (receita - custoTotal)
+      sh.getRange(3,1,dados.length,2)
+        .setValues(dados)
+        .setHorizontalAlignment('left');
+
+      // ======================
+      // FORMATAÇÃO
+      // ======================
+      sh.getRange('B3:B6').setNumberFormat('R$ #,##0.00');
+      sh.getRange('B13').setNumberFormat('R$ #,##0.00');
+      sh.getRange('B11').setNumberFormat('0.00%');
+      sh.getRange('A3:A14').setFontWeight('bold');
+      sh.getRange('B8:B10').setNumberFormat('0');
+
+    }
+    function dashboardLucroFinal(){
+
+      const ss = SpreadsheetApp.getActive();
+      let sh = ss.getSheetByName('DASHBOARD_LUCRO');
+
+      if(!sh){
+        sh = ss.insertSheet('DASHBOARD_LUCRO');
+      }
+
+      sh.clear();
+      sh.setHiddenGridlines(true);
+
+      /* TÍTULO */
+      sh.getRange('A1:F1').merge()
+        .setValue(`📈 DASHBOARD DE LUCRO — ${getNomeDeposito()}`)
+        .setFontSize(18)
+        .setFontWeight('bold')
+        .setHorizontalAlignment('center');
+
+      /* ======================
+        DADOS DE LUCRO
+      ====================== */
+      const mapa = calcularLucroMensal();
+      const linhas = [];
+
+      let somaMargem = 0;
+      let qtdMeses = 0;
+      let melhorMargem = null;
+      let piorMargem = null;
+
+      Object.keys(mapa).sort().forEach(mes => {
+
+        const r = mapa[mes];
+
+        const margem = r.receita > 0
+          ? r.lucro / r.receita
+          : 0;
+
+        linhas.push([
+          mes,
+          r.receita,
+          r.custo,
+          r.lucro,
+          margem,
+          0 // variação % (calculada depois)
+        ]);
+
+        somaMargem += margem;
+        qtdMeses++;
+
+        if(melhorMargem === null || margem > melhorMargem){
+          melhorMargem = margem;
+        }
+
+        if(piorMargem === null || margem < piorMargem){
+          piorMargem = margem;
+        }
+      });
+
+      if(!linhas.length){
+        sh.getRange('A5')
+          .setValue('⚠️ Nenhum dado encontrado.')
+          .setFontStyle('italic');
+        return;
+      }
+
+      const margemMedia = qtdMeses > 0
+        ? somaMargem / qtdMeses
         : 0;
 
-      if(!mapa[data]){
-        mapa[data] = {
-          receita: 0,
-          custo: 0,
-          lucro: 0,
-          margem: 0,
-          vendas: 0,
-          ticketMedio: 0
-        };
+      /* ======================
+        KPIs DE MARGEM (TOPO)
+      ====================== */
+      sh.getRange('A3:F3').setValues([[
+        `📊 Margem Média: ${(margemMedia*100).toFixed(1)}%`,
+        `🔺 Melhor Margem: ${(melhorMargem*100).toFixed(1)}%`,
+        `🔻 Pior Margem: ${(piorMargem*100).toFixed(1)}%`,
+        '',
+        '',
+        ''
+      ]]);
+
+      sh.getRange('A3:C3')
+        .setFontWeight('bold')
+        .setHorizontalAlignment('center');
+
+      /* ======================
+        CABEÇALHO
+      ====================== */
+      sh.getRange('A5:F5').setValues([[
+        'Mês/Ano',
+        'Receita',
+        'Custo',
+        'Lucro',
+        'Margem %',
+        'Variação %'
+      ]]);
+
+      sh.getRange('A5:F5')
+        .setFontWeight('bold')
+        .setBackground('#020617')
+        .setFontColor('#ffffff')
+        .setHorizontalAlignment('center');
+
+      /* ======================
+        VARIAÇÃO MÊS A MÊS
+      ====================== */
+      for(let i=1;i<linhas.length;i++){
+        const lucroAtual = linhas[i][3];
+        const lucroAnterior = linhas[i-1][3];
+
+        if(lucroAnterior !== 0){
+          linhas[i][5] =
+            (lucroAtual - lucroAnterior) / Math.abs(lucroAnterior);
+        }
       }
 
-      mapa[data].receita += receita;
-      mapa[data].custo += custoTotal;
-      mapa[data].lucro += lucro;
-      mapa[data].vendas += 1;
-    });
+      /* ======================
+        ESCREVE DADOS
+      ====================== */
+      sh.getRange(6,1,linhas.length,6).setValues(linhas);
 
-    // 🔹 calcula margem (%) e ticket médio
-    Object.keys(mapa).forEach(d=>{
-      const r = mapa[d].receita;
-      const l = mapa[d].lucro;
-      const v = mapa[d].vendas;
+      /* FORMATA */
+      sh.getRange(6,2,linhas.length,3)
+        .setNumberFormat('R$ #,##0.00');
 
-      mapa[d].margem = r > 0 ? (l / r) : 0;
-      mapa[d].ticketMedio = v > 0 ? (r / v) : 0;
-    });
+      sh.getRange(6,5,linhas.length,2)
+        .setNumberFormat('0.00%');
 
-    return mapa;
-  }
-  function calcularLucroMensal(){
-    const ss = SpreadsheetApp.getActive();
-    const vendas = ss.getSheetByName('VENDAS').getDataRange().getValues();
-    const produtos = ss.getSheetByName('PRODUTOS').getDataRange().getValues();
+      /* ======================
+        ALERTAS VISUAIS
+      ====================== */
+      for(let i=0;i<linhas.length;i++){
 
-    // mapa de custo médio
-    const custoMap = {};
-    produtos.forEach((p,i)=>{
-      if(i>0 && p[0]){
-        custoMap[p[0]] = Number(p[6]) || 0;
-      }
-    });
+        const margem = linhas[i][4];
+        const lucro  = linhas[i][3];
+        const variacao = linhas[i][5];
+        const row = 6 + i;
 
-    const mapa = {};
+        // margem / lucro
+        if(lucro < 0){
+          sh.getRange(row,1,1,6)
+            .setBackground('#fee2e2')
+            .setFontColor('#7f1d1d');
+        }else if(margem < 0.10){
+          sh.getRange(row,1,1,6)
+            .setBackground('#fef9c3')
+            .setFontColor('#854d0e');
+        }else{
+          sh.getRange(row,1,1,6)
+            .setBackground('#ecfdf5')
+            .setFontColor('#065f46');
+        }
 
-    vendas.forEach((v,i)=>{
-      if(i===0) return;
-
-      const data = new Date(v[0]);
-      const mes = Utilities.formatDate(
-        data,
-        Session.getScriptTimeZone(),
-        'MM/yyyy'
-      );
-
-      const produto = v[1];
-      const qtd = Number(v[2]) || 0;
-      const valorVenda = Number(v[3]) || 0;
-      const custoUnit = custoMap[produto] || 0;
-
-      const custoTotal = qtd * custoUnit;
-      const lucro = valorVenda - custoTotal;
-
-      if(!mapa[mes]){
-        mapa[mes] = { receita:0, custo:0, lucro:0 };
+        // variação
+        if(variacao > 0){
+          sh.getRange(row,6).setFontColor('#166534'); // verde
+        }else if(variacao < 0){
+          sh.getRange(row,6).setFontColor('#7f1d1d'); // vermelho
+        }
       }
 
-      mapa[mes].receita += valorVenda;
-      mapa[mes].custo += custoTotal;
-      mapa[mes].lucro += lucro;
-    });
+      /* ======================
+        GRÁFICOS (MANTIDOS)
+      ====================== */
+      sh.getCharts().forEach(c => sh.removeChart(c));
 
-    return mapa;
-  }
-// DASHBOARD - GRÁFICOS
-  function atualizarGraficosDashboard(){
+      const lastRow = 5 + linhas.length;
 
-    const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
-    if(!sh) return;
+      const chartReceita = sh.newChart()
+        .setChartType(Charts.ChartType.LINE)
+        .addRange(sh.getRange(5,1,lastRow,2))
+        .setPosition(3,8,0,0)
+        .setOption('title','📈 Receita Mensal')
+        .setOption('curveType','function')
+        .build();
 
-    // Gráfico Resumo do Dia
-    if(typeof criarGraficoResumoDia === 'function'){
-      criarGraficoResumoDia();
+      sh.insertChart(chartReceita);
+
+      const chartLucro = sh.newChart()
+        .setChartType(Charts.ChartType.LINE)
+        .addRange(sh.getRange(5,1,lastRow,4))
+        .setPosition(18,8,0,0)
+        .setOption('title','📉 Lucro Mensal')
+        .setOption('curveType','function')
+        .build();
+
+      sh.insertChart(chartLucro);
+
+      /* AJUSTE COLUNAS */
+      sh.setColumnWidth(1, 110);
+      sh.setColumnWidth(2, 160);
+      sh.setColumnWidth(3, 160);
+      sh.setColumnWidth(4, 160);
+      sh.setColumnWidth(5, 120);
+      sh.setColumnWidth(6, 130);
+    }
+    function atualizarDashboards(){
+      dashboardGeralLeve();
+      atualizarGraficosDashboard();
+    }
+    function atualizarDashboardManual(){
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      ss.toast('⏳ Atualizando dashboard...', 'Dashboard', 3);
+
+      dashboardGeralLeve();
+      dashboardLucroFinal();
+
+      ss.toast('✅ Dashboard atualizado', 'Dashboard', 3);
     }
 
-    // Gráfico Evolução do Caixa
-    if(typeof criarGraficoEvolucaoCaixa === 'function'){
-      criarGraficoEvolucaoCaixa(sh);
-    }
 
-  }
-  function criarGraficoResumoDia(){
-
-    const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
-    if(!sh) return;
-
-    removerGraficoPorTitulo(sh, '📊 Resumo Financeiro do Dia');
-
-    const fin = resumoFinanceiroHoje();
-
-    const dados = [
-      ['Tipo','Valor'],
-      ['Entrada', fin.entrada],
-      ['Saída',  -Math.abs(fin.saida)], // negativo só no gráfico
-      ['Saldo',  fin.saldo]
-    ];
-
-    const baseRow = 20;
-    sh.getRange(baseRow,1,dados.length,2).setValues(dados);
-
-    const chart = sh.newChart()
-      .setChartType(Charts.ChartType.COLUMN)
-      .addRange(sh.getRange(baseRow,1,dados.length,2))
-      .setPosition(3,4,0,0)
-      .setOption('title','📊 Resumo Financeiro do Dia')
-      .setOption('legend',{ position:'none' })
-      .setOption('colors',['#16a34a','#dc2626','#2563eb'])
-      .build();
-
-    sh.insertChart(chart);
-  }
-  function criarGraficoEvolucaoCaixa(sh){
-
-    const dados = prepararEvolucaoDiariaCaixa();
-    if(dados.length < 2) return;
-
-    removerGraficoPorTitulo(sh, '📊 Evolução Financeira do Dia');
-
-    const baseCol = 20;
-    const baseRow = 2;
-
-    sh.getRange(baseRow, baseCol, dados.length, 4).setValues(dados);
-    sh.hideColumns(baseCol, 4);
-
-    const chart = sh.newChart()
-      .setChartType(Charts.ChartType.LINE)
-      .addRange(sh.getRange(baseRow, baseCol, dados.length, 4))
-      .setPosition(21, 4, 0, 0)
-      .setOption('title','📊 Evolução Financeira do Dia')
-      .setOption('curveType','function')
-      .setOption('legend',{position:'bottom'})
-      .build();
-
-    sh.insertChart(chart);
-  }
-  function removerGraficoPorTitulo(sh, titulo){
-    sh.getCharts().forEach(chart => {
-      if(chart.getOptions().title === titulo){
-        sh.removeChart(chart);
-      }
-    });
-  }
-// DASHBOARD - TELAS
-  function dashboardGeralLeve(){
-
-    const ss = SpreadsheetApp.getActive();
-    let sh = ss.getSheetByName('DASHBOARD');
-
-    if(!sh){
-      sh = ss.insertSheet('DASHBOARD');
-    }
-
-    sh.setHiddenGridlines(true);
-
-    // ======================
-    // CABEÇALHO (criado 1x)
-    // ======================
-    sh.getRange('A1:E1').merge()
-      .setValue(`📊 DASHBOARD GERAL — ${getNomeDeposito()}`)
-      .setFontSize(18)
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center')
-      .setVerticalAlignment('middle');
-
-    // ======================
-    // KPIs (dados leves)
-    // ======================
-    const fin = resumoFinanceiroHoje();
-    const mes = entradaMesAtual();
-    const ops = indicadoresOperacionaisHoje();
-    const saldoTotal = calcularSaldoTotal();
-
-    const dados = [
-      ['⚖️ Resultado Líquido do Dia', fin.saldo],
-      ['', ''],
-      ['💰 Entrada Hoje', fin.entrada],
-      ['💸 Saída Hoje', fin.saida],
-      ['📆 Entrada do Mês', mes],
-      ['', ''],
-      ['🎟️ Média de Comandas / Dia', ops.mediaComandasDia],
-      ['🍺 Comandas Abertas', ops.comandasAbertas],
-      ['🧾 Comandas Fechadas Hoje', ops.comandasFechadasHoje],
-      ['', ''],
-      ['🚚 Deliveries Hoje', ops.deliveryHoje],
-      ['❌ Cancelamento Delivery (%)', ops.taxaCancelamentoDelivery],
-      ['', ''],
-      ['📦 Saldo Total Geral', saldoTotal],
-    ];
-
-    // 🔒 Limpa SOMENTE área de KPIs
-    sh.getRange(3,1,30,5).clearContent();
-
-    sh.getRange(3,1,dados.length,2)
-      .setValues(dados)
-      .setHorizontalAlignment('left');
-
-    // ======================
-    // FORMATAÇÃO
-    // ======================
-    sh.getRange('B3:B6').setNumberFormat('R$ #,##0.00');
-    sh.getRange('B13').setNumberFormat('R$ #,##0.00');
-    sh.getRange('B11').setNumberFormat('0.00%');
-    sh.getRange('A3:A14').setFontWeight('bold');
-    sh.getRange('B8:B10').setNumberFormat('0');
-
-  }
-  function dashboardLucroFinal(){
-
-    const ss = SpreadsheetApp.getActive();
-    let sh = ss.getSheetByName('DASHBOARD_LUCRO');
-
-    if(!sh){
-      sh = ss.insertSheet('DASHBOARD_LUCRO');
-    }
-
-    sh.clear();
-    sh.setHiddenGridlines(true);
-
-    /* TÍTULO */
-    sh.getRange('A1:F1').merge()
-      .setValue(`📈 DASHBOARD DE LUCRO — ${getNomeDeposito()}`)
-      .setFontSize(18)
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center');
-
-    /* ======================
-      DADOS DE LUCRO
-    ====================== */
-    const mapa = calcularLucroMensal();
-    const linhas = [];
-
-    let somaMargem = 0;
-    let qtdMeses = 0;
-    let melhorMargem = null;
-    let piorMargem = null;
-
-    Object.keys(mapa).sort().forEach(mes => {
-
-      const r = mapa[mes];
-
-      const margem = r.receita > 0
-        ? r.lucro / r.receita
-        : 0;
-
-      linhas.push([
-        mes,
-        r.receita,
-        r.custo,
-        r.lucro,
-        margem,
-        0 // variação % (calculada depois)
-      ]);
-
-      somaMargem += margem;
-      qtdMeses++;
-
-      if(melhorMargem === null || margem > melhorMargem){
-        melhorMargem = margem;
-      }
-
-      if(piorMargem === null || margem < piorMargem){
-        piorMargem = margem;
-      }
-    });
-
-    if(!linhas.length){
-      sh.getRange('A5')
-        .setValue('⚠️ Nenhum dado encontrado.')
-        .setFontStyle('italic');
-      return;
-    }
-
-    const margemMedia = qtdMeses > 0
-      ? somaMargem / qtdMeses
-      : 0;
-
-    /* ======================
-      KPIs DE MARGEM (TOPO)
-    ====================== */
-    sh.getRange('A3:F3').setValues([[
-      `📊 Margem Média: ${(margemMedia*100).toFixed(1)}%`,
-      `🔺 Melhor Margem: ${(melhorMargem*100).toFixed(1)}%`,
-      `🔻 Pior Margem: ${(piorMargem*100).toFixed(1)}%`,
-      '',
-      '',
-      ''
-    ]]);
-
-    sh.getRange('A3:C3')
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center');
-
-    /* ======================
-      CABEÇALHO
-    ====================== */
-    sh.getRange('A5:F5').setValues([[
-      'Mês/Ano',
-      'Receita',
-      'Custo',
-      'Lucro',
-      'Margem %',
-      'Variação %'
-    ]]);
-
-    sh.getRange('A5:F5')
-      .setFontWeight('bold')
-      .setBackground('#020617')
-      .setFontColor('#ffffff')
-      .setHorizontalAlignment('center');
-
-    /* ======================
-      VARIAÇÃO MÊS A MÊS
-    ====================== */
-    for(let i=1;i<linhas.length;i++){
-      const lucroAtual = linhas[i][3];
-      const lucroAnterior = linhas[i-1][3];
-
-      if(lucroAnterior !== 0){
-        linhas[i][5] =
-          (lucroAtual - lucroAnterior) / Math.abs(lucroAnterior);
-      }
-    }
-
-    /* ======================
-      ESCREVE DADOS
-    ====================== */
-    sh.getRange(6,1,linhas.length,6).setValues(linhas);
-
-    /* FORMATA */
-    sh.getRange(6,2,linhas.length,3)
-      .setNumberFormat('R$ #,##0.00');
-
-    sh.getRange(6,5,linhas.length,2)
-      .setNumberFormat('0.00%');
-
-    /* ======================
-      ALERTAS VISUAIS
-    ====================== */
-    for(let i=0;i<linhas.length;i++){
-
-      const margem = linhas[i][4];
-      const lucro  = linhas[i][3];
-      const variacao = linhas[i][5];
-      const row = 6 + i;
-
-      // margem / lucro
-      if(lucro < 0){
-        sh.getRange(row,1,1,6)
-          .setBackground('#fee2e2')
-          .setFontColor('#7f1d1d');
-      }else if(margem < 0.10){
-        sh.getRange(row,1,1,6)
-          .setBackground('#fef9c3')
-          .setFontColor('#854d0e');
-      }else{
-        sh.getRange(row,1,1,6)
-          .setBackground('#ecfdf5')
-          .setFontColor('#065f46');
-      }
-
-      // variação
-      if(variacao > 0){
-        sh.getRange(row,6).setFontColor('#166534'); // verde
-      }else if(variacao < 0){
-        sh.getRange(row,6).setFontColor('#7f1d1d'); // vermelho
-      }
-    }
-
-    /* ======================
-      GRÁFICOS (MANTIDOS)
-    ====================== */
-    sh.getCharts().forEach(c => sh.removeChart(c));
-
-    const lastRow = 5 + linhas.length;
-
-    const chartReceita = sh.newChart()
-      .setChartType(Charts.ChartType.LINE)
-      .addRange(sh.getRange(5,1,lastRow,2))
-      .setPosition(3,8,0,0)
-      .setOption('title','📈 Receita Mensal')
-      .setOption('curveType','function')
-      .build();
-
-    sh.insertChart(chartReceita);
-
-    const chartLucro = sh.newChart()
-      .setChartType(Charts.ChartType.LINE)
-      .addRange(sh.getRange(5,1,lastRow,4))
-      .setPosition(18,8,0,0)
-      .setOption('title','📉 Lucro Mensal')
-      .setOption('curveType','function')
-      .build();
-
-    sh.insertChart(chartLucro);
-
-    /* AJUSTE COLUNAS */
-    sh.setColumnWidth(1, 110);
-    sh.setColumnWidth(2, 160);
-    sh.setColumnWidth(3, 160);
-    sh.setColumnWidth(4, 160);
-    sh.setColumnWidth(5, 120);
-    sh.setColumnWidth(6, 130);
-  }
-  function atualizarDashboards(){
-    dashboardGeralLeve();
-    atualizarGraficosDashboard();
-  }
-  function atualizarDashboardManual(){
-
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-    ss.toast('⏳ Atualizando dashboard...', 'Dashboard', 3);
-
-    dashboardGeralLeve();
-    dashboardLucroFinal();
-
-    ss.toast('✅ Dashboard atualizado', 'Dashboard', 3);
-  }
 // ===============================
 // MENSAGENS / CONFIRMAÇÕES
 // ===============================
