@@ -1,0 +1,46 @@
+1 estoque negativo
+2 custo médio errado
+3 produto duplicado
+4 ID duplicado
+5 comanda não fecha
+6 comanda fecha sem pagamento
+7 estoque não baixa
+8 compra não atualiza estoque
+9 compra não atualiza custo
+10 cancelamento não estorna estoque
+
+11 cancelamento não estorna caixa
+12 valor financeiro errado
+13 pagamento duplicado
+14 pagamento parcial incorreto
+15 venda sem estoque
+
+16 erro de data
+17 erro de formatação monetária
+18 popup não abre
+19 popup trava
+20 botão duplicado
+
+21 lentidão em planilha grande
+22 erro em logs
+23 backup não executa
+24 pasta drive não criada
+25 link de NF quebrado
+
+26 conflito de usuário
+27 edição simultânea
+28 perda de dados
+29 erro de margem
+30 erro de preço sugerido
+
+31 estoque mínimo incorreto
+32 relatório incorreto
+33 dashboard não atualiza
+34 contas vencidas não detectadas
+35 fiado não atualizado
+
+36 erro de timezone
+37 erro de arredondamento
+38 erro de parse número
+39 erro de normalização texto
+40 erro de busca produto
