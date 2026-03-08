@@ -1,185 +1,232 @@
-==================================================
-MANUAL DO USUÁRIO
-KARO PRO
-==================================================
+📘 MANUAL DO SISTEMA
+Gestão de Depósito — Karo Pro
+Versão
 
-INTRODUÇÃO
------------
+Karo Pro v2.0
 
-O Karo Pro é um sistema de gestão para depósitos e
-pequenos comércios que permite controlar:
+Status
 
-- estoque
-- vendas
-- compras
-- comandas
-- delivery
-- financeiro
+Produção Assistida
 
+🏪 Introdução
 
---------------------------------------------------
+O Karo Pro é um sistema de gestão desenvolvido para depósitos, bares e pequenos comércios.
 
-MENU PRINCIPAL
---------------
+Ele permite controlar de forma simples:
 
-HOME
-COMANDAS
-DELIVERY
-ESTOQUE FINANCEIRO
-COMPRAS
-FINANCEIRO
-DASHBOARD
-SISTEMA
+📦 Estoque
+💰 Vendas
+🛒 Compras
+📊 Financeiro
+🚚 Delivery
+📑 Relatórios
+💾 Backup automático
 
---------------------------------------------------
+Tudo integrado com Google Sheets e Google Drive.
 
-CADASTRO DE PRODUTOS
---------------------
+🖥️ Visão Geral do Sistema
+Figura 1 — Estrutura do sistema
+Cliente
+   │
+   ▼
+Vendas / Delivery / Comandas
+   │
+   ▼
+Estoque
+   │
+   ▼
+Financeiro
+   │
+   ▼
+Dashboard
+📋 Menu Principal
 
-Menu:
-Estoque → Cadastro de produtos
+O sistema possui os seguintes menus:
 
-Campos obrigatórios:
+🏠 Home
+💶 Comandas
+🚚 Delivery
+📦 Estoque Financeiro
+🛒 Compras
+💰 Financeiro
+📊 Dashboard
+⚙️ Sistema
 
-Produto
-Categoria
-Marca
-Volume
-Custo médio
-Margem
-Preço
-Estoque mínimo
-
-O sistema calcula automaticamente:
-
-Preço sugerido
-Status de margem
-
---------------------------------------------------
-
-COMPRAS
--------
+📦 Cadastro de Produtos
 
 Menu:
-Compras → Nova compra
 
-Processo:
+📦 Estoque → Cadastro de Produtos
 
-1 selecionar produto
-2 informar quantidade
-3 informar valor unitário
-4 adicionar ao carrinho
-5 finalizar compra
+Campos principais:
 
-Resultado:
+Campo	Descrição
+Produto	Nome do produto
+Categoria	Tipo de produto
+Marca	Fabricante
+Volume	Tamanho
+Custo médio	Valor médio de compra
+Margem	Margem de lucro
+Preço	Preço de venda
+Estoque mínimo	Alerta de estoque
+Figura 2 — Cadastro de Produto
 
-estoque atualizado
-custo médio recalculado
-registro no caixa
+📦 Produto
+🏷️ Categoria
+🏭 Marca
+📏 Volume
+💰 Custo médio
+📈 Margem
+💵 Preço de venda
 
---------------------------------------------------
-
-COMANDAS
---------
+🛒 Compras
 
 Menu:
-Comandas → Nova comanda
+
+🛒 Compras → Nova Compra
+
+Fluxo de compra:
+
+Selecionar produto
+        │
+        ▼
+Informar quantidade
+        │
+        ▼
+Informar valor unitário
+        │
+        ▼
+Adicionar ao carrinho
+        │
+        ▼
+Finalizar compra
+
+Resultado automático:
+
+✔ Atualiza estoque
+✔ Recalcula custo médio
+✔ Registra saída no caixa
+
+🍺 Comandas
+
+Menu:
+
+💶 Comandas → Nova Comanda
+
+Fluxo de comanda:
+
+Nova Comanda
+      │
+      ▼
+Adicionar itens
+      │
+      ▼
+Finalizar consumo
+      │
+      ▼
+Pagamento
+      │
+      ▼
+Comanda fechada
+🚚 Delivery
+
+Menu:
+
+🚚 Delivery → Novo Pedido
 
 Fluxo:
 
-abrir comanda
-adicionar produtos
-finalizar
-registrar pagamento
-
---------------------------------------------------
-
-DELIVERY
---------
-
-Menu:
-Delivery → Novo pedido
-
-Fluxo:
-
-criar pedido
-encaminhar
-entregar
-finalizar
-
---------------------------------------------------
-
-CONTAS A PAGAR
---------------
+Criar pedido
+     │
+     ▼
+Preparar pedido
+     │
+     ▼
+Enviar entrega
+     │
+     ▼
+Pedido entregue
+💰 Financeiro
 
 Menu:
-Financeiro → Contas a pagar
 
-Tipos:
+💰 Financeiro
 
-contas fixas
-contas avulsas
+Funções disponíveis:
 
-Pagamento gera saída no caixa.
+💵 Fluxo de caixa
+📑 Contas a pagar
+📑 Contas a receber
+📊 Relatórios financeiros
 
---------------------------------------------------
+📊 Fluxo de Caixa
 
-CONTAS A RECEBER
-----------------
+Exibe valores por forma de pagamento:
 
-Utilizado para:
+💵 Dinheiro
+⚡ Pix
+💳 Débito
+💳 Crédito
+📄 Fiado
 
-fiado
-parcelamentos
+Também mostra:
 
-Permite recebimento parcial.
+📈 Entradas
+📉 Saídas
+📊 Resultado
 
---------------------------------------------------
-
-FLUXO DE CAIXA
---------------
-
-Menu:
-Financeiro → Fluxo de caixa
-
-Exibe:
-
-dinheiro
-pix
-débito
-crédito
-fiado
-entradas
-saídas
-resultado
-
---------------------------------------------------
-
-BACKUP
-------
+💾 Backup
 
 Menu:
-Sistema → Fazer backup
 
-Backups são salvos automaticamente no Drive.
+⚙️ Sistema → Fazer Backup
 
---------------------------------------------------
+O sistema cria backups automáticos no Google Drive.
 
-LOGS
-----
+Estrutura criada:
+
+Deposito/
+
+Backup
+Logs
+Relatorios
+Compras
+📜 Logs do Sistema
 
 Menu:
-Sistema → Ver logs
 
-Todos os movimentos são registrados.
+⚙️ Sistema → Ver Logs
 
---------------------------------------------------
+Registra:
 
-WHATSAPP
---------
+✔ vendas
+✔ compras
+✔ ajustes de estoque
+✔ pagamentos
+✔ alterações
 
-Painel rápido para:
+📱 WhatsApp
 
-pedido
-suporte
-consulta de fiado
+Painel de integração para:
+
+📲 Fazer pedido
+👤 Falar com gerente
+👑 Falar com dono
+💳 Consultar fiado
+
+📊 Indicadores Importantes
+
+O sistema acompanha:
+
+📦 estoque crítico
+💰 caixa do dia
+📊 vendas do dia
+📉 despesas
+📈 margem média
+
+⚠️ Boas Práticas de Uso
+
+✔ Sempre registrar compras antes de vender
+✔ Não alterar manualmente estoque na planilha
+✔ Fazer backup regularmente
+✔ Conferir logs em caso de erro
