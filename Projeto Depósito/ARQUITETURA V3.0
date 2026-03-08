@@ -1,0 +1,54 @@
+KARO PRO v3.0
+
+CORE
+  config
+  auth
+  logs
+  utils
+
+DATA LAYER
+  produtoDAO
+  estoqueDAO
+  vendaDAO
+  compraDAO
+  financeiroDAO
+
+SERVICES
+  produtoService
+  estoqueService
+  vendaService
+  compraService
+  financeiroService
+
+MODULES
+
+ESTOQUE
+COMPRAS
+VENDAS
+DELIVERY
+FINANCEIRO
+RELATORIOS
+
+API
+
+REST API
+WEBHOOKS
+
+INTERFACE
+
+HTML
+CSS
+JS
+
+DASHBOARD
+
+BI
+KPIs
+ANALYTICS
+
+INTEGRAÇÕES
+
+WHATSAPP
+PIX
+NF
+API EXTERNA
