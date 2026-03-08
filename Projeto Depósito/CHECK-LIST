@@ -1,0 +1,48 @@
+CHECKLIST DE TESTES - KARO PRO
+
+ESTOQUE
+[ ] cadastro de produto
+[ ] edição de produto
+[ ] exclusão de produto
+[ ] ajuste de estoque
+[ ] estoque negativo bloqueado
+
+COMPRAS
+[ ] registrar compra
+[ ] atualizar custo médio
+[ ] atualizar estoque
+[ ] cancelar compra
+[ ] estorno financeiro
+
+VENDAS
+[ ] venda balcão
+[ ] venda comanda
+[ ] venda delivery
+[ ] baixa de estoque
+
+COMANDAS
+[ ] abrir comanda
+[ ] adicionar itens
+[ ] pagamento parcial
+[ ] finalizar comanda
+
+FINANCEIRO
+[ ] entrada caixa
+[ ] saída caixa
+[ ] contas a pagar
+[ ] contas a receber
+
+BACKUP
+[ ] backup manual
+[ ] backup automático
+[ ] estrutura drive criada
+
+LOGS
+[ ] venda registrada
+[ ] compra registrada
+[ ] ajuste registrado
+
+INTERFACE
+[ ] popup abre
+[ ] popup fecha
+[ ] botões funcionam
