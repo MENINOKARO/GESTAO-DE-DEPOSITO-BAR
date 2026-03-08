@@ -1,0 +1,93 @@
+🚀 FUTURAS IMPLEMENTAÇÕES
+
+Agora vamos para as evoluções técnicas.
+
+1️⃣ CacheService para Produtos e Estoque
+Problema atual
+
+O sistema lê dados repetidamente:
+
+getDataRange().getValues()
+
+Isso deixa o sistema lento.
+
+Solução
+
+Criar cache temporário.
+
+Exemplo
+function getProdutosCache(){
+
+  const cache = CacheService.getScriptCache();
+
+  let dados = cache.get("produtos");
+
+  if(dados){
+    return JSON.parse(dados);
+  }
+
+  const sh = SpreadsheetApp.getActive()
+    .getSheetByName("PRODUTOS");
+
+  const lista = sh.getDataRange().getValues();
+
+  cache.put("produtos", JSON.stringify(lista), 60);
+
+  return lista;
+}
+Benefícios
+
+⚡ até 10x mais rápido
+⚡ menos leitura da planilha
+
+2️⃣ Uso obrigatório de ID
+Problema atual
+
+Algumas funções usam:
+
+nome do produto
+
+Isso pode quebrar referências.
+
+Solução
+
+Usar sempre ID.
+
+Exemplo:
+
+PRD-0001
+PRD-0002
+Estrutura ideal
+Campo	Uso
+ID	Identificador único
+Nome	Apenas visual
+3️⃣ Camada DAO
+
+DAO = Data Access Object
+
+Serve para centralizar leitura de planilhas.
+
+Exemplo
+const ProdutoDAO = {
+
+  getAll(){
+
+    const sh = SpreadsheetApp.getActive()
+      .getSheetByName("PRODUTOS");
+
+    return sh.getDataRange().getValues();
+  },
+
+  getById(id){
+
+    const dados = this.getAll();
+
+    return dados.find(l => l[10] === id);
+  }
+
+}
+Benefício
+
+✔ código organizado
+✔ menos repetição
+✔ manutenção fácil
