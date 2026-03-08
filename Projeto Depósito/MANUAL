@@ -1,0 +1,185 @@
+==================================================
+MANUAL DO USUÁRIO
+KARO PRO
+==================================================
+
+INTRODUÇÃO
+-----------
+
+O Karo Pro é um sistema de gestão para depósitos e
+pequenos comércios que permite controlar:
+
+- estoque
+- vendas
+- compras
+- comandas
+- delivery
+- financeiro
+
+
+--------------------------------------------------
+
+MENU PRINCIPAL
+--------------
+
+HOME
+COMANDAS
+DELIVERY
+ESTOQUE FINANCEIRO
+COMPRAS
+FINANCEIRO
+DASHBOARD
+SISTEMA
+
+--------------------------------------------------
+
+CADASTRO DE PRODUTOS
+--------------------
+
+Menu:
+Estoque → Cadastro de produtos
+
+Campos obrigatórios:
+
+Produto
+Categoria
+Marca
+Volume
+Custo médio
+Margem
+Preço
+Estoque mínimo
+
+O sistema calcula automaticamente:
+
+Preço sugerido
+Status de margem
+
+--------------------------------------------------
+
+COMPRAS
+-------
+
+Menu:
+Compras → Nova compra
+
+Processo:
+
+1 selecionar produto
+2 informar quantidade
+3 informar valor unitário
+4 adicionar ao carrinho
+5 finalizar compra
+
+Resultado:
+
+estoque atualizado
+custo médio recalculado
+registro no caixa
+
+--------------------------------------------------
+
+COMANDAS
+--------
+
+Menu:
+Comandas → Nova comanda
+
+Fluxo:
+
+abrir comanda
+adicionar produtos
+finalizar
+registrar pagamento
+
+--------------------------------------------------
+
+DELIVERY
+--------
+
+Menu:
+Delivery → Novo pedido
+
+Fluxo:
+
+criar pedido
+encaminhar
+entregar
+finalizar
+
+--------------------------------------------------
+
+CONTAS A PAGAR
+--------------
+
+Menu:
+Financeiro → Contas a pagar
+
+Tipos:
+
+contas fixas
+contas avulsas
+
+Pagamento gera saída no caixa.
+
+--------------------------------------------------
+
+CONTAS A RECEBER
+----------------
+
+Utilizado para:
+
+fiado
+parcelamentos
+
+Permite recebimento parcial.
+
+--------------------------------------------------
+
+FLUXO DE CAIXA
+--------------
+
+Menu:
+Financeiro → Fluxo de caixa
+
+Exibe:
+
+dinheiro
+pix
+débito
+crédito
+fiado
+entradas
+saídas
+resultado
+
+--------------------------------------------------
+
+BACKUP
+------
+
+Menu:
+Sistema → Fazer backup
+
+Backups são salvos automaticamente no Drive.
+
+--------------------------------------------------
+
+LOGS
+----
+
+Menu:
+Sistema → Ver logs
+
+Todos os movimentos são registrados.
+
+--------------------------------------------------
+
+WHATSAPP
+--------
+
+Painel rápido para:
+
+pedido
+suporte
+consulta de fiado
