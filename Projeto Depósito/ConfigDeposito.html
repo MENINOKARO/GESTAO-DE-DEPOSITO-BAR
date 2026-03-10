@@ -127,6 +127,13 @@
       margin-top: 4px;
       display: none;
     }
+
+    .popup-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+    .popup-card { width: 100%; max-width: 420px; border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); }
+    .popup-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; font-size: 14px; }
+    .popup-body { padding: 14px; color: #0f172a; line-height: 1.4; font-size: 13px; }
+    .popup-footer { padding: 0 14px 14px; display: flex; justify-content: flex-end; }
+    .popup-footer button { max-width: 140px; background: #2563eb; color: #fff; text-transform: none; letter-spacing: 0; }
   </style>
 </head>
 <body>
@@ -202,6 +209,16 @@
     </form>
   </div>
 
+  <div id="popupOverlay" class="popup-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+    <div class="popup-card">
+      <div id="popupHead" class="popup-head"></div>
+      <div id="popupBody" class="popup-body"></div>
+      <div class="popup-footer">
+        <button type="button" onclick="fecharPopupPadrao()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // utilitários de formatação
     function formatPhone(val){
@@ -265,7 +282,7 @@
     
     function salvar(){
       if(!validar()){
-        alert('⚠️ Campo obrigatório não preenchido!');
+        abrirPopupPadrao('⚠️ Atenção', 'Campo obrigatório não preenchido!', 'aviso');
         return;
       }
       
@@ -285,20 +302,43 @@
       google.script.run
         .withSuccessHandler(res => {
           if(res && res.ok){
-            alert('✅ Configuração salva com sucesso!');
+            abrirPopupPadrao('✅ Sucesso', 'Configuração salva com sucesso!', 'sucesso', true);
           } else {
-            alert('❌ Erro ao salvar: ' + (res?.msg || 'Desconhecido'));
+            abrirPopupPadrao('❌ Erro', 'Erro ao salvar: ' + (res?.msg || 'Desconhecido'), 'erro', true);
           }
-          // fecha sempre (evita popup travado) após mostrar mensagem
-          google.script.host.close();
-        })
+                  })
         .withFailureHandler(err => {
-          alert('❌ Erro: ' + err);
-          google.script.host.close();
+          abrirPopupPadrao('❌ Erro', 'Erro: ' + err, 'erro', true);
         })
         .salvarConfiguracaoDeposito(dados);
     }
     
+    function abrirPopupPadrao(titulo, mensagem, tipo, fecharAposConfirmar){
+      const tema = {
+        sucesso: { cor: '#16a34a', fundo: '#dcfce7' },
+        erro: { cor: '#dc2626', fundo: '#fee2e2' },
+        aviso: { cor: '#d97706', fundo: '#fef3c7' },
+        info: { cor: '#2563eb', fundo: '#dbeafe' }
+      };
+      const t = tema[tipo] || tema.info;
+      const overlay = document.getElementById('popupOverlay');
+      const head = document.getElementById('popupHead');
+      const body = document.getElementById('popupBody');
+      head.textContent = titulo || 'Mensagem';
+      head.style.color = t.cor;
+      head.style.background = t.fundo;
+      body.textContent = mensagem || 'Sem detalhes.';
+      overlay.style.display = 'flex';
+      overlay.dataset.closeHost = fecharAposConfirmar ? '1' : '0';
+    }
+
+    function fecharPopupPadrao(){
+      const overlay = document.getElementById('popupOverlay');
+      const closeHost = overlay.dataset.closeHost === '1';
+      overlay.style.display = 'none';
+      if(closeHost){ google.script.host.close(); }
+    }
+
     function fechar(){
       google.script.host.close();
     }

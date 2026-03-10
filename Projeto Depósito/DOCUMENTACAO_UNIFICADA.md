@@ -4,11 +4,13 @@ Este arquivo consolida as informações essenciais que estavam espalhadas em vá
 
 ## 1) Estrutura mínima do projeto
 
-Arquivos funcionais (código):
-- `README.md` → código principal Apps Script
+Arquivos funcionais (código/documentação):
+- `README.md` → visão geral e notas de versão
 - `autenticacao_usuarios.gs` → autenticação e controle de usuários
 - `integracao_estoque_valores.gs` → integração de estoque e valores
 - `gestao_estoque_valores.gs` → regras de gestão de estoque financeiro
+- `dashboard_otimizado.gs` → dashboard simplificado e cacheado
+- `whatsapp_delivery.gs` → fluxo WhatsApp Delivery com segurança
 - `ConfigDeposito.html` → interface/configurações
 - `backup_dialog.html` e `trocar_login_dialog.html` → diálogos auxiliares
 
@@ -38,3 +40,9 @@ Evitar criar múltiplos arquivos com o mesmo propósito (ex.: vários “resumos
 ## 5) Situação atual
 
 ✅ Repositório simplificado e com foco em arquivos realmente necessários para manutenção e execução do sistema.
+
+
+## 6) Atualização v2.6
+
+- Arquivos WebApp (`WebApp.gs`, `WebApp2.html`, `WebApiPainel.gs`) removidos por instabilidade operacional.
+- Operação concentrada em menus e popups internos da planilha.

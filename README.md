@@ -1,57 +1,31 @@
 /*********** GESTÃO DE DEPÓSITO ************
-*
-*
 ***************KARO SOFTWARE****************
-*
-*
-********************2026********************
+********************2026********************/
 
-Sistema de gestão para depósitos desenvolvido com
-Google Apps Script e Google Sheets.
+Sistema de gestão para depósitos com Google Apps Script + Google Sheets.
 
 ## Funcionalidades
-
-Estoque
-Vendas
-Compras
-Comandas
-Delivery
-Financeiro
-Dashboards
-Logs
-Backup automático
+- Estoque
+- Vendas
+- Compras
+- Comandas
+- Delivery
+- Financeiro
+- Dashboard otimizado (sem WebApp)
+- WhatsApp Delivery MVP
+- Logs e Backup
 
 ## Tecnologias
-
-Google Apps Script
-Google Sheets
-Google Drive API
-HTMLService
-JavaScript
-
-## Estrutura do Projeto
-
-core/
-estoque/
-produtos/
-vendas/
-compras/
-financeiro/
-dashboard/
-drive/
-ui/
+- Google Apps Script
+- Google Sheets
+- Google Drive API
+- HTMLService (somente diálogos internos)
 
 ## Status
-
-Versão atual: 2.0
+Versão atual: 2.6
 Status: Produção assistida
 
-## Objetivo
-
-Criar um ERP leve utilizando o ecossistema Google.
-
-## Próximas versões
-
-v2.5 otimização de performance
-v3.0 arquitetura modular
-v4.0 API externa
+## Notas da versão
+- Remoção de arquivos WebApp instáveis.
+- Dashboard simplificado e com cache.
+- Novo módulo de integração WhatsApp com segurança básica.
