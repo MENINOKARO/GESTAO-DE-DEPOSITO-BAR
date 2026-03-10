@@ -2,19 +2,31 @@
 <html>
   <head>
     <base target="_top">
-    <style>body{font-family:Arial,sans-serif;padding:20px;text-align:center}</style>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;text-align:center}
+      .popup-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:16px}
+      .popup-card{width:100%;max-width:420px;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #e2e8f0;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+      .popup-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:14px;color:#16a34a;background:#dcfce7}
+      .popup-body{padding:14px;color:#0f172a;line-height:1.4;font-size:13px}
+      .popup-footer{padding:0 14px 14px;display:flex;justify-content:flex-end}
+      .popup-footer button{border:none;border-radius:10px;background:#2563eb;color:#fff;padding:9px 12px;font-weight:700;cursor:pointer}
+    </style>
   </head>
   <body>
     <div id="msg">Processando logout e backup...</div>
+    <div id="popupOverlay" class="popup-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+      <div class="popup-card">
+        <div class="popup-head">✅ Logout concluído</div>
+        <div id="popupBody" class="popup-body"></div>
+        <div class="popup-footer"><button type="button" onclick="fecharPopup()">Fechar</button></div>
+      </div>
+    </div>
     <script>
       google.script.run
         .withSuccessHandler(function(res){
           if(res && res.ok){
-            // fecha dialogo do GAS
-            google.script.host.close();
-            // tenta fechar a aba (pode ser bloqueado pelo browser)
-            try{ window.close(); }catch(e){}
-            alert('✅ Logout realizado. Backup ID: ' + (res.backupId || '---'));
+            document.getElementById('popupBody').textContent = 'Backup ID: ' + (res.backupId || '---');
+            document.getElementById('popupOverlay').style.display = 'flex';
           } else {
             document.getElementById('msg').textContent = 'Erro: ' + (res?.msg || 'Desconhecido');
           }
@@ -23,6 +35,11 @@
           document.getElementById('msg').textContent = 'Erro: ' + err.message;
         })
         .realizarLogoutCompleto();
+
+      function fecharPopup(){
+        try{ google.script.host.close(); }catch(e){}
+        try{ window.close(); }catch(e){}
+      }
     </script>
   </body>
 </html>

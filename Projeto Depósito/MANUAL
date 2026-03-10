@@ -1,232 +1,75 @@
 📘 MANUAL DO SISTEMA
 Gestão de Depósito — Karo Pro
-Versão
+Versão 2.6 (Operação sem WebApp)
 
-Karo Pro v2.0
+Status: Produção Assistida
 
-Status
+🏪 INTRODUÇÃO
+Sistema para gestão de depósito e bar com foco em operação dentro do Google Sheets.
 
-Produção Assistida
+Módulos principais:
+- 📦 Estoque
+- 💰 Vendas
+- 🛒 Compras
+- 🚚 Delivery
+- 📊 Dashboard otimizado
+- 💬 WhatsApp Delivery (MVP)
+- 💾 Backup e Logs
 
-🏪 Introdução
+⚙️ MUDANÇAS IMPORTANTES DA VERSÃO 2.6
+- Removidos arquivos WebApp/Frontend Web que estavam instáveis.
+- Dashboard reformulado para leitura enxuta com cache curto.
+- Integração WhatsApp MVP criada com segurança básica (assinatura + rate limit + logs).
+- Padrão de popup unificado nas telas HTML internas.
 
-O Karo Pro é um sistema de gestão desenvolvido para depósitos, bares e pequenos comércios.
+📊 DASHBOARD OTIMIZADO
+Função principal:
+- abrirDashboardOtimizadoPopup()
 
-Ele permite controlar de forma simples:
+Características:
+- leitura resumida por módulo (Financeiro, Vendas, Compras, Delivery)
+- cache de 45 segundos para reduzir travamento
+- foco em indicadores essenciais do dia
 
-📦 Estoque
-💰 Vendas
-🛒 Compras
-📊 Financeiro
-🚚 Delivery
-📑 Relatórios
-💾 Backup automático
+💬 WHATSAPP DELIVERY (MVP)
+Funções principais:
+- inicializarWhatsappMVP()
+- receberPedidoWhatsapp(payload, signature)
+- atualizarStatusPedidoWhatsapp(idPedido, novoStatus)
+- listarPedidosWhatsapp()
 
-Tudo integrado com Google Sheets e Google Drive.
+Fluxo de status:
+RECEBIDO → PREPARO → TRANSPORTE → ENTREGUE
 
-🖥️ Visão Geral do Sistema
-Figura 1 — Estrutura do sistema
-Cliente
-   │
-   ▼
-Vendas / Delivery / Comandas
-   │
-   ▼
-Estoque
-   │
-   ▼
-Financeiro
-   │
-   ▼
-Dashboard
-📋 Menu Principal
+Segurança mínima implementada:
+- validação de assinatura HMAC do webhook
+- rate limit por minuto
+- normalização e sanitização do payload
+- trilha de eventos em WHATSAPP_LOGS
 
-O sistema possui os seguintes menus:
+Configurações obrigatórias (Script Properties):
+- WHATSAPP_ENABLED=SIM
+- WHATSAPP_WEBHOOK_SECRET
+- WHATSAPP_PROVIDER_URL
+- WHATSAPP_TOKEN
 
-🏠 Home
-💶 Comandas
-🚚 Delivery
-📦 Estoque Financeiro
-🛒 Compras
-💰 Financeiro
-📊 Dashboard
-⚙️ Sistema
+📦 FLUXOS OPERACIONAIS
+Compras:
+Compras → Nova compra → Atualiza estoque/custo médio
 
-📦 Cadastro de Produtos
+Vendas:
+Vendas → Registrar venda → Atualiza estoque/financeiro
 
-Menu:
+Delivery:
+Delivery → Pedido → Atualização de status → Entrega
 
-📦 Estoque → Cadastro de Produtos
+💾 BACKUP E LOGS
+- Backup automático por menu Sistema
+- Logs operacionais para auditoria
+- Logs WhatsApp em aba específica
 
-Campos principais:
-
-Campo	Descrição
-Produto	Nome do produto
-Categoria	Tipo de produto
-Marca	Fabricante
-Volume	Tamanho
-Custo médio	Valor médio de compra
-Margem	Margem de lucro
-Preço	Preço de venda
-Estoque mínimo	Alerta de estoque
-Figura 2 — Cadastro de Produto
-
-📦 Produto
-🏷️ Categoria
-🏭 Marca
-📏 Volume
-💰 Custo médio
-📈 Margem
-💵 Preço de venda
-
-🛒 Compras
-
-Menu:
-
-🛒 Compras → Nova Compra
-
-Fluxo de compra:
-
-Selecionar produto
-        │
-        ▼
-Informar quantidade
-        │
-        ▼
-Informar valor unitário
-        │
-        ▼
-Adicionar ao carrinho
-        │
-        ▼
-Finalizar compra
-
-Resultado automático:
-
-✔ Atualiza estoque
-✔ Recalcula custo médio
-✔ Registra saída no caixa
-
-🍺 Comandas
-
-Menu:
-
-💶 Comandas → Nova Comanda
-
-Fluxo de comanda:
-
-Nova Comanda
-      │
-      ▼
-Adicionar itens
-      │
-      ▼
-Finalizar consumo
-      │
-      ▼
-Pagamento
-      │
-      ▼
-Comanda fechada
-🚚 Delivery
-
-Menu:
-
-🚚 Delivery → Novo Pedido
-
-Fluxo:
-
-Criar pedido
-     │
-     ▼
-Preparar pedido
-     │
-     ▼
-Enviar entrega
-     │
-     ▼
-Pedido entregue
-💰 Financeiro
-
-Menu:
-
-💰 Financeiro
-
-Funções disponíveis:
-
-💵 Fluxo de caixa
-📑 Contas a pagar
-📑 Contas a receber
-📊 Relatórios financeiros
-
-📊 Fluxo de Caixa
-
-Exibe valores por forma de pagamento:
-
-💵 Dinheiro
-⚡ Pix
-💳 Débito
-💳 Crédito
-📄 Fiado
-
-Também mostra:
-
-📈 Entradas
-📉 Saídas
-📊 Resultado
-
-💾 Backup
-
-Menu:
-
-⚙️ Sistema → Fazer Backup
-
-O sistema cria backups automáticos no Google Drive.
-
-Estrutura criada:
-
-Deposito/
-
-Backup
-Logs
-Relatorios
-Compras
-📜 Logs do Sistema
-
-Menu:
-
-⚙️ Sistema → Ver Logs
-
-Registra:
-
-✔ vendas
-✔ compras
-✔ ajustes de estoque
-✔ pagamentos
-✔ alterações
-
-📱 WhatsApp
-
-Painel de integração para:
-
-📲 Fazer pedido
-👤 Falar com gerente
-👑 Falar com dono
-💳 Consultar fiado
-
-📊 Indicadores Importantes
-
-O sistema acompanha:
-
-📦 estoque crítico
-💰 caixa do dia
-📊 vendas do dia
-📉 despesas
-📈 margem média
-
-⚠️ Boas Práticas de Uso
-
-✔ Sempre registrar compras antes de vender
-✔ Não alterar manualmente estoque na planilha
-✔ Fazer backup regularmente
-✔ Conferir logs em caso de erro
+✅ BOAS PRÁTICAS
+- Registrar compras antes de vender
+- Não alterar colunas críticas manualmente
+- Conferir dashboard no início e fim do expediente
+- Monitorar logs em caso de erro

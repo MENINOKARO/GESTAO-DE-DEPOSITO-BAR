@@ -61,53 +61,9 @@
         uiNotificar('Erro ao abrir painel de gestão: ' + e.message,'erro','Painel Gestão');
       }
     }
-    function abrirPainelGestaoEstoque() {
-      try {
-        const relatorio = gerarRelatorioEstoqueComValores();
+    
 
-        if (!relatorio || !relatorio.resumo) {
-          SpreadsheetApp.getUi().alert('❌ Falha ao gerar relatório de estoque.');
-          return;
-        }
 
-        const resumo = relatorio.resumo;
-        const itens = Array.isArray(relatorio.itens) ? relatorio.itens : [];
-        const criticos = itens.filter(item => String(item.status || '').includes('Crítico'));
-
-        let html = '<div style="font-family:Arial;padding:16px;max-width:380px;">';
-        html += '<h2>📦 Gestão de Estoque</h2>';
-        html += `<p><strong>Valor Total:</strong> R$ ${Number(resumo.totalValorEstoque || 0).toFixed(2)}</p>`;
-        html += `<p><strong>Lucro Potencial:</strong> R$ ${Number(resumo.lucroEstoque || 0).toFixed(2)}</p>`;
-        html += `<p><strong>Margem Média:</strong> ${Number(resumo.margemMedia || 0).toFixed(2)}%</p>`;
-
-        if (criticos.length) {
-          html += '<h4>Produtos Críticos:</h4><ul>';
-          criticos.slice(0, 10).forEach(item => {
-            html += `<li>${item.produto} (${item.qtdAtual})</li>`;
-          });
-          html += '</ul>';
-        }
-
-        if (typeof getConfig === 'function') {
-          const driveUrl = getConfig('DRIVE_URL');
-          if (driveUrl) {
-            html += `<p><a href="${driveUrl}" target="_blank">🔗 Abrir Drive</a></p>`;
-          }
-        }
-
-        html += '</div>';
-
-        const output = HtmlService
-          .createHtmlOutput(html)
-          .setTitle('Painel Gestão Estoque')
-          .setWidth(400);
-
-        SpreadsheetApp.getUi().showSidebar(output);
-      } catch (e) {
-        console.error('Erro em abrirPainelGestaoEstoque:', e);
-        SpreadsheetApp.getUi().alert('❌ Erro ao abrir painel de gestão: ' + e.message);
-      }
-    }
 
   /**
    * Dashboard: Análise de Rentabilidade
