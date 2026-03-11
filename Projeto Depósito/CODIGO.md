@@ -6424,14 +6424,18 @@
               🧾 Comanda ${c[0]}<br>
               <small>${c[2] || 'Balcão'}</small>
             </div>
-            <button onclick="abrir(${c[0]})">➡️ Abrir</button>
+            <button onclick="abrir(${c[0]}, '${c[4]}')">${c[4]==='AGUARDANDO_PGTO' ? '💳 Finalizar' : '➡️ Abrir'}</button>
           </div>
         `).join('')}
       </div>
 
       <script>
-        function abrir(pedido){
-          google.script.run.popupComandaExistente(pedido);
+        function abrir(pedido, status){
+          if(status === 'AGUARDANDO_PGTO'){
+            google.script.run.popupFecharComanda(pedido);
+          } else {
+            google.script.run.popupComandaExistente(pedido);
+          }
           google.script.host.close();
         }
       </script>
@@ -9561,7 +9565,7 @@
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
-          <button class="card gray" onclick="google.script.run.popupDelivery()">📱 Fazer Pedido</button>
+          <button class="card gray" onclick="google.script.run.abrirConversaPedidoWhatsapp()">📱 Fazer Pedido</button>
           <button class="card danger" onclick="google.script.host.close()">✕ Fechar</button>
         </div>
 
@@ -9579,11 +9583,16 @@
   }
 
   function abrirConversaPedidoWhatsapp(){
-    if (typeof popupDelivery === 'function') {
-      popupDelivery();
+    const nome = getNomeDeposito();
+    const numero = (getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
+    if(!numero){
+      uiNotificar('Configure o TELEFONE do depósito para usar WhatsApp.','aviso','WhatsApp');
       return;
     }
-    uiNotificar('Função de novo delivery indisponível no momento.','aviso','Delivery');
+    const texto = encodeURIComponent(`Olá ${nome}! Quero fazer um pedido.`);
+    const url = `https://wa.me/55${numero}?text=${texto}`;
+    const html = HtmlService.createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`).setWidth(10).setHeight(10);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Abrindo WhatsApp');
   }
 
   function abrirConversaDiretaDonoWhatsapp(){
@@ -9621,42 +9630,17 @@
   function abrirPopupConsultaFiadoWhatsapp(){
     const ss = SpreadsheetApp.getActive();
     const clientes = ss.getSheetByName('CLIENTES');
-    const contasReceber = ss.getSheetByName('CONTAS_A_RECEBER');
-    const contasPagar = ss.getSheetByName('CONTAS_A_PAGAR');
+    const contas = ss.getSheetByName('CONTAS_A_RECEBER');
 
     const mapaSaldo = {};
-
-    // Fiado oficial: CONTAS_A_RECEBER
-    if (contasReceber) {
-      const dados = contasReceber.getDataRange().getValues().slice(1);
+    if (contas) {
+      const dados = contas.getDataRange().getValues().slice(1);
       dados.forEach(r => {
-        const cliente = String(r[3] || '').trim();      // CLIENTE
-        const saldo = Number(r[6]) || 0;                // SALDO
-        const forma = String(r[7] || '').toUpperCase(); // FORMA
-        const status = String(r[8] || '').toUpperCase();
-
-        if (!cliente || saldo <= 0) return;
-        if (forma !== 'FIADO') return;
-        if (status === 'QUITADO') return;
-
-        mapaSaldo[cliente] = (mapaSaldo[cliente] || 0) + saldo;
-      });
-    }
-
-    // Fallback legado: alguns registros podem ter sido lançados em CONTAS_A_PAGAR
-    if (contasPagar) {
-      const dadosCp = contasPagar.getDataRange().getValues().slice(1);
-      dadosCp.forEach(r => {
-        const nome = String(r[1] || '').trim();
+        const cliente = String(r[1] || '').trim();
         const valor = Number(r[2]) || 0;
-        const forma = String(r[3] || '').toUpperCase();
-        const status = String(r[5] || '').toUpperCase();
-
-        if (!nome || valor <= 0) return;
-        if (forma !== 'FIADO') return;
-        if (status === 'PAGO' || status === 'QUITADO') return;
-
-        mapaSaldo[nome] = (mapaSaldo[nome] || 0) + valor;
+        const status = String(r[6] || '').toUpperCase();
+        if (!cliente || status === 'QUITADO') return;
+        mapaSaldo[cliente] = (mapaSaldo[cliente] || 0) + valor;
       });
     }
 
@@ -9669,13 +9653,6 @@
         saldo: mapaSaldo[String(r[0] || '').trim()] || 0
       })).filter(c => c.nome && c.saldo > 0);
     }
-
-    // também lista clientes pendentes que não estejam cadastrados na aba CLIENTES
-    Object.keys(mapaSaldo).forEach(nome => {
-      if (!lista.some(c => c.nome === nome)) {
-        lista.push({ nome, telefone: '', saldo: mapaSaldo[nome] });
-      }
-    });
 
     const linhas = lista.length
       ? lista.map(c => {
