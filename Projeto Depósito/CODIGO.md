@@ -614,8 +614,8 @@
 
         <div class="container">
 
-          <h2>🎛️ Painel Inteligente</h2>
-          <p class="hint">Modo mobile com acesso rápido + todas as funções do sistema.</p>
+          <h2>🧠 Painel Inteligente</h2>
+          <p class="hint">Acesso fácil as funções do seu depósito.</p>
 
           <input id="busca" class="search" type="search" placeholder="Buscar função..." oninput="filtrar()">
 
@@ -9658,7 +9658,7 @@
 
     const linhas = lista.length
       ? lista.map(c => {
-          const msg = encodeURIComponent(`Olá ${c.nome}, seu saldo de fiado atual é R$ ${Number(c.saldo).toFixed(2).replace('.', ',')}.`);
+          const msg = encodeURIComponent(`Olá ${c.nome}, tudo bem❓, vamos resover aquele fiado❓ seu saldo atual é R$ ${Number(c.saldo).toFixed(2).replace('.', ',')}.`);
           const href = c.telefone ? `https://wa.me/55${c.telefone}?text=${msg}` : '#';
           return `<tr><td>${c.nome}</td><td>R$ ${Number(c.saldo).toFixed(2)}</td><td>${c.telefone || '-'}</td><td>${c.telefone ? `<a target="_blank" href="${href}">Enviar Msg</a>` : 'Sem telefone'}</td></tr>`;
         }).join('')
