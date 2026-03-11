@@ -23,6 +23,18 @@
     try {
       const ss = SpreadsheetApp.getActive();
 
+      const headersUsuarios = [
+        'ID_USER',
+        'NOME',
+        'EMAIL',
+        'TELEFONE',
+        'SENHA_HASH',
+        'PERFIL',
+        'ATIVO',
+        'DATA_CRIACAO',
+        'ULTIMO_ACESSO'
+      ];
+
       // ========== ABA USUÁRIOS ==========
       let shUsuarios = ss.getSheetByName('USUARIOS');
       if (!shUsuarios) {
@@ -40,7 +52,9 @@
         ]]);
         shUsuarios.setFrozenRows(1);
       }
-      
+
+      normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios);
+
       // ========== ABA SESSÕES ==========
       let shSessoes = ss.getSheetByName('SESSOES');
       if (!shSessoes) {
@@ -52,9 +66,9 @@
           'DATA_LOGOUT',
           'ATIVO'
         ]]);
-        shSessoes.setFrozenRows(1);
       }
-      
+      shSessoes.setFrozenRows(1);
+
       // ========== ABA AUDITORIA ==========
       let shAuditoria = ss.getSheetByName('AUDITORIA_USUARIOS');
       if (!shAuditoria) {
@@ -67,10 +81,94 @@
           'IP',
           'STATUS'
         ]]);
-        shAuditoria.setFrozenRows(1);
       }
+      shAuditoria.setFrozenRows(1);
+
     } catch(e) {
       console.warn('Erro ao garantir estrutura de usuários:', e.message);
+    }
+  }
+
+  function normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios) {
+    const lastRow = shUsuarios.getLastRow();
+    const lastCol = Math.max(shUsuarios.getLastColumn(), headersUsuarios.length);
+    const raw = lastRow > 0
+      ? shUsuarios.getRange(1, 1, lastRow, lastCol).getValues()
+      : [];
+
+    const headerAtual = raw.length ? raw[0].map(v => String(v || '').trim().toUpperCase()) : [];
+    const idx = {};
+    headerAtual.forEach((h, i) => { if (h) idx[h] = i; });
+
+    const linhasNormalizadas = [];
+
+    for (let r = 1; r < raw.length; r++) {
+      const row = raw[r];
+      if (row.every(v => String(v || '').trim() === '')) continue;
+
+      let idUser = (idx.ID_USER != null ? row[idx.ID_USER] : row[0]) || '';
+      let nome = (idx.NOME != null ? row[idx.NOME] : row[1]) || '';
+      let email = (idx.EMAIL != null ? row[idx.EMAIL] : row[2]) || '';
+      let telefone = idx.TELEFONE != null ? row[idx.TELEFONE] : '';
+      let senhaHash = (idx.SENHA_HASH != null ? row[idx.SENHA_HASH] : row[3]) || '';
+      let perfil = (idx.PERFIL != null ? row[idx.PERFIL] : row[4]) || 'OPERACIONAL';
+      let ativo = (idx.ATIVO != null ? row[idx.ATIVO] : row[5]) || 'SIM';
+      let dataCriacao = (idx.DATA_CRIACAO != null ? row[idx.DATA_CRIACAO] : row[6]) || '';
+      let ultimoAcesso = (idx.ULTIMO_ACESSO != null ? row[idx.ULTIMO_ACESSO] : row[7]) || '';
+
+      const ativoTxt = String(ativo || '').toUpperCase();
+      const dataCriacaoTxt = String(dataCriacao || '').toUpperCase();
+      if ((ativoTxt !== 'SIM' && ativoTxt !== 'NAO') && (dataCriacaoTxt === 'SIM' || dataCriacaoTxt === 'NAO')) {
+        telefone = senhaHash;
+        senhaHash = perfil;
+        perfil = ativo;
+        ativo = dataCriacao;
+        dataCriacao = ultimoAcesso;
+        ultimoAcesso = row[(idx.ULTIMO_ACESSO != null ? idx.ULTIMO_ACESSO : 7) + 1] || '';
+      }
+
+      linhasNormalizadas.push([
+        String(idUser || '').trim(),
+        String(nome || '').trim(),
+        String(email || '').trim().toLowerCase(),
+        String(telefone || '').replace(/\D/g, ''),
+        String(senhaHash || '').trim(),
+        String(perfil || 'OPERACIONAL').toUpperCase(),
+        String(ativo || 'SIM').toUpperCase() === 'NAO' ? 'NAO' : 'SIM',
+        dataCriacao || new Date(),
+        ultimoAcesso || ''
+      ]);
+    }
+
+    shUsuarios.clear();
+    shUsuarios.getRange(1, 1, 1, headersUsuarios.length).setValues([headersUsuarios]);
+    if (linhasNormalizadas.length) {
+      shUsuarios.getRange(2, 1, linhasNormalizadas.length, headersUsuarios.length).setValues(linhasNormalizadas);
+    }
+
+    shUsuarios.getRange(1,1,1,headersUsuarios.length)
+      .setFontWeight('bold')
+      .setBackground('#020617')
+      .setFontColor('#ffffff')
+      .setHorizontalAlignment('center');
+    shUsuarios.setFrozenRows(1);
+    shUsuarios.setColumnWidth(1, 120);
+    shUsuarios.setColumnWidth(2, 220);
+    shUsuarios.setColumnWidth(3, 220);
+    shUsuarios.setColumnWidth(4, 140);
+    shUsuarios.setColumnWidth(5, 170);
+    shUsuarios.setColumnWidth(6, 130);
+    shUsuarios.setColumnWidth(7, 90);
+    shUsuarios.setColumnWidth(8, 170);
+    shUsuarios.setColumnWidth(9, 170);
+
+    if (linhasNormalizadas.length) {
+      shUsuarios.getRange(2, 8, linhasNormalizadas.length, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      shUsuarios.getRange(2, 7, linhasNormalizadas.length, 1).setHorizontalAlignment('center');
+    }
+
+    if (typeof aplicarFormatacaoPadrao === 'function') {
+      aplicarFormatacaoPadrao(shUsuarios);
     }
   }
 
@@ -463,127 +561,42 @@
         <!DOCTYPE html>
         <html>
         <head>
+          <meta charset="UTF-8" />
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            
-            .container {
-              background: white;
-              border-radius: 15px;
-              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              width: 100%;
-              max-width: 480px;
-              padding: 40px;
-            }
-            
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            
-            .header h1 {
-              font-size: 26px;
-              color: #333;
-              margin-bottom: 8px;
-            }
-            
-            .form-group {
-              margin-bottom: 18px;
-            }
-            
-            label {
-              display: block;
-              color: #333;
-              font-weight: 600;
-              margin-bottom: 6px;
-              font-size: 13px;
-            }
-            
-            input, select {
-              width: 100%;
-              padding: 10px 12px;
-              border: 2px solid #e0e0e0;
-              border-radius: 8px;
-              font-size: 13px;
-              transition: 0.3s;
-            }
-            
-            input:focus, select:focus {
-              outline: none;
-              border-color: #667eea;
-              box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            }
-            
-            .error {
-              background: #fee2e2;
-              color: #dc2626;
-              padding: 10px;
-              border-radius: 6px;
-              font-size: 12px;
-              margin-bottom: 15px;
-              display: none;
-            }
-            
-            .buttons {
-              display: flex;
-              gap: 10px;
-              margin-top: 20px;
-            }
-            
-            button {
-              flex: 1;
-              padding: 11px;
-              border: none;
-              border-radius: 8px;
-              font-weight: 600;
-              font-size: 13px;
-              cursor: pointer;
-              transition: 0.3s;
-            }
-            
-            .btn-salvar {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-            }
-            
-            .btn-salvar:hover:not(:disabled) {
-              transform: translateY(-2px);
-              box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-            }
-            
-            .btn-cancelar {
-              background: #f0f0f0;
-              color: #333;
-            }
-            
-            .btn-cancelar:hover {
-              background: #e0e0e0;
-            }
-            
-            .button:disabled {
-              opacity: 0.6;
-              cursor: not-allowed;
-            }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 14px; }
+            .container { background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 520px; padding: 28px; }
+            .header { text-align: center; margin-bottom: 18px; }
+            .header h1 { font-size: 24px; color: #333; margin-bottom: 6px; }
+            .header p { color: #64748b; font-size: 12px; }
+            .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+            .form-group { margin-bottom: 12px; }
+            .form-group.full { grid-column: 1 / -1; }
+            label { display: block; color: #334155; font-weight: 600; margin-bottom: 6px; font-size: 13px; }
+            input, select { width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 13px; }
+            input:focus, select:focus { outline:none; border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.1); }
+            .error { background:#fee2e2; color:#dc2626; padding:10px; border-radius:6px; font-size:12px; margin-bottom:12px; display:none; }
+            .buttons { display:flex; gap:10px; margin-top: 12px; }
+            button { flex:1; padding:11px; border:none; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; }
+            .btn-salvar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; }
+            .btn-cancelar { background:#e2e8f0; color:#0f172a; }
+            @media(max-width:620px){ .grid{ grid-template-columns:1fr; } }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
               <h1>✅ Novo Usuário</h1>
+              <p>Cadastro com e-mail e telefone</p>
             </div>
-            
             <div class="error" id="error"></div>
-            
-            <div class="form-group">
-              <label>👤 Nome Completo</label>
-              <input type="text" id="nome" placeholder="Ex: João Silva" required />
+            <div class="grid">
+              <div class="form-group full"><label>👤 Nome Completo</label><input type="text" id="nome" placeholder="Ex: João Silva" required /></div>
+              <div class="form-group"><label>✉️ E-mail</label><input type="email" id="email" placeholder="nome@empresa.com" /></div>
+              <div class="form-group"><label>📞 Telefone</label><input type="text" id="telefone" placeholder="(xx) xxxxx-xxxx" required /></div>
+              <div class="form-group"><label>🔑 Senha</label><input type="password" id="senha" placeholder="Mínimo 6 caracteres" required /></div>
+              <div class="form-group"><label>🔄 Confirmar Senha</label><input type="password" id="senha2" placeholder="Repita a senha" required /></div>
+              <div class="form-group full"><label>👔 Perfil de Acesso</label><select id="perfil" required><option value="OPERACIONAL">📦 Operacional</option><option value="GERENCIAL">👨‍💼 Gerencial</option></select></div>
             </div>
             
             <!-- Email removido: login será por usuário (nome ou ID) -->
@@ -612,18 +625,12 @@
             </div>
             
             <div class="buttons">
-              <button class="btn-salvar" onclick="salvarUsuario()" id="btnSalvar">
-                ✅ Criar Usuário
-              </button>
-              <button class="btn-cancelar" onclick="google.script.host.close()">
-                ❌ Cancelar
-              </button>
+              <button class="btn-salvar" onclick="salvarUsuario()" id="btnSalvar">✅ Criar Usuário</button>
+              <button class="btn-cancelar" onclick="google.script.host.close()">❌ Cancelar</button>
             </div>
           </div>
-          
           <script>
             function salvarUsuario() {
-              console.log('[DEBUG] salvarUsuario iniciado');
               const error = document.getElementById('error');
               const nome = document.getElementById('nome').value.trim();
               const telefone = document.getElementById('telefone').value.trim();
@@ -664,21 +671,11 @@
               
               google.script.run
                 .withSuccessHandler((resultado) => {
-                  console.log('[DEBUG] Sucesso em criarNovoUsuario: ' + JSON.stringify(resultado));
                   if(resultado.ok) {
-                    error.textContent = '✅ Usuário criado com sucesso! Redirecionando para login...';
-                    error.style.display = 'block';
-                    error.style.background = '#dcfce7';
-                    error.style.color = '#166534';
-                    setTimeout(function(){
-                      google.script.run.popupLogin();
-                      google.script.host.close();
-                    }, 600);
+                    error.textContent = '✅ Usuário criado com sucesso!'; error.style.display = 'block'; error.style.background = '#dcfce7'; error.style.color = '#166534';
+                    setTimeout(function(){ google.script.run.popupListarUsuarios(); google.script.host.close(); }, 600);
                   } else {
-                    error.textContent = '❌ ' + resultado.msg;
-                    error.style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerText = '✅ Criar Usuário';
+                    error.textContent = '❌ ' + resultado.msg; error.style.display = 'block'; btn.disabled = false; btn.innerText = '✅ Criar Usuário';
                   }
                 })
                 .withFailureHandler((erro) => {
@@ -694,11 +691,7 @@
         </body>
         </html>
       `;
-      
-      const ui = HtmlService.createHtmlOutput(html)
-        .setWidth(550)
-        .setHeight(700);
-      
+      const ui = HtmlService.createHtmlOutput(html).setWidth(620).setHeight(720);
       SpreadsheetApp.getUi().showModalDialog(ui, '✅ Novo Usuário');
     }
 
@@ -707,7 +700,7 @@
    */
     function criarNovoUsuario(nome, telefone, senha, perfil){
       try {
-        console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, perfil: perfil }));
+        console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, email: email, perfil: perfil }));
         
         nome = String(nome).trim();
         telefone = String(telefone || '').replace(/\D/g, '');
@@ -747,6 +740,10 @@
           if(String(dados[i][1]).toLowerCase().trim() === nome.toLowerCase().trim()){
             console.log('[SERVER] Usuário duplicado:', nome);
             return { ok: false, msg: 'Usuário já existe.' };
+          }
+          const emailExistente = String(dados[i][2] || '').toLowerCase().trim();
+          if(email && emailExistente && emailExistente === email){
+            return { ok:false, msg:'E-mail já cadastrado para outro usuário.' };
           }
         }
         
@@ -820,6 +817,8 @@
             <td class="hide-mobile">${telefone}</td>
             <td><span class="badge-perfil">${perfil}</span></td>
             <td><span class="badge-status ${badgeClass}">${ativo}</span></td>
+            <td class="hide-mobile">${criado || '-'}</td>
+            <td class="hide-mobile">${ultimo || '-'}</td>
             <td class="acoes">
               <button class="btn-icon btn-edit" title="Editar usuário" onclick="google.script.run.editarUsuario('${id}')">✏️</button>
               <button class="btn-icon btn-delete" title="Excluir usuário" onclick="confirmarExclusao('${id}','${nome.replace(/'/g, "\\'")}')">🗑️</button>
@@ -1000,6 +999,8 @@
                     <th class="hide-mobile">Telefone</th>
                     <th style="width:130px">Perfil</th>
                     <th style="width:90px">Ativo</th>
+                    <th class="hide-mobile">Criado em</th>
+                    <th class="hide-mobile">Último acesso</th>
                     <th style="width:90px">Ações</th>
                   </tr>
                 </thead>
@@ -1040,16 +1041,14 @@
     }
 
     function editarUsuario(id){
-      // busca dados
       const ss = SpreadsheetApp.getActive();
       const sh = ss.getSheetByName('USUARIOS');
       const dados = sh.getDataRange().getValues();
-      let linha = -1;
-      let row;
+      let row = null;
       for(let i=1;i<dados.length;i++){
-        if(dados[i][0] === id){ linha = i+1; row = dados[i]; break; }
+        if(String(dados[i][0]) === String(id)){ row = dados[i]; break; }
       }
-      if(linha === -1){ uiNotificar('Usuário não encontrado.','aviso','Usuários'); return; }
+      if(!row){ uiNotificar('Usuário não encontrado.','aviso','Usuários'); return; }
 
       const nome = row[1] || '';
       const email = row[2] || '';
@@ -1091,7 +1090,7 @@
           </script>
         </body></html>`;
 
-      const ui = HtmlService.createHtmlOutput(html).setWidth(500).setHeight(400);
+      const ui = HtmlService.createHtmlOutput(html).setWidth(620).setHeight(700);
       SpreadsheetApp.getUi().showModalDialog(ui,'✏️ Editar Usuário');
     }
 
@@ -1106,9 +1105,10 @@
           sh.getRange(i+1,6).setValue(perfil);
           sh.getRange(i+1,7).setValue(ativo);
           registrarAuditoria(id,'USUARIO_ATUALIZADO',`Perfil:${perfil} Ativo:${ativo}`);
-          break;
+          return { ok:true };
         }
       }
+      return { ok:false, msg:'Usuário não encontrado.' };
     }
 
     function deletarUsuario(id){
@@ -1288,8 +1288,9 @@
           id: dados[i][0],
           nome: dados[i][1],
           email: dados[i][2],
-          perfil: dados[i][4],
-          ativo: dados[i][5]
+          telefone: dados[i][3],
+          perfil: dados[i][5],
+          ativo: dados[i][6]
         };
       }
     }

@@ -301,6 +301,19 @@
     }
   }
 
+
+  function padronizarTodasAbasSistema(){
+    const ss = SpreadsheetApp.getActive();
+    const abas = ss.getSheets();
+
+    abas.forEach(sh => {
+      aplicarFormatacaoPadrao(sh);
+    });
+
+    uiNotificar('Formatação padrão aplicada em todas as abas.','sucesso','Padronização');
+    return { ok:true, total: abas.length };
+  }
+
 // ===============================
 // CONFIG / IDENTIDADE / HOME
 // ===============================
@@ -5131,21 +5144,26 @@
               btnFechar.disabled = false;
               btnFechar.innerText = '💳 Finalizar Comanda';
             })
-            .withSuccessHandler(res=>{
-              // 🔒 comanda fica AGUARDANDO_PGTO
-              google.script.run.popupFecharComanda(res.pedido);
+            .withSuccessHandler(()=>{
               google.script.host.close();
             })
-            .salvarComandaBalcao(
+            .salvarComandaBalcaoComPagamento(
               cliente.value,
-              carrinho,
-              'AGUARDANDO_PGTO'
+              carrinho
             );
         }
 
       </script>
     `, 520, 720);
   }
+  function salvarComandaBalcaoComPagamento(cliente, itens){
+    const res = salvarComandaBalcao(cliente, itens, 'AGUARDANDO_PGTO');
+    if(res && res.ok){
+      popupFecharComanda(res.pedido);
+    }
+    return res;
+  }
+
   function salvarComandaBalcao(cliente, itens, status){
 
     const lock = LockService.getScriptLock();
@@ -5847,7 +5865,7 @@
               return;
             }
 
-            if(res.quitada){
+            if(res.quitado){
               google.script.host.close();
               google.script.run.popupConfirmarFechamentoComanda(${pedido});
               return;
@@ -6349,7 +6367,7 @@
     const ss = SpreadsheetApp.getActive();
     const sh = ss.getSheetByName('COMANDAS').getDataRange().getValues();
 
-    const abertas = sh.filter((c,i)=>i>0 && c[4]==='ABERTA');
+    const abertas = sh.filter((c,i)=> i>0 && (c[4]==='ABERTA' || c[4]==='AGUARDANDO_PGTO'));
 
     if(abertas.length === 0){
       SpreadsheetApp.getUi().alert('Não há comandas abertas.');
@@ -6406,14 +6424,18 @@
               🧾 Comanda ${c[0]}<br>
               <small>${c[2] || 'Balcão'}</small>
             </div>
-            <button onclick="abrir(${c[0]})">➡️ Abrir</button>
+            <button onclick="abrir(${c[0]}, '${c[4]}')">${c[4]==='AGUARDANDO_PGTO' ? '💳 Finalizar' : '➡️ Abrir'}</button>
           </div>
         `).join('')}
       </div>
 
       <script>
-        function abrir(pedido){
-          google.script.run.popupComandaExistente(pedido);
+        function abrir(pedido, status){
+          if(status === 'AGUARDANDO_PGTO'){
+            google.script.run.popupFecharComanda(pedido);
+          } else {
+            google.script.run.popupComandaExistente(pedido);
+          }
           google.script.host.close();
         }
       </script>
