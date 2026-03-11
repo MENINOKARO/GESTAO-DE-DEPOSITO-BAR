@@ -1,48 +1,167 @@
-CHECKLIST DE TESTES - KARO PRO
+CHECKLIST DE IMPLEMENTAÇÃO E VALIDAÇÃO - KARO PRO
 
-ESTOQUE
-[ ] cadastro de produto
-[ ] edição de produto
-[ ] exclusão de produto
-[ ] ajuste de estoque
-[ ] estoque negativo bloqueado
+Objetivo:
+Garantir implantação segura, operação estável e resposta rápida a falhas.
 
-COMPRAS
-[ ] registrar compra
-[ ] atualizar custo médio
-[ ] atualizar estoque
-[ ] cancelar compra
-[ ] estorno financeiro
+==================================================
+1) PRÉ-IMPLANTAÇÃO (ANTES DE USAR)
+==================================================
+[ ] Estrutura de abas criada e padronizada
+[ ] Menus carregando corretamente
+[ ] Usuário administrador validado
+[ ] Permissões de edição revisadas
+[ ] Propriedades obrigatórias do sistema configuradas
+[ ] Backup inicial executado
+[ ] Manual disponível para equipe
 
-VENDAS
-[ ] venda balcão
-[ ] venda comanda
-[ ] venda delivery
-[ ] baixa de estoque
+Possíveis problemas + solução
+- Menu não aparece -> executar “🔄 Recarregar Menu”
+- Aba ausente -> executar padronização de abas / criar aba faltante
+- Permissão negada -> compartilhar planilha com nível correto
 
-COMANDAS
-[ ] abrir comanda
-[ ] adicionar itens
-[ ] pagamento parcial
-[ ] finalizar comanda
+==================================================
+2) CADASTROS BASE
+==================================================
+[ ] Cadastro de produtos
+[ ] Edição de produtos
+[ ] Exclusão de produtos (quando permitido)
+[ ] Cadastro de clientes
+[ ] Consulta/edição de clientes
+[ ] Cadastro de usuários
 
-FINANCEIRO
-[ ] entrada caixa
-[ ] saída caixa
-[ ] contas a pagar
-[ ] contas a receber
+Possíveis problemas + solução
+- Cliente duplicado -> usar “Consultar Cliente” para ajustar cadastro existente
+- Produto sem padrão -> revisar nome/unidade/categoria antes de liberar venda
+- Usuário sem acesso -> revisar perfil e autenticação
 
-BACKUP
-[ ] backup manual
-[ ] backup automático
-[ ] estrutura drive criada
+==================================================
+3) ESTOQUE
+==================================================
+[ ] Entrada por compra atualiza quantidade
+[ ] Custo médio recalculado corretamente
+[ ] Baixa por venda/comanda/delivery funcionando
+[ ] Bloqueio de estoque negativo ativo
+[ ] Ajuste manual autorizado e registrado em log
 
-LOGS
-[ ] venda registrada
-[ ] compra registrada
-[ ] ajuste registrado
+Possíveis problemas + solução
+- Estoque ficou negativo -> bloquear venda, corrigir compra/ajuste
+- Produto não encontrado -> validar cadastro e padronização de nome
+- Divergência após cancelamento -> executar rotina de estorno e revisar log
 
-INTERFACE
-[ ] popup abre
-[ ] popup fecha
-[ ] botões funcionam
+==================================================
+4) COMPRAS
+==================================================
+[ ] Registrar nova compra
+[ ] Atualizar estoque após compra
+[ ] Atualizar custo médio
+[ ] Cancelar nota/compra
+[ ] Confirmar estorno financeiro
+
+Possíveis problemas + solução
+- Compra não refletiu no estoque -> revisar aba de itens e reprocessar
+- Estorno incompleto -> validar se todos os lançamentos foram revertidos
+- Custo médio incoerente -> conferir valor unitário e quantidade lançada
+
+==================================================
+5) VENDAS E COMANDAS
+==================================================
+[ ] Venda balcão concluída
+[ ] Nova comanda aberta com sucesso
+[ ] Listagem de comandas abertas funcionando
+[ ] Botão “Abrir” da comanda abre popup corretamente
+[ ] Inclusão de itens na comanda
+[ ] Pagamento parcial
+[ ] Quitação total
+[ ] Finalização de comanda
+
+Possíveis problemas + solução
+- Comanda não abre -> tentar novamente pela listagem e verificar logs
+- Pagamento maior que saldo -> corrigir valor e relançar
+- Comanda fecha sem pagamento -> revisar fluxo e status da comanda
+- Item não aparece -> validar cadastro/estoque do produto
+
+==================================================
+6) DELIVERY
+==================================================
+[ ] Novo pedido delivery
+[ ] Cliente vinculado ao pedido
+[ ] Mudança de status funcionando
+[ ] Baixa de estoque correta
+[ ] Registro financeiro correto
+
+Possíveis problemas + solução
+- Pedido sem cliente -> usar consulta/cadastro antes de confirmar
+- Status travado -> atualizar no painel de delivery e revisar permissões
+- Divergência de valor -> comparar itens, taxa e forma de pagamento
+
+==================================================
+7) FINANCEIRO E CAIXA
+==================================================
+[ ] Entrada de caixa
+[ ] Saída de caixa
+[ ] Contas a pagar
+[ ] Contas a receber (se aplicável)
+[ ] Fluxo de caixa coerente
+[ ] Conferência de caixa do dia
+[ ] Fechamento fiscal do dia
+
+Possíveis problemas + solução
+- Diferença no caixa -> auditar lançamentos manuais e pagamentos parciais
+- Conta pendente não baixa -> conferir data/status do pagamento
+- Fechamento bloqueado -> resolver pendências abertas antes de fechar
+
+==================================================
+8) RELATÓRIOS E AUDITORIA
+==================================================
+[ ] Relatório de valores do estoque
+[ ] Relatório financeiro completo
+[ ] Relatório de compras
+[ ] Relatório de logs
+[ ] Pacote de relatórios gerenciais
+
+Possíveis problemas + solução
+- Relatório vazio -> validar período/dados de origem
+- Números divergentes -> comparar com logs e lançamentos do dia
+- Exportação falhou -> repetir geração após recarregar menu
+
+==================================================
+9) SISTEMA, BACKUP E LOGS
+==================================================
+[ ] Iniciar sistema sem erro
+[ ] Recarregar menu funcionando
+[ ] Backup manual concluído
+[ ] Rotina de backup testada
+[ ] Logs sendo registrados
+[ ] Login/logout funcionando
+
+Possíveis problemas + solução
+- Backup não criado -> revisar acesso ao Drive e permissões
+- Logs não atualizam -> validar função de registro e recarregar
+- Sessão instável -> logout/login e limpeza de popups abertos
+
+==================================================
+10) TESTE DE INTERFACE (PAINEL INTELIGENTE)
+==================================================
+[ ] Painel abre
+[ ] Todos os grupos aparecem
+[ ] Todos os botões respondem
+[ ] “Novo Cliente” abre corretamente
+[ ] “Consultar Cliente” abre corretamente
+[ ] Popup abre e fecha sem travar
+
+Possíveis problemas + solução
+- Clique sem ação -> recarregar menu e repetir
+- Popup fecha antes da ação -> revisar callback de sucesso/erro
+- Botão ausente -> revisar versão implantada do código
+
+==================================================
+11) CRITÉRIO DE GO-LIVE (LIBERAÇÃO)
+==================================================
+[ ] 100% dos blocos críticos aprovados (Estoque, Vendas/Comandas, Financeiro)
+[ ] Sem erro bloqueante em produção assistida
+[ ] Equipe treinada no manual
+[ ] Plano de contingência definido (responsável + contato)
+
+Se qualquer item crítico falhar:
+- NÃO liberar operação completa
+- Corrigir, retestar, registrar evidência e só então publicar
