@@ -223,3 +223,76 @@ function obterOuCriarAbaWhatsappPedidos_(ss) {
   }
   return sh;
 }
+
+/**
+ * BOT BÁSICO DE INTERAÇÃO NO WHATSAPP
+ * Coleta intenção e cria um pré-pedido para conferência do usuário.
+ */
+function processarMensagemClienteWhatsapp(payload, signature) {
+  validarSegurancaWebhook_(payload, signature);
+  aplicarRateLimitWhatsapp_();
+
+  const body = normalizarPayloadWhatsapp_(payload);
+  const textoLivre = String((body && body.texto) || (payload && payload.texto) || '').trim();
+  const telefone = String((body && body.clienteTelefone) || (payload && payload.clienteTelefone) || '').replace(/\D/g, '');
+
+  if (!telefone) {
+    throw new Error('Telefone do cliente é obrigatório para o bot.');
+  }
+
+  const resposta = gerarRespostaBotWhatsapp_(textoLivre);
+  enviarMensagemWhatsapp_(telefone, resposta.mensagem);
+
+  if (resposta.criarPrePedido) {
+    const prePedido = criarPrePedidoWhatsapp_(telefone, textoLivre);
+    registrarEventoWhatsapp_(prePedido.idPedido, 'PRE_PEDIDO_BOT', 'Pré-pedido gerado pelo bot e enviado para conferência interna.');
+    return { ok: true, bot: true, idPedido: prePedido.idPedido, msg: 'Pré-pedido criado pelo bot.' };
+  }
+
+  return { ok: true, bot: true, msg: 'Mensagem processada pelo bot.' };
+}
+
+function gerarRespostaBotWhatsapp_(textoLivre) {
+  const t = String(textoLivre || '').toLowerCase();
+
+  if (!t) {
+    return {
+      criarPrePedido: false,
+      mensagem: 'Olá! 👋 Me diga os itens e quantidades (ex.: 2 cervejas, 1 gelo) para eu montar seu pedido.'
+    };
+  }
+
+  if (t.includes('pedido') || t.includes('quero') || t.includes('comprar')) {
+    return {
+      criarPrePedido: true,
+      mensagem: 'Perfeito! ✅ Já anotei seu pedido e vou encaminhar para o atendente confirmar valores e entrega.'
+    };
+  }
+
+  if (t.includes('fiado')) {
+    return {
+      criarPrePedido: false,
+      mensagem: 'Para consulta de fiado, informe seu nome completo e CPF que o atendente vai te retornar em seguida.'
+    };
+  }
+
+  return {
+    criarPrePedido: false,
+    mensagem: 'Recebi sua mensagem 👍 Se quiser comprar, escreva "quero fazer pedido" com itens e quantidades.'
+  };
+}
+
+function criarPrePedidoWhatsapp_(telefone, textoLivre) {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName('WHATSAPP_PRE_PEDIDOS');
+
+  if (!sh) {
+    sh = ss.insertSheet('WHATSAPP_PRE_PEDIDOS');
+    sh.appendRow(['ID_PEDIDO', 'TELEFONE', 'MENSAGEM_CLIENTE', 'STATUS', 'CRIADO_EM']);
+  }
+
+  const idPedido = 'WPP-BOT-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+  sh.appendRow([idPedido, telefone, textoLivre, 'AGUARDANDO_CONFERENCIA', new Date()]);
+
+  return { idPedido: idPedido };
+}
