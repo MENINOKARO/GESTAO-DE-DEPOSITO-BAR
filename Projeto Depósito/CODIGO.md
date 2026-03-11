@@ -10602,7 +10602,7 @@
 
           totalAberto += saldo;
 
-          abertas.push({ pedido, cliente, tempo, saldo });
+          abertas.push({ pedido, cliente, tempo, saldo, status });
         }
 
         if(status === 'FECHADA'){
