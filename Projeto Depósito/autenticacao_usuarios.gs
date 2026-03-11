@@ -39,6 +39,18 @@
       let shUsuarios = ss.getSheetByName('USUARIOS');
       if (!shUsuarios) {
         shUsuarios = ss.insertSheet('USUARIOS');
+        shUsuarios.getRange('A1:I1').setValues([[
+          'ID_USER',
+          'NOME',
+          'EMAIL',
+          'TELEFONE',
+          'SENHA_HASH',
+          'PERFIL',
+          'ATIVO',
+          'DATA_CRIACAO',
+          'ULTIMO_ACESSO'
+        ]]);
+        shUsuarios.setFrozenRows(1);
       }
 
       normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios);
@@ -586,6 +598,32 @@
               <div class="form-group"><label>🔄 Confirmar Senha</label><input type="password" id="senha2" placeholder="Repita a senha" required /></div>
               <div class="form-group full"><label>👔 Perfil de Acesso</label><select id="perfil" required><option value="OPERACIONAL">📦 Operacional</option><option value="GERENCIAL">👨‍💼 Gerencial</option></select></div>
             </div>
+            
+            <!-- Email removido: login será por usuário (nome ou ID) -->
+
+            <div class="form-group">
+              <label>📞 Telefone</label>
+              <input type="text" id="telefone" placeholder="(xx) xxxxx-xxxx" required />
+            </div>
+            
+            <div class="form-group">
+              <label>🔑 Senha</label>
+              <input type="password" id="senha" placeholder="Mínimo 6 caracteres" required />
+            </div>
+            
+            <div class="form-group">
+              <label>🔄 Confirmar Senha</label>
+              <input type="password" id="senha2" placeholder="Repita a senha" required />
+            </div>
+            
+            <div class="form-group">
+              <label>👔 Perfil de Acesso</label>
+              <select id="perfil" required>
+                <option value="OPERACIONAL">📦 Operacional</option>
+                <option value="GERENCIAL">👨‍💼 Gerencial</option>
+              </select>
+            </div>
+            
             <div class="buttons">
               <button class="btn-salvar" onclick="salvarUsuario()" id="btnSalvar">✅ Criar Usuário</button>
               <button class="btn-cancelar" onclick="google.script.host.close()">❌ Cancelar</button>
@@ -595,18 +633,42 @@
             function salvarUsuario() {
               const error = document.getElementById('error');
               const nome = document.getElementById('nome').value.trim();
-              const email = document.getElementById('email').value.trim();
               const telefone = document.getElementById('telefone').value.trim();
               const senha = document.getElementById('senha').value;
               const senha2 = document.getElementById('senha2').value;
               const perfil = document.getElementById('perfil').value;
               const btn = document.getElementById('btnSalvar');
+              
+              console.log('[DEBUG] Valores obtidos: ' + JSON.stringify({ nome: nome, telefone: telefone, perfil: perfil }));
+              
               error.style.display = 'none';
-              if(!nome || !telefone || !senha || !senha2 || !perfil) { error.textContent = '❌ Todos os campos obrigatórios devem ser preenchidos'; error.style.display = 'block'; return; }
-              if (email && !/^\S+@\S+\.\S+$/.test(email)) { error.textContent = '❌ E-mail inválido.'; error.style.display = 'block'; return; }
-              if(senha !== senha2) { error.textContent = '❌ As senhas não conferem'; error.style.display = 'block'; return; }
-              if(senha.length < 6) { error.textContent = '❌ Senha deve ter no mínimo 6 caracteres'; error.style.display = 'block'; return; }
-              btn.disabled = true; btn.innerText = '⏳ Criando...';
+              
+              if(!nome || !telefone || !senha || !senha2 || !perfil) {
+                error.textContent = '❌ Todos os campos são obrigatórios';
+                error.style.display = 'block';
+                console.log('[DEBUG] Validação: campos vazios');
+                return;
+              }
+              
+              if(senha !== senha2) {
+                error.textContent = '❌ As senhas não conferem';
+                error.style.display = 'block';
+                console.log('[DEBUG] Validação: senhas não conferem');
+                return;
+              }
+              
+              if(senha.length < 6) {
+                error.textContent = '❌ Senha deve ter no mínimo 6 caracteres';
+                error.style.display = 'block';
+                console.log('[DEBUG] Validação: senha curta');
+                return;
+              }
+              
+              btn.disabled = true;
+              btn.innerText = '⏳ Criando...';
+              
+              console.log('[DEBUG] Chamando criarNovoUsuario: ' + JSON.stringify({ nome: nome, telefone: telefone, perfil: perfil }));
+              
               google.script.run
                 .withSuccessHandler((resultado) => {
                   if(resultado.ok) {
@@ -616,8 +678,14 @@
                     error.textContent = '❌ ' + resultado.msg; error.style.display = 'block'; btn.disabled = false; btn.innerText = '✅ Criar Usuário';
                   }
                 })
-                .withFailureHandler((erro) => { error.textContent = '❌ Erro: ' + erro.message; error.style.display = 'block'; btn.disabled = false; btn.innerText = '✅ Criar Usuário'; })
-                .criarNovoUsuario(nome, email, telefone, senha, perfil);
+                .withFailureHandler((erro) => {
+                  console.error('[DEBUG] Erro em criarNovoUsuario: ' + JSON.stringify(erro));
+                  error.textContent = '❌ Erro: ' + erro.message;
+                  error.style.display = 'block';
+                  btn.disabled = false;
+                  btn.innerText = '✅ Criar Usuário';
+                })
+                .criarNovoUsuario(nome, telefone, senha, perfil);
             }
           </script>
         </body>
@@ -630,12 +698,11 @@
   /**
    * Cria novo usuário
    */
-    function criarNovoUsuario(nome, email, telefone, senha, perfil){
+    function criarNovoUsuario(nome, telefone, senha, perfil){
       try {
         console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, email: email, perfil: perfil }));
         
         nome = String(nome).trim();
-        email = String(email || '').trim().toLowerCase();
         telefone = String(telefone || '').replace(/\D/g, '');
         perfil = String(perfil).toUpperCase();
         
@@ -698,7 +765,7 @@
         shUsuarios.appendRow([
           idUser,
           nome,
-          email,
+          '',
           telefone,
           senhaHash,
           perfil,
@@ -738,8 +805,6 @@
         const telefone = r[3] || '-';
         const perfil = r[5] || 'OPERACIONAL';
         const ativo = String(r[6] || 'SIM').toUpperCase();
-        const criado = r[7] ? Utilities.formatDate(new Date(r[7]), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm') : '-';
-        const ultimo = r[8] ? Utilities.formatDate(new Date(r[8]), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm') : '-';
         const badgeClass = ativo === 'SIM' ? 'badge-on' : 'badge-off';
         rows += `
           <tr>
@@ -940,7 +1005,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${rows || '<tr><td colspan="9" class="empty">Nenhum usuário encontrado.</td></tr>'}
+                  ${rows || '<tr><td colspan="7" class="empty">Nenhum usuário encontrado.</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -992,46 +1057,35 @@
       const ativo = row[6] || 'SIM';
 
       const html = `
-        <!DOCTYPE html>
-        <html><head><meta charset="UTF-8" />
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:14px; }
-          .container { background:#fff; border-radius:15px; box-shadow:0 20px 60px rgba(0,0,0,.3); width:100%; max-width:520px; padding:28px; }
-          .header { text-align:center; margin-bottom:18px; }
-          .header h1 { font-size:24px; color:#333; margin-bottom:6px; }
-          .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-          .form-group { margin-bottom:12px; } .form-group.full { grid-column:1 / -1; }
-          label { display:block; color:#334155; font-weight:600; margin-bottom:6px; font-size:13px; }
-          input, select { width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px; }
-          .buttons { display:flex; gap:10px; margin-top:12px; }
-          button { flex:1; padding:11px; border:none; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; }
-          .btn-salvar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; }
-          .btn-cancelar { background:#e2e8f0; color:#0f172a; }
-          @media(max-width:620px){ .grid{ grid-template-columns:1fr; } }
-        </style></head>
-        <body>
-          <div class="container">
-            <div class="header"><h1>✏️ Editar Usuário</h1></div>
-            <div class="grid">
-              <div class="form-group full"><label>👤 Nome</label><input id="nome" value="${nome}"></div>
-              <div class="form-group"><label>✉️ E-mail</label><input id="email" value="${email}"></div>
-              <div class="form-group"><label>📞 Telefone</label><input id="telefone" value="${telefone}"></div>
-              <div class="form-group"><label>👔 Perfil</label><select id="perfil"><option value="OPERACIONAL" ${perfil==='OPERACIONAL'?'selected':''}>📦 Operacional</option><option value="GERENCIAL" ${perfil==='GERENCIAL'?'selected':''}>👨‍💼 Gerencial</option></select></div>
-              <div class="form-group"><label>✅ Ativo</label><select id="ativo"><option value="SIM" ${ativo==='SIM'?'selected':''}>SIM</option><option value="NAO" ${ativo==='NAO'?'selected':''}>NÃO</option></select></div>
-            </div>
-            <div class="buttons"><button class="btn-salvar" onclick="salvar()">💾 Salvar</button><button class="btn-cancelar" onclick="google.script.host.close()">❌ Cancelar</button></div>
-          </div>
+        <html><body style="font-family:Arial">
+          <h3>✏️ Editar Usuário</h3>
+          <label>Nome</label><br>
+          <input id="nome" value="${nome}"><br>
+          <label>Email</label><br>
+          <input id="email" value="${email}" disabled><br>
+          <label>Telefone</label><br>
+          <input id="telefone" value="${telefone}"><br>
+          <label>Perfil</label><br>
+          <select id="perfil">
+            <option value="OPERACIONAL" ${perfil==='OPERACIONAL'?'selected':''}>📦 Operacional</option>
+            <option value="GERENCIAL" ${perfil==='GERENCIAL'?'selected':''}>👨‍💼 Gerencial</option>
+          </select><br>
+          <label>Ativo</label><br>
+          <select id="ativo">
+            <option value="SIM" ${ativo==='SIM'?'selected':''}>SIM</option>
+            <option value="NAO" ${ativo==='NAO'?'selected':''}>NÃO</option>
+          </select><br><br>
+          <button onclick="salvar()">💾 Salvar</button>
+          <button onclick="google.script.host.close()">❌ Cancelar</button>
           <script>
             function salvar(){
-              const nome = document.getElementById('nome').value.trim();
-              const email = document.getElementById('email').value.trim();
-              const telefone = document.getElementById('telefone').value.trim();
+              const nome = document.getElementById('nome').value;
+              const telefone = document.getElementById('telefone').value;
               const perfil = document.getElementById('perfil').value;
               const ativo = document.getElementById('ativo').value;
-              if(!nome || !telefone){ alert('Nome e telefone são obrigatórios.'); return; }
-              if(email && !/^\S+@\S+\.\S+$/.test(email)){ alert('E-mail inválido.'); return; }
-              google.script.run.withSuccessHandler((res)=>{ if(!res.ok){ alert(res.msg || 'Falha ao atualizar usuário.'); return; } google.script.host.close(); google.script.run.popupListarUsuarios(); }).atualizarUsuario('${id}', nome, email, telefone, perfil, ativo);
+              google.script.run
+                .withSuccessHandler(()=>{google.script.host.close();google.script.run.popupListarUsuarios();})
+                .atualizarUsuario('${id}', nome, telefone, perfil, ativo);
             }
           </script>
         </body></html>`;
@@ -1040,14 +1094,13 @@
       SpreadsheetApp.getUi().showModalDialog(ui,'✏️ Editar Usuário');
     }
 
-    function atualizarUsuario(id, nome, email, telefone, perfil, ativo){
+    function atualizarUsuario(id, nome, telefone, perfil, ativo){
       const ss = SpreadsheetApp.getActive();
       const sh = ss.getSheetByName('USUARIOS');
       const dados = sh.getDataRange().getValues();
       for(let i=1;i<dados.length;i++){
         if(dados[i][0] === id){
           sh.getRange(i+1,2).setValue(nome);
-          sh.getRange(i+1,3).setValue(String(email || '').trim().toLowerCase());
           sh.getRange(i+1,4).setValue(String(telefone || '').replace(/\D/g, ''));
           sh.getRange(i+1,6).setValue(perfil);
           sh.getRange(i+1,7).setValue(ativo);
