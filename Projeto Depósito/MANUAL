@@ -4,72 +4,260 @@ Versão 2.6 (Operação sem WebApp)
 
 Status: Produção Assistida
 
-🏪 INTRODUÇÃO
-Sistema para gestão de depósito e bar com foco em operação dentro do Google Sheets.
+==================================================
+🏪 1) VISÃO GERAL (LINGUAGEM RÁPIDA)
+==================================================
+Este sistema roda dentro do Google Sheets e organiza toda a operação do depósito/bar:
+- Comandas
+- Delivery
+- Caixa/Financeiro
+- Estoque
+- Compras
+- Relatórios
+- Rotinas de sistema (backup, logs, etc.)
 
-Módulos principais:
-- 📦 Estoque
-- 💰 Vendas
-- 🛒 Compras
-- 🚚 Delivery
-- 📊 Dashboard otimizado
-- 💬 WhatsApp Delivery (MVP)
-- 💾 Backup e Logs
+Objetivo: vender com segurança, controlar dinheiro e evitar erros operacionais.
 
-⚙️ MUDANÇAS IMPORTANTES DA VERSÃO 2.6
-- Removidos arquivos WebApp/Frontend Web que estavam instáveis.
-- Dashboard reformulado para leitura enxuta com cache curto.
-- Integração WhatsApp MVP criada com segurança básica (assinatura + rate limit + logs).
-- Padrão de popup unificado nas telas HTML internas.
 
-📊 DASHBOARD OTIMIZADO
-Função principal:
-- abrirDashboardOtimizadoPopup()
+==================================================
+⚡ 2) PAINEL INTELIGENTE — O QUE É
+==================================================
+Função de abertura:
+- abrirPainelFlutuante()
 
-Características:
-- leitura resumida por módulo (Financeiro, Vendas, Compras, Delivery)
-- cache de 45 segundos para reduzir travamento
-- foco em indicadores essenciais do dia
+O painel inteligente é a tela central de atalhos. Ele concentra os botões mais usados para acelerar o atendimento.
 
-💬 WHATSAPP DELIVERY (MVP)
-Funções principais:
-- inicializarWhatsappMVP()
-- receberPedidoWhatsapp(payload, signature)
-- atualizarStatusPedidoWhatsapp(idPedido, novoStatus)
-- listarPedidosWhatsapp()
+Ilustração (visão simplificada):
 
-Fluxo de status:
-RECEBIDO → PREPARO → TRANSPORTE → ENTREGUE
+┌─────────────────────────────────────────┐
+│ ⚡ Ações rápidas                         │
+│ [Comanda] [Delivery] [Financeiro] ...   │
+├─────────────────────────────────────────┤
+│ 💶 Comandas e Delivery                   │
+│ [Nova Comanda] [Comandas Abertas] ...   │
+├─────────────────────────────────────────┤
+│ 🛅 Controle                              │
+│ [Novo Cliente] [Consultar Cliente] ...   │
+└─────────────────────────────────────────┘
 
-Segurança mínima implementada:
-- validação de assinatura HMAC do webhook
-- rate limit por minuto
-- normalização e sanitização do payload
-- trilha de eventos em WHATSAPP_LOGS
 
-Configurações obrigatórias (Script Properties):
-- WHATSAPP_ENABLED=SIM
-- WHATSAPP_WEBHOOK_SECRET
-- WHATSAPP_PROVIDER_URL
-- WHATSAPP_TOKEN
+==================================================
+🧭 3) FLUXO COMPLETO DE CADA FUNÇÃO DO PAINEL INTELIGENTE
+==================================================
+Abaixo estão os grupos e o que cada botão faz na prática.
 
-📦 FLUXOS OPERACIONAIS
-Compras:
-Compras → Nova compra → Atualiza estoque/custo médio
+--------------------------------------------------
+3.1) Grupo: ⚡ Ações rápidas
+--------------------------------------------------
+1) 🍺 Comanda
+- Abre o painel de comandas.
+- Use quando o cliente já está consumindo e precisa lançar itens/pagamento.
 
-Vendas:
-Vendas → Registrar venda → Atualiza estoque/financeiro
+2) 🚚 Delivery
+- Abre o painel de delivery.
+- Use para pedidos de entrega e acompanhamento de status.
 
-Delivery:
-Delivery → Pedido → Atualização de status → Entrega
+3) 📝 Financeiro
+- Abre o painel financeiro.
+- Use para revisar entradas, saídas e visão de fechamento.
 
-💾 BACKUP E LOGS
-- Backup automático por menu Sistema
-- Logs operacionais para auditoria
-- Logs WhatsApp em aba específica
+4) 💰 Caixa
+- Abre opções de caixa.
+- Use para conferência diária e validação de movimento.
 
-✅ BOAS PRÁTICAS
-- Registrar compras antes de vender
-- Não alterar colunas críticas manualmente
-- Conferir dashboard no início e fim do expediente
-- Monitorar logs em caso de erro
+5) 📦 Estoque
+- Abre opções de estoque.
+- Use para ajustes, conferência e gestão dos produtos.
+
+Ilustração de decisão:
+Cliente no balcão? -> [Comanda]
+Pedido para entrega? -> [Delivery]
+Conferir dinheiro? -> [Financeiro] ou [Caixa]
+Faltando produto? -> [Estoque]
+
+--------------------------------------------------
+3.2) Grupo: 💶 Comandas e Delivery
+--------------------------------------------------
+1) 🍺 Nova Comanda Balcão (popupComandaBalcao)
+Fluxo:
+- Seleciona/define cliente (opcional)
+- Adiciona itens
+- Confirma abertura
+- Sistema cria comanda e baixa estoque dos itens lançados
+
+2) 📂 Comandas Abertas (listarComandasAbertas)
+Fluxo:
+- Lista comandas com status ABERTA/AGUARDANDO_PGTO
+- Clique em “➡️ Abrir” na comanda desejada
+- Sistema abre popup da comanda existente
+
+Cenários possíveis:
+- Sem comandas abertas -> alerta “Não há comandas abertas.”
+- Erro ao abrir -> alerta de erro exibido
+- Sucesso -> abre comanda e fecha apenas a lista
+
+3) 🚚 Novo Delivery (popupDelivery)
+Fluxo:
+- Seleciona cliente/endereço
+- Adiciona itens
+- Define pagamento
+- Registra pedido para acompanhamento
+
+4) 📦 Painel de Delivery (popupPainelDelivery2)
+Fluxo:
+- Lista pedidos
+- Atualiza status (ex.: preparo, transporte, entregue)
+- Permite monitorar operação de entrega
+
+Ilustração de comandas:
+[Abrir nova] -> [Consumiu] -> [Pagamento parcial? sim/não] -> [Quitar] -> [Finalizar comanda]
+
+--------------------------------------------------
+3.3) Grupo: 🛅 Controle
+--------------------------------------------------
+1) 📝 Painel Financeiro
+- Acompanha saldos, entradas e saídas.
+
+2) 🔒 Conferência Caixa
+- Executa rotina de conferência de caixa do dia.
+
+3) 📑 Fechamento Fiscal
+- Consolida dados fiscais/operacionais do dia.
+
+4) ⚖️ Fluxo de Caixa
+- Exibe movimentações para análise de saúde financeira.
+
+5) 🪙 Contas a Pagar
+- Gestão de despesas pendentes e pagamento.
+
+6) 👤 Novo Cliente (popupCliente)
+Fluxo simples:
+- Cadastra cliente novo com dados básicos
+- Salva e libera para uso em comandas/delivery
+
+7) 🔍 Consultar Cliente (popupBuscarCliente)
+Fluxo simples (mesmo padrão de uso do cliente):
+- Busca cliente pelo nome
+- Abre dados para ajuste
+- Salva alterações
+
+Quando usar:
+- Cadastro novo -> “👤 Novo Cliente”
+- Corrigir telefone/endereço/nome -> “🔍 Consultar Cliente”
+
+8) 👥 Usuários
+- Gestão de usuários com acesso ao sistema.
+
+9) 🛒 Nova Compra
+- Registro de compras para atualizar estoque e custo médio.
+
+10) ❌ Cancelamento de Notas
+- Cancela lançamentos de compra conforme regra do sistema.
+
+11) 💲 Análise de Lucratividade
+- Mostra rentabilidade para apoio à decisão.
+
+12) 🛍️ Gestão de Produto
+- Cadastra, altera e organiza produtos.
+
+Ilustração cliente:
+Precisa cadastrar? -> [👤 Novo Cliente]
+Cliente já existe e precisa corrigir dados? -> [🔍 Consultar Cliente]
+
+--------------------------------------------------
+3.4) Grupo: 📦 Estoque Financeiro
+--------------------------------------------------
+1) 🎯 Painel Gestão
+- Visão consolidada de estoque.
+
+2) 📊 Gerar Relatório Valores
+- Gera relatório financeiro do estoque.
+
+3) 📈 Análise de Rentabilidade
+- Mostra desempenho de rentabilidade.
+
+4) 🏷️ Valor por Categoria
+- Quebra de valor por categoria de produto.
+
+5) 💹 Valor Total Estoque
+- Valor total atual imobilizado em estoque.
+
+--------------------------------------------------
+3.5) Grupo: 📚 Relatórios Gerenciais
+--------------------------------------------------
+1) 📊 Relatório Valores do Estoque
+2) 💰 Relatório Financeiro Completo
+3) 🛒 Relatório de Compras
+4) 🧾 Relatório de Logs
+5) 📦 Gerar TODOS os Relatórios
+
+Uso recomendado: executar no fim do dia/semana para auditoria e análise.
+
+--------------------------------------------------
+3.6) Grupo: 🖥️ Sistema
+--------------------------------------------------
+1) 🚀 Iniciar Sistema
+2) 🚧 Resetar Sistema
+3) 🔐 Trocar Senha Reset
+4) ⚙️ Configurar Depósito
+5) 🔄 Recarregar Menu
+6) 💾 Backup
+7) 📜 Ver Logs
+8) 🧹 Padronizar Abas
+9) 📖 Manual
+10) 🔀 Trocar Login
+11) 🚪 Logout
+12) 📂 Drive
+13) 💬 WhatsApp
+
+Atenção: opções de reset/configuração devem ser usadas por responsável técnico.
+
+
+==================================================
+🧯 4) SITUAÇÕES POSSÍVEIS + O QUE FAZER
+==================================================
+1) Botão clicado e “nada acontece”
+- Ação: recarregar menu (🖥️ Sistema -> 🔄 Recarregar Menu)
+- Se persistir: logout/login
+
+2) Comanda não abre pela lista
+- Ação: abrir “📂 Comandas Abertas” novamente e clicar em “Abrir”
+- Se aparecer erro: anotar mensagem e verificar logs
+
+3) Cliente não encontrado na busca
+- Ação: cadastrar em “👤 Novo Cliente”
+- Depois retornar ao fluxo de venda/delivery
+
+4) Produto sem estoque
+- Ação: registrar compra ou ajustar estoque autorizado
+- Repetir operação de venda após ajuste
+
+5) Divergência de caixa no fechamento
+- Ação: conferir lançamentos no fluxo de caixa
+- Revisar cancelamentos, pagamentos parciais e fiado
+
+6) Lentidão
+- Ação: fechar popups não usados
+- Recarregar planilha
+- Evitar múltiplos usuários editando mesma operação simultânea
+
+
+==================================================
+✅ 5) BOAS PRÁTICAS OPERACIONAIS
+==================================================
+- Sempre iniciar pelo painel inteligente para reduzir cliques errados.
+- Em atendimento, siga: pedido -> lançamento -> conferência -> pagamento.
+- Use “Consultar Cliente” para correções rápidas sem criar cadastro duplicado.
+- Faça backup diário.
+- Acompanhe logs ao menor sinal de inconsistência.
+
+
+==================================================
+📌 6) RESUMO RÁPIDO (COLAR NA OPERAÇÃO)
+==================================================
+- Venda balcão: 🍺 Nova Comanda Balcão
+- Reabrir consumo: 📂 Comandas Abertas
+- Pedido entrega: 🚚 Novo Delivery
+- Editar cliente: 🔍 Consultar Cliente
+- Fechar dia: 🔒 Conferência Caixa + 📑 Fechamento Fiscal
+- Auditoria: 📚 Relatórios Gerenciais + 📜 Ver Logs
