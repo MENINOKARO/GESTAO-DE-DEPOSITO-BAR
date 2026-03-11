@@ -806,6 +806,12 @@
         const perfil = r[5] || 'OPERACIONAL';
         const ativo = String(r[6] || 'SIM').toUpperCase();
         const badgeClass = ativo === 'SIM' ? 'badge-on' : 'badge-off';
+        const criado = r[7] instanceof Date
+          ? Utilities.formatDate(r[7], Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')
+          : (r[7] || '');
+        const ultimo = r[8] instanceof Date
+          ? Utilities.formatDate(r[8], Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')
+          : (r[8] || '');
         rows += `
           <tr>
             <td class="mono">${id}</td>
