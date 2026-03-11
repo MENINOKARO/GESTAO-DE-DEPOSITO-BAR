@@ -6424,17 +6424,15 @@
               🧾 Comanda ${c[0]}<br>
               <small>${c[2] || 'Balcão'}</small>
             </div>
-            <button onclick='abrir(${JSON.stringify(String(c[0]))})'>➡️ Abrir</button>
+            <button onclick="abrir(${c[0]})">➡️ Abrir</button>
           </div>
         `).join('')}
       </div>
 
       <script>
         function abrir(pedido){
-          const pedidoNormalizado = Number(pedido);
-          google.script.run
-            .withSuccessHandler(()=> google.script.host.close())
-            .popupComandaExistente(Number.isNaN(pedidoNormalizado) ? pedido : pedidoNormalizado);
+          google.script.run.popupComandaExistente(pedido);
+          google.script.host.close();
         }
       </script>
     `;
@@ -10600,7 +10598,7 @@
 
           totalAberto += saldo;
 
-          abertas.push({ pedido, cliente, tempo, saldo });
+          abertas.push({ pedido, cliente, tempo, saldo, status });
         }
 
         if(status === 'FECHADA'){
