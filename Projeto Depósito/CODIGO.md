@@ -9565,7 +9565,7 @@
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
-          <button class="card gray" onclick="google.script.run.popupDelivery()">📱 Fazer Pedido</button>
+          <button class="card gray" onclick="google.script.run.abrirConversaPedidoWhatsapp()">📱 Fazer Pedido</button>
           <button class="card danger" onclick="google.script.host.close()">✕ Fechar</button>
         </div>
 
@@ -9583,11 +9583,16 @@
   }
 
   function abrirConversaPedidoWhatsapp(){
-    if (typeof popupDelivery === 'function') {
-      popupDelivery();
+    const nome = getNomeDeposito();
+    const numero = (getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
+    if(!numero){
+      uiNotificar('Configure o TELEFONE do depósito para usar WhatsApp.','aviso','WhatsApp');
       return;
     }
-    uiNotificar('Função de novo delivery indisponível no momento.','aviso','Delivery');
+    const texto = encodeURIComponent(`Olá ${nome}! Quero fazer um pedido.`);
+    const url = `https://wa.me/55${numero}?text=${texto}`;
+    const html = HtmlService.createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`).setWidth(10).setHeight(10);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Abrindo WhatsApp');
   }
 
   function abrirConversaDiretaDonoWhatsapp(){
