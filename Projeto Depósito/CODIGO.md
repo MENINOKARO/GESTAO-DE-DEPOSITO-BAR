@@ -10703,13 +10703,8 @@
             R$ ${c.saldo.toFixed(2).replace('.',',')}
           </div>
           <button class="btn-mini"
-            onclick="
-              ${c.status === 'AGUARDANDO_PGTO'
-                ? `google.script.run.popupFecharComanda(${c.pedido})`
-                : `google.script.run.popupComandaExistente(${c.pedido})`
-              }
-            ">
-            ${c.status === 'AGUARDANDO_PGTO' ? '💳 Finalizar' : '🔎 Abrir'}
+            onclick="google.script.run.popupComandaExistente(${c.pedido})">
+            🔎 Abrir
           </button>      
           </div>
       </div>
