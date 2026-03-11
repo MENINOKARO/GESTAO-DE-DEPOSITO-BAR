@@ -170,9 +170,9 @@
         resumoFinanceiroHoje();
       }
 
-      // 🔹 Aquece dashboards (sem popup)
-      if (typeof atualizarDashboards === 'function') {
-        atualizarDashboards();
+      // 🔹 Remove legado de dashboard pesado (aba + gatilhos antigos)
+      if (typeof removerLegadoDashboard === 'function') {
+        removerLegadoDashboard();
       }
 
     } catch (e) {
@@ -618,7 +618,6 @@
                 ['🚚', 'Delivery', 'popupPainelDelivery2'],
                 ['📝', 'Financeiro', 'popupPainelFinanceiro'],
                 ['💰', 'Caixa', 'abrirCaixaOpcoes'],
-                ['📊', 'Dashboard', 'criarHomeDashboard'],
                 ['📦', 'Estoque', 'abrirEstoqueOpcoes']
               ]
             },
@@ -764,8 +763,8 @@
     }
   // Painel específico de gestão de estoque 
     function abrirPainelGestaoEstoque(){
-      const rel = typeof gerarRelatorioEstoqueComValores === 'function'
-        ? gerarRelatorioEstoqueComValores()
+      const rel = (typeof obterResumoEstoqueFinanceiroLeve_ === 'function')
+        ? obterResumoEstoqueFinanceiroLeve_()
         : null;
 
       if(!rel){
@@ -952,9 +951,9 @@
 
       let sh = ss.getSheetByName('HOME');
 
-      // evitar recalcular funções pesadas mais de uma vez
-      const relEstoque = (typeof gerarRelatorioEstoqueComValores === 'function')
-        ? gerarRelatorioEstoqueComValores()
+      // evita executar geração de relatório ao abrir HOME/menu
+      const relEstoque = (typeof obterResumoEstoqueFinanceiroLeve_ === 'function')
+        ? obterResumoEstoqueFinanceiroLeve_()
         : null;
 
 
@@ -2026,7 +2025,7 @@
             </button>
 
             <button class="btn primary" onclick="run('refresh')">
-              ⏱️ Atualizar Dashboard
+              ⏱️ Atualizar Home
             </button>
 
             <button class="btn primary" onclick="run('recarregar')">
@@ -6889,361 +6888,126 @@
 
       return mapa;
     }
-  // DASHBOARD - GRÁFICOS
-    function atualizarGraficosDashboard(){
-
-      const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
-      if(!sh) return;
-
-      // Gráfico Resumo do Dia
-      if(typeof criarGraficoResumoDia === 'function'){
-        criarGraficoResumoDia();
-      }
-
-      // Gráfico Evolução do Caixa
-      if(typeof criarGraficoEvolucaoCaixa === 'function'){
-        criarGraficoEvolucaoCaixa(sh);
-      }
-
-    }
-    function criarGraficoResumoDia(){
-
-      const sh = SpreadsheetApp.getActive().getSheetByName('DASHBOARD');
-      if(!sh) return;
-
-      removerGraficoPorTitulo(sh, '📊 Resumo Financeiro do Dia');
-
-      const fin = resumoFinanceiroHoje();
-
-      const dados = [
-        ['Tipo','Valor'],
-        ['Entrada', fin.entrada],
-        ['Saída',  -Math.abs(fin.saida)], // negativo só no gráfico
-        ['Saldo',  fin.saldo]
-      ];
-
-      const baseRow = 20;
-      sh.getRange(baseRow,1,dados.length,2).setValues(dados);
-
-      const chart = sh.newChart()
-        .setChartType(Charts.ChartType.COLUMN)
-        .addRange(sh.getRange(baseRow,1,dados.length,2))
-        .setPosition(3,4,0,0)
-        .setOption('title','📊 Resumo Financeiro do Dia')
-        .setOption('legend',{ position:'none' })
-        .setOption('colors',['#16a34a','#dc2626','#2563eb'])
-        .build();
-
-      sh.insertChart(chart);
-    }
-    function criarGraficoEvolucaoCaixa(sh){
-
-      const dados = prepararEvolucaoDiariaCaixa();
-      if(dados.length < 2) return;
-
-      removerGraficoPorTitulo(sh, '📊 Evolução Financeira do Dia');
-
-      const baseCol = 20;
-      const baseRow = 2;
-
-      sh.getRange(baseRow, baseCol, dados.length, 4).setValues(dados);
-      sh.hideColumns(baseCol, 4);
-
-      const chart = sh.newChart()
-        .setChartType(Charts.ChartType.LINE)
-        .addRange(sh.getRange(baseRow, baseCol, dados.length, 4))
-        .setPosition(21, 4, 0, 0)
-        .setOption('title','📊 Evolução Financeira do Dia')
-        .setOption('curveType','function')
-        .setOption('legend',{position:'bottom'})
-        .build();
-
-      sh.insertChart(chart);
-    }
-    function removerGraficoPorTitulo(sh, titulo){
-      sh.getCharts().forEach(chart => {
-        if(chart.getOptions().title === titulo){
-          sh.removeChart(chart);
-        }
-      });
-    }
-  // DASHBOARD - TELAS
-    function dashboardGeralLeve(){
+  // DASHBOARD (REMOVIDO)
+    function removerLegadoDashboard(){
 
       const ss = SpreadsheetApp.getActive();
-      let sh = ss.getSheetByName('DASHBOARD');
-
-      if(!sh){
-        sh = ss.insertSheet('DASHBOARD');
-      }
-
-      sh.setHiddenGridlines(true);
-
-      // ======================
-      // CABEÇALHO (criado 1x)
-      // ======================
-      sh.getRange('A1:E1').merge()
-        .setValue(`📊 DASHBOARD GERAL — ${getNomeDeposito()}`)
-        .setFontSize(18)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center')
-        .setVerticalAlignment('middle');
-
-      // ======================
-      // KPIs (dados leves)
-      // ======================
-      const fin = resumoFinanceiroHoje();
-      const mes = entradaMesAtual();
-      const ops = indicadoresOperacionaisHoje();
-      const saldoTotal = calcularSaldoTotal();
-
-      const dados = [
-        ['⚖️ Resultado Líquido do Dia', fin.saldo],
-        ['', ''],
-        ['💰 Entrada Hoje', fin.entrada],
-        ['💸 Saída Hoje', fin.saida],
-        ['📆 Entrada do Mês', mes],
-        ['', ''],
-        ['🎟️ Média de Comandas / Dia', ops.mediaComandasDia],
-        ['🍺 Comandas Abertas', ops.comandasAbertas],
-        ['🧾 Comandas Fechadas Hoje', ops.comandasFechadasHoje],
-        ['', ''],
-        ['🚚 Deliveries Hoje', ops.deliveryHoje],
-        ['❌ Cancelamento Delivery (%)', ops.taxaCancelamentoDelivery],
-        ['', ''],
-        ['📦 Saldo Total Geral', saldoTotal],
-      ];
-
-      // 🔒 Limpa SOMENTE área de KPIs
-      sh.getRange(3,1,30,5).clearContent();
-
-      sh.getRange(3,1,dados.length,2)
-        .setValues(dados)
-        .setHorizontalAlignment('left');
-
-      // ======================
-      // FORMATAÇÃO
-      // ======================
-      sh.getRange('B3:B6').setNumberFormat('R$ #,##0.00');
-      sh.getRange('B13').setNumberFormat('R$ #,##0.00');
-      sh.getRange('B11').setNumberFormat('0.00%');
-      sh.getRange('A3:A14').setFontWeight('bold');
-      sh.getRange('B8:B10').setNumberFormat('0');
-
-    }
-    function dashboardLucroFinal(){
-
-      const ss = SpreadsheetApp.getActive();
-      let sh = ss.getSheetByName('DASHBOARD_LUCRO');
-
-      if(!sh){
-        sh = ss.insertSheet('DASHBOARD_LUCRO');
-      }
-
-      sh.clear();
-      sh.setHiddenGridlines(true);
-
-      /* TÍTULO */
-      sh.getRange('A1:F1').merge()
-        .setValue(`📈 DASHBOARD DE LUCRO — ${getNomeDeposito()}`)
-        .setFontSize(18)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center');
-
-      /* ======================
-        DADOS DE LUCRO
-      ====================== */
-      const mapa = calcularLucroMensal();
-      const linhas = [];
-
-      let somaMargem = 0;
-      let qtdMeses = 0;
-      let melhorMargem = null;
-      let piorMargem = null;
-
-      Object.keys(mapa).sort().forEach(mes => {
-
-        const r = mapa[mes];
-
-        const margem = r.receita > 0
-          ? r.lucro / r.receita
-          : 0;
-
-        linhas.push([
-          mes,
-          r.receita,
-          r.custo,
-          r.lucro,
-          margem,
-          0 // variação % (calculada depois)
-        ]);
-
-        somaMargem += margem;
-        qtdMeses++;
-
-        if(melhorMargem === null || margem > melhorMargem){
-          melhorMargem = margem;
-        }
-
-        if(piorMargem === null || margem < piorMargem){
-          piorMargem = margem;
+      ['DASHBOARD','DASHBOARD_LUCRO'].forEach(nome => {
+        const sh = ss.getSheetByName(nome);
+        if(sh){
+          ss.deleteSheet(sh);
         }
       });
 
-      if(!linhas.length){
-        sh.getRange('A5')
-          .setValue('⚠️ Nenhum dado encontrado.')
-          .setFontStyle('italic');
-        return;
+      try {
+        const triggers = ScriptApp.getProjectTriggers();
+        triggers.forEach(t => {
+          const fn = t.getHandlerFunction();
+          if(fn === 'atualizarDashboards' || fn === 'atualizarDashboardManual' || fn === 'dashboardGeralLeve'){
+            ScriptApp.deleteTrigger(t);
+          }
+        });
+      } catch(e){
+        console.warn('Não foi possível remover gatilhos legados de dashboard:', e);
       }
-
-      const margemMedia = qtdMeses > 0
-        ? somaMargem / qtdMeses
-        : 0;
-
-      /* ======================
-        KPIs DE MARGEM (TOPO)
-      ====================== */
-      sh.getRange('A3:F3').setValues([[
-        `📊 Margem Média: ${(margemMedia*100).toFixed(1)}%`,
-        `🔺 Melhor Margem: ${(melhorMargem*100).toFixed(1)}%`,
-        `🔻 Pior Margem: ${(piorMargem*100).toFixed(1)}%`,
-        '',
-        '',
-        ''
-      ]]);
-
-      sh.getRange('A3:C3')
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center');
-
-      /* ======================
-        CABEÇALHO
-      ====================== */
-      sh.getRange('A5:F5').setValues([[
-        'Mês/Ano',
-        'Receita',
-        'Custo',
-        'Lucro',
-        'Margem %',
-        'Variação %'
-      ]]);
-
-      sh.getRange('A5:F5')
-        .setFontWeight('bold')
-        .setBackground('#020617')
-        .setFontColor('#ffffff')
-        .setHorizontalAlignment('center');
-
-      /* ======================
-        VARIAÇÃO MÊS A MÊS
-      ====================== */
-      for(let i=1;i<linhas.length;i++){
-        const lucroAtual = linhas[i][3];
-        const lucroAnterior = linhas[i-1][3];
-
-        if(lucroAnterior !== 0){
-          linhas[i][5] =
-            (lucroAtual - lucroAnterior) / Math.abs(lucroAnterior);
-        }
-      }
-
-      /* ======================
-        ESCREVE DADOS
-      ====================== */
-      sh.getRange(6,1,linhas.length,6).setValues(linhas);
-
-      /* FORMATA */
-      sh.getRange(6,2,linhas.length,3)
-        .setNumberFormat('R$ #,##0.00');
-
-      sh.getRange(6,5,linhas.length,2)
-        .setNumberFormat('0.00%');
-
-      /* ======================
-        ALERTAS VISUAIS
-      ====================== */
-      for(let i=0;i<linhas.length;i++){
-
-        const margem = linhas[i][4];
-        const lucro  = linhas[i][3];
-        const variacao = linhas[i][5];
-        const row = 6 + i;
-
-        // margem / lucro
-        if(lucro < 0){
-          sh.getRange(row,1,1,6)
-            .setBackground('#fee2e2')
-            .setFontColor('#7f1d1d');
-        }else if(margem < 0.10){
-          sh.getRange(row,1,1,6)
-            .setBackground('#fef9c3')
-            .setFontColor('#854d0e');
-        }else{
-          sh.getRange(row,1,1,6)
-            .setBackground('#ecfdf5')
-            .setFontColor('#065f46');
-        }
-
-        // variação
-        if(variacao > 0){
-          sh.getRange(row,6).setFontColor('#166534'); // verde
-        }else if(variacao < 0){
-          sh.getRange(row,6).setFontColor('#7f1d1d'); // vermelho
-        }
-      }
-
-      /* ======================
-        GRÁFICOS (MANTIDOS)
-      ====================== */
-      sh.getCharts().forEach(c => sh.removeChart(c));
-
-      const lastRow = 5 + linhas.length;
-
-      const chartReceita = sh.newChart()
-        .setChartType(Charts.ChartType.LINE)
-        .addRange(sh.getRange(5,1,lastRow,2))
-        .setPosition(3,8,0,0)
-        .setOption('title','📈 Receita Mensal')
-        .setOption('curveType','function')
-        .build();
-
-      sh.insertChart(chartReceita);
-
-      const chartLucro = sh.newChart()
-        .setChartType(Charts.ChartType.LINE)
-        .addRange(sh.getRange(5,1,lastRow,4))
-        .setPosition(18,8,0,0)
-        .setOption('title','📉 Lucro Mensal')
-        .setOption('curveType','function')
-        .build();
-
-      sh.insertChart(chartLucro);
-
-      /* AJUSTE COLUNAS */
-      sh.setColumnWidth(1, 110);
-      sh.setColumnWidth(2, 160);
-      sh.setColumnWidth(3, 160);
-      sh.setColumnWidth(4, 160);
-      sh.setColumnWidth(5, 120);
-      sh.setColumnWidth(6, 130);
     }
     function atualizarDashboards(){
-      dashboardGeralLeve();
-      atualizarGraficosDashboard();
+      removerLegadoDashboard();
+      return true;
     }
     function atualizarDashboardManual(){
-
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-      ss.toast('⏳ Atualizando dashboard...', 'Dashboard', 3);
-
-      dashboardGeralLeve();
-      dashboardLucroFinal();
-
-      ss.toast('✅ Dashboard atualizado', 'Dashboard', 3);
+      removerLegadoDashboard();
+      SpreadsheetApp.getActiveSpreadsheet().toast('✅ Dashboard legado removido.', 'Sistema', 3);
+      return true;
     }
 
+    function obterResumoEstoqueFinanceiroLeve_(){
+      try {
+        if(typeof gerarRelatorioEstoqueComValoresLeve === 'function'){
+          return gerarRelatorioEstoqueComValoresLeve();
+        }
+
+        const estoque = (typeof obterDadosEstoque === 'function') ? obterDadosEstoque() : [];
+        const produtos = (typeof obterDadosProdutos === 'function') ? obterDadosProdutos() : {};
+        const vendas = (typeof obterDadosVendas === 'function') ? obterDadosVendas() : [];
+
+        const itens = [];
+        let totalValorEstoque = 0;
+        let totalCustoEstoque = 0;
+        let totalVendido = 0;
+        let lucroVendido = 0;
+        let somaMargens = 0;
+
+        estoque.forEach(linha => {
+          const nomeProduto = String(linha[0] || '').trim();
+          const qtdAtual = Number(linha[1]) || 0;
+          const minimo = Number(linha[2]) || 0;
+          const p = produtos[nomeProduto];
+          if(!p) return;
+
+          const precoVenda = Number(p.preco) || 0;
+          const custMedio = Number(p.custMedio) || 0;
+          const margem = Number(p.margem) || 0;
+
+          const valorTotalEstoque = qtdAtual * precoVenda;
+          const custTotalEstoque = qtdAtual * custMedio;
+          const lucroEstoque = valorTotalEstoque - custTotalEstoque;
+
+          let qtdVendida = 0;
+          vendas.forEach(v => {
+            const produtoVenda = String(v[1] || '').trim();
+            if(produtoVenda === nomeProduto) qtdVendida += Number(v[2]) || 0;
+          });
+
+          const valorVendido = qtdVendida * precoVenda;
+          const lucroVendaItem = valorVendido - (qtdVendida * custMedio);
+          const taxaRotacao = (qtdAtual + qtdVendida) > 0
+            ? Math.round((qtdVendida / (qtdAtual + qtdVendida)) * 10000) / 100
+            : 0;
+
+          let status = 'Normal';
+          if(qtdAtual <= minimo) status = '🚨 Crítico';
+          else if(qtdAtual <= minimo * 1.5) status = '⚠️ Baixo';
+          else if(qtdAtual > minimo * 3) status = '📈 Alto';
+
+          itens.push({
+            produto: nomeProduto,
+            categoria: p.categoria || '',
+            margem: margem,
+            qtdAtual: qtdAtual,
+            valorTotalEstoque: valorTotalEstoque,
+            custTotalEstoque: custTotalEstoque,
+            lucroEstoque: lucroEstoque,
+            qtdVendida: qtdVendida,
+            valorVendido: valorVendido,
+            lucroVendido: lucroVendaItem,
+            taxaRotacao: taxaRotacao,
+            status: status
+          });
+
+          totalValorEstoque += valorTotalEstoque;
+          totalCustoEstoque += custTotalEstoque;
+          totalVendido += valorVendido;
+          lucroVendido += lucroVendaItem;
+          somaMargens += margem;
+        });
+
+        return {
+          itens: itens,
+          resumo: {
+            totalValorEstoque: totalValorEstoque,
+            totalCustoEstoque: totalCustoEstoque,
+            lucroEstoque: totalValorEstoque - totalCustoEstoque,
+            totalVendido: totalVendido,
+            lucroVendido: lucroVendido,
+            margemMedia: itens.length ? Math.round((somaMargens / itens.length) * 100) / 100 : 0
+          }
+        };
+      } catch(e){
+        console.error('Erro em obterResumoEstoqueFinanceiroLeve_:', e);
+        return null;
+      }
+    }
 
 // ===============================
 // MENSAGENS / CONFIRMAÇÕES
