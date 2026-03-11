@@ -6424,18 +6424,14 @@
               🧾 Comanda ${c[0]}<br>
               <small>${c[2] || 'Balcão'}</small>
             </div>
-            <button onclick="abrir(${c[0]}, '${c[4]}')">${c[4]==='AGUARDANDO_PGTO' ? '💳 Finalizar' : '➡️ Abrir'}</button>
+            <button onclick="abrir(${c[0]})">➡️ Abrir</button>
           </div>
         `).join('')}
       </div>
 
       <script>
-        function abrir(pedido, status){
-          if(status === 'AGUARDANDO_PGTO'){
-            google.script.run.popupFecharComanda(pedido);
-          } else {
-            google.script.run.popupComandaExistente(pedido);
-          }
+        function abrir(pedido){
+          google.script.run.popupComandaExistente(pedido);
           google.script.host.close();
         }
       </script>
@@ -9636,9 +9632,9 @@
     if (contas) {
       const dados = contas.getDataRange().getValues().slice(1);
       dados.forEach(r => {
-        const cliente = String(r[1] || '').trim();
-        const valor = Number(r[2]) || 0;
-        const status = String(r[6] || '').toUpperCase();
+        const cliente = String(r[3] || '').trim();
+        const valor = Number(r[6]) || 0;
+        const status = String(r[8] || '').toUpperCase();
         if (!cliente || status === 'QUITADO') return;
         mapaSaldo[cliente] = (mapaSaldo[cliente] || 0) + valor;
       });
