@@ -4165,7 +4165,7 @@
       <label>👤 Cliente</label>
       <div style="display:flex;gap:6px">
         <input list="clientes" id="cliente" placeholder="Nome do cliente" style="flex:1">
-        <button style="width:44px" onclick="novoCliente()">👤➕</button>
+        <button style="width:44px" onclick="novoCliente()">👤</button>
       </div>
 
       <datalist id="clientes">
