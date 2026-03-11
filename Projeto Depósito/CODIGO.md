@@ -6424,14 +6424,18 @@
               🧾 Comanda ${c[0]}<br>
               <small>${c[2] || 'Balcão'}</small>
             </div>
-            <button onclick="abrir(${c[0]})">➡️ Abrir</button>
+            <button onclick="abrir(${c[0]}, '${c[4]}')">${c[4]==='AGUARDANDO_PGTO' ? '💳 Finalizar' : '➡️ Abrir'}</button>
           </div>
         `).join('')}
       </div>
 
       <script>
-        function abrir(pedido){
-          google.script.run.popupComandaExistente(pedido);
+        function abrir(pedido, status){
+          if(status === 'AGUARDANDO_PGTO'){
+            google.script.run.popupFecharComanda(pedido);
+          } else {
+            google.script.run.popupComandaExistente(pedido);
+          }
           google.script.host.close();
         }
       </script>
@@ -9561,7 +9565,7 @@
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
-          <button class="card gray" onclick="google.script.run.popupDelivery()">📱 Fazer Pedido</button>
+          <button class="card gray" onclick="google.script.run.abrirConversaPedidoWhatsapp()">📱 Fazer Pedido</button>
           <button class="card danger" onclick="google.script.host.close()">✕ Fechar</button>
         </div>
 
@@ -9579,11 +9583,16 @@
   }
 
   function abrirConversaPedidoWhatsapp(){
-    if (typeof popupDelivery === 'function') {
-      popupDelivery();
+    const nome = getNomeDeposito();
+    const numero = (getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
+    if(!numero){
+      uiNotificar('Configure o TELEFONE do depósito para usar WhatsApp.','aviso','WhatsApp');
       return;
     }
-    uiNotificar('Função de novo delivery indisponível no momento.','aviso','Delivery');
+    const texto = encodeURIComponent(`Olá ${nome}! Quero fazer um pedido.`);
+    const url = `https://wa.me/55${numero}?text=${texto}`;
+    const html = HtmlService.createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`).setWidth(10).setHeight(10);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Abrindo WhatsApp');
   }
 
   function abrirConversaDiretaDonoWhatsapp(){
@@ -9621,80 +9630,22 @@
   function abrirPopupConsultaFiadoWhatsapp(){
     const ss = SpreadsheetApp.getActive();
     const clientes = ss.getSheetByName('CLIENTES');
-    const contasReceber = ss.getSheetByName('CONTAS_A_RECEBER');
-    const contasPagar = ss.getSheetByName('CONTAS_A_PAGAR');
+    const contas = ss.getSheetByName('CONTAS_A_RECEBER');
 
     const mapaSaldo = {};
-
-    const acumular = (nome, valor) => {
-      const chave = String(nome || '').trim();
-      const v = Number(valor) || 0;
-      if(!chave || v <= 0) return;
-      mapaSaldo[chave] = (mapaSaldo[chave] || 0) + v;
-    };
-
-    const idxHeader = (headers, aliases, fallback) => {
-      const up = headers.map(h => String(h || '').trim().toUpperCase());
-      for (const a of aliases) {
-        const i = up.indexOf(String(a || '').toUpperCase());
-        if (i >= 0) return i;
-      }
-      return fallback;
-    };
-
-    // CONTAS_A_RECEBER: suporta layout novo e legado
-    if (contasReceber && contasReceber.getLastRow() > 1) {
-      const all = contasReceber.getDataRange().getValues();
-      const headers = all[0] || [];
-      const dados = all.slice(1);
-
-      const iCliente = idxHeader(headers, ['CLIENTE'], 3);
-      const iSaldo = idxHeader(headers, ['SALDO'], -1);
-      const iValor = idxHeader(headers, ['VALOR_TOTAL','VALOR'], 4);
-      const iForma = idxHeader(headers, ['FORMA_ORIGINAL','FORMA'], 7);
-      const iStatus = idxHeader(headers, ['STATUS'], 8);
-
+    if (contas) {
+      const dados = contas.getDataRange().getValues().slice(1);
       dados.forEach(r => {
-        const cliente = String(r[iCliente] || '').trim();
-        const forma = String(r[iForma] || '').toUpperCase();
-        const status = String(r[iStatus] || '').toUpperCase();
-        const saldo = iSaldo >= 0 ? (Number(r[iSaldo]) || 0) : (Number(r[iValor]) || 0);
-
-        if (!cliente || saldo <= 0) return;
-        if (forma !== 'FIADO') return;
-        if (['QUITADO','PAGO','CANCELADO'].includes(status)) return;
-
-        acumular(cliente, saldo);
-      });
-    }
-
-    // Fallback legado: FIADO lançado em CONTAS_A_PAGAR
-    if (contasPagar && contasPagar.getLastRow() > 1) {
-      const allCp = contasPagar.getDataRange().getValues();
-      const headersCp = allCp[0] || [];
-      const dadosCp = allCp.slice(1);
-
-      const iNome = idxHeader(headersCp, ['CLIENTE','FORNECEDOR','NOME'], 1);
-      const iValor = idxHeader(headersCp, ['VALOR'], 2);
-      const iForma = idxHeader(headersCp, ['FORMAPGTO','FORMA'], 3);
-      const iStatus = idxHeader(headersCp, ['STATUS'], 5);
-
-      dadosCp.forEach(r => {
-        const nome = String(r[iNome] || '').trim();
-        const valor = Number(r[iValor]) || 0;
-        const forma = String(r[iForma] || '').toUpperCase();
-        const status = String(r[iStatus] || '').toUpperCase();
-
-        if (!nome || valor <= 0) return;
-        if (forma !== 'FIADO') return;
-        if (['PAGO','QUITADO','CANCELADO'].includes(status)) return;
-
-        acumular(nome, valor);
+        const cliente = String(r[1] || '').trim();
+        const valor = Number(r[2]) || 0;
+        const status = String(r[6] || '').toUpperCase();
+        if (!cliente || status === 'QUITADO') return;
+        mapaSaldo[cliente] = (mapaSaldo[cliente] || 0) + valor;
       });
     }
 
     let lista = [];
-    if (clientes && clientes.getLastRow() > 1) {
+    if (clientes) {
       const dadosCli = clientes.getDataRange().getValues().slice(1);
       lista = dadosCli.map(r => ({
         nome: String(r[0] || '').trim(),
@@ -9702,12 +9653,6 @@
         saldo: mapaSaldo[String(r[0] || '').trim()] || 0
       })).filter(c => c.nome && c.saldo > 0);
     }
-
-    Object.keys(mapaSaldo).forEach(nome => {
-      if (!lista.some(c => c.nome === nome)) {
-        lista.push({ nome, telefone: '', saldo: mapaSaldo[nome] });
-      }
-    });
 
     const linhas = lista.length
       ? lista.map(c => {
@@ -9729,7 +9674,6 @@
 
     SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(820).setHeight(520), '💳 Consultar Fiado');
   }
-
   function fazerBackupSistema() {
 
     const pasta = obterPastaBackupSistema();
