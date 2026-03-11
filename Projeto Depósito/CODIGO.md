@@ -136,6 +136,8 @@
             .addItem('📖 Manual do Sistema', 'abrirManualDoSistema')
             .addSeparator()
             .addItem('🔀 Trocar Login', 'trocarLogin')
+            .addItem('📂 Drive', 'abrirDriveLink')
+            .addItem('💬 WhatsApp', 'abrirPainelWhatsApp')
             .addSeparator()
             .addItem('🚪 Logout', 'fazerLogout')
         )
@@ -9513,9 +9515,7 @@
   function abrirPainelWhatsApp(){
 
     const nome = getNomeDeposito();
-    const telefone = getConfig('TELEFONE') || '';
-    const gerente = getConfig('GERENTE_NOME') || 'Gerente';
-    const dono = getConfig('DONO') || 'Dono';
+    const numeroPadrao = (getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
 
     const html = `
       <html>
@@ -9524,76 +9524,133 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           * { box-sizing: border-box; }
-          body {
-            margin: 0;
-            padding: 12px;
-            font-family: 'Segoe UI', Arial sans-serif;
-            background: #0f172a;
-            color: #fff;
-          }
-          .container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-          }
-          h3 {
-            text-align: center;
-            margin: 0;
-            font-size: 16px;
-          }
-          .card {
-            background: linear-gradient(135deg, #25d366 0%, #1fa855 100%);
-            padding: 12px;
-            border-radius: 10px;
-            font-weight: 600;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            color: white;
-            display: block;
-            min-height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-          .card:active {
-            transform: scale(0.98);
-            background: #1fa855;
-          }
+          body { margin: 0; padding: 12px; font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #fff; }
+          .container { display: flex; flex-direction: column; gap: 10px; }
+          h3 { text-align: center; margin: 0 0 2px 0; }
+          .hint { margin: 0 0 6px 0; color:#cbd5e1; font-size:12px; text-align:center; }
+          .card { background: linear-gradient(135deg, #25d366 0%, #1fa855 100%); border: none; width: 100%; padding: 12px; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; }
+          .card.secondary { background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%); }
+          .card.gray { background: #475569; }
+          .card.danger { background: #b91c1c; }
         </style>
       </head>
       <body>
         <div class="container">
           <h3>💬 WhatsApp - Contatos</h3>
-          
-          <a class="card" href="https://wa.me/55${telefone.replace(/\\D/g, '')}?text=Olá%20${nome}%21%20Gostaria%20de%20informações%20sobre%20delivery" target="_blank">
-            📱 Fazer Pedido
-          </a>
-          
-          <a class="card" href="https://wa.me/55${telefone.replace(/\\D/g, '')}?text=Olá%20${gerente}%21%20Preciso%20de%20suporte" target="_blank">
-            👤 Falar com Gerente
-          </a>
-          
-          <a class="card" href="https://wa.me/55${telefone.replace(/\\D/g, '')}?text=Olá%20${dono}%21%20Preciso%20de%20suporte%20administrativo" target="_blank">
-            👑 Falar com Dono
-          </a>
-          
-          <a class="card" href="https://wa.me/55${telefone.replace(/\\D/g, '')}?text=Olá%21%20Preciso%20consultar%20meu%20saldo%20fiado" target="_blank">
-            💳 Consultar Fiado
-          </a>
-          
-          <button style="background: #475569; color: #fff; padding: 10px; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px;" onclick="google.script.host.close()">
-            ✕ Fechar
-          </button>
+          <p class="hint">${nome}</p>
+
+          <button class="card" onclick="google.script.run.abrirWhatsappPedidosChegados()">📥 Verificar Pedidos que Chegaram</button>
+          <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
+          <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
+          <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
+          <button class="card gray" onclick="google.script.run.abrirConversaPedidoWhatsapp()">📱 Fazer Pedido</button>
+          <button class="card danger" onclick="google.script.host.close()">✕ Fechar</button>
         </div>
+
+        <script>
+          if (!'${numeroPadrao}') {
+            alert('⚠️ Configure o telefone do depósito em Sistema > Configurar Depósito.');
+          }
+        </script>
       </body>
       </html>
     `;
 
-    const ui = HtmlService.createHtmlOutput(html);
+    const ui = HtmlService.createHtmlOutput(html).setWidth(600).setHeight(520);
     SpreadsheetApp.getUi().showModelessDialog(ui, '💬 Contatos WhatsApp');
+  }
+
+  function abrirConversaPedidoWhatsapp(){
+    const nome = getNomeDeposito();
+    const numero = (getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
+    if(!numero){
+      uiNotificar('Configure o TELEFONE do depósito para usar WhatsApp.','aviso','WhatsApp');
+      return;
+    }
+    const texto = encodeURIComponent(`Olá ${nome}! Quero fazer um pedido.`);
+    const url = `https://wa.me/55${numero}?text=${texto}`;
+    const html = HtmlService.createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`).setWidth(10).setHeight(10);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Abrindo WhatsApp');
+  }
+
+  function abrirConversaDiretaDonoWhatsapp(){
+    const nomeDono = getConfig('DONO') || 'Dono';
+    const numero = (getConfig('TELEFONE_DONO') || getConfig('TELEFONE') || '').toString().replace(/\D/g, '');
+    if(!numero){
+      uiNotificar('Configure TELEFONE_DONO (ou TELEFONE) para abrir conversa com o dono.','aviso','WhatsApp');
+      return;
+    }
+    const texto = encodeURIComponent(`Olá ${nomeDono}, preciso falar com você.`);
+    const url = `https://wa.me/55${numero}?text=${texto}`;
+    const html = HtmlService.createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`).setWidth(10).setHeight(10);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Abrindo WhatsApp');
+  }
+
+  function abrirWhatsappPedidosChegados(){
+    const pedidos = (typeof listarPedidosWhatsapp === 'function') ? listarPedidosWhatsapp() : [];
+    const htmlRows = pedidos.length
+      ? pedidos.map(p => `<tr><td>${p.idPedido || ''}</td><td>${p.clienteNome || ''}</td><td>${p.resumoItens || ''}</td><td>${p.status || ''}</td></tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:#64748b;">Nenhum pedido encontrado.</td></tr>';
+
+    const html = `
+      <html><body style="font-family:Arial;padding:12px;">
+        <h3>📥 Pedidos que Chegaram (WhatsApp)</h3>
+        <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px;">
+          <tr style="background:#e2e8f0;"><th>ID</th><th>Cliente</th><th>Itens</th><th>Status</th></tr>
+          ${htmlRows}
+        </table>
+      </body></html>
+    `;
+
+    SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(760).setHeight(460), '📥 Pedidos WhatsApp');
+  }
+
+  function abrirPopupConsultaFiadoWhatsapp(){
+    const ss = SpreadsheetApp.getActive();
+    const clientes = ss.getSheetByName('CLIENTES');
+    const contas = ss.getSheetByName('CONTAS_A_RECEBER');
+
+    const mapaSaldo = {};
+    if (contas) {
+      const dados = contas.getDataRange().getValues().slice(1);
+      dados.forEach(r => {
+        const cliente = String(r[1] || '').trim();
+        const valor = Number(r[2]) || 0;
+        const status = String(r[6] || '').toUpperCase();
+        if (!cliente || status === 'QUITADO') return;
+        mapaSaldo[cliente] = (mapaSaldo[cliente] || 0) + valor;
+      });
+    }
+
+    let lista = [];
+    if (clientes) {
+      const dadosCli = clientes.getDataRange().getValues().slice(1);
+      lista = dadosCli.map(r => ({
+        nome: String(r[0] || '').trim(),
+        telefone: String(r[1] || '').replace(/\D/g, ''),
+        saldo: mapaSaldo[String(r[0] || '').trim()] || 0
+      })).filter(c => c.nome && c.saldo > 0);
+    }
+
+    const linhas = lista.length
+      ? lista.map(c => {
+          const msg = encodeURIComponent(`Olá ${c.nome}, seu saldo de fiado atual é R$ ${Number(c.saldo).toFixed(2).replace('.', ',')}.`);
+          const href = c.telefone ? `https://wa.me/55${c.telefone}?text=${msg}` : '#';
+          return `<tr><td>${c.nome}</td><td>R$ ${Number(c.saldo).toFixed(2)}</td><td>${c.telefone || '-'}</td><td>${c.telefone ? `<a target="_blank" href="${href}">Enviar Msg</a>` : 'Sem telefone'}</td></tr>`;
+        }).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:#64748b;">Nenhum fiado em aberto.</td></tr>';
+
+    const html = `
+      <html><body style="font-family:Arial;padding:12px;">
+        <h3>💳 Fiados em aberto</h3>
+        <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px;">
+          <tr style="background:#e2e8f0;"><th>Cliente</th><th>Saldo</th><th>Telefone</th><th>Ação</th></tr>
+          ${linhas}
+        </table>
+      </body></html>
+    `;
+
+    SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(820).setHeight(520), '💳 Consultar Fiado');
   }
   function fazerBackupSistema() {
 
@@ -11718,16 +11775,17 @@
 
     itens.forEach(l => {
       const qtd = Number(l[2]) || 0;
-      const valor = Number(l[3]) || 0;
-      const total = qtd * valor;
-      totalGeral += total;
+      const valorBruto = Number(l[3]) || 0;
+      const valorUnit = qtd > 0 ? (valorBruto / qtd) : 0;
+      const valorTotal = valorBruto;
+      totalGeral += valorTotal;
 
       rows.push([
         l[0] || '',
         l[1] || '',
         qtd,
-        valor,
-        total,
+        valorUnit,
+        valorTotal,
         l[4] || ''
       ]);
     });

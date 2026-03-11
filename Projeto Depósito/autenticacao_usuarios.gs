@@ -27,10 +27,11 @@
       let shUsuarios = ss.getSheetByName('USUARIOS');
       if (!shUsuarios) {
         shUsuarios = ss.insertSheet('USUARIOS');
-        shUsuarios.getRange('A1:H1').setValues([[
+        shUsuarios.getRange('A1:I1').setValues([[
           'ID_USER',
           'NOME',
           'EMAIL',
+          'TELEFONE',
           'SENHA_HASH',
           'PERFIL',
           'ATIVO',
@@ -395,12 +396,12 @@
         }
         
         // ✅ Verifica ativo
-        if(String(usuarioValido[5]).toUpperCase() !== 'SIM'){
+        if(String(usuarioValido[6]).toUpperCase() !== 'SIM'){
           return { ok: false, msg: 'Usuário desativado.' };
         }
         
         // ✅ Verifica senha (simples - em produção usar bcrypt)
-        const senhaHash = String(usuarioValido[3]);
+        const senhaHash = String(usuarioValido[4]);
         if(!verificarSenha(senha, senhaHash)){
           registrarAuditoria(usuarioValido[0], 'LOGIN_FALHA', 'Senha incorreta');
           return { ok: false, msg: 'Usuário ou senha incorretos.' };
@@ -410,7 +411,7 @@
         const idSessao = criarSessao(usuarioValido[0]);
         
         // ✅ Atualiza último acesso
-        shUsuarios.getRange(dados.indexOf(usuarioValido) + 1, 8)
+        shUsuarios.getRange(dados.indexOf(usuarioValido) + 1, 9)
           .setValue(new Date());
         
         registrarAuditoria(usuarioValido[0], 'LOGIN_SUCESSO', 'Login realizado');
@@ -423,7 +424,7 @@
           msg: 'Login realizado com sucesso',
           nomeUsuario: usuarioValido[1],
           idSessao: idSessao,
-          perfil: usuarioValido[4]
+          perfil: usuarioValido[5]
         };
         
       } catch(e){
@@ -586,6 +587,11 @@
             </div>
             
             <!-- Email removido: login será por usuário (nome ou ID) -->
+
+            <div class="form-group">
+              <label>📞 Telefone</label>
+              <input type="text" id="telefone" placeholder="(xx) xxxxx-xxxx" required />
+            </div>
             
             <div class="form-group">
               <label>🔑 Senha</label>
@@ -620,16 +626,17 @@
               console.log('[DEBUG] salvarUsuario iniciado');
               const error = document.getElementById('error');
               const nome = document.getElementById('nome').value.trim();
+              const telefone = document.getElementById('telefone').value.trim();
               const senha = document.getElementById('senha').value;
               const senha2 = document.getElementById('senha2').value;
               const perfil = document.getElementById('perfil').value;
               const btn = document.getElementById('btnSalvar');
               
-              console.log('[DEBUG] Valores obtidos: ' + JSON.stringify({ nome: nome, perfil: perfil }));
+              console.log('[DEBUG] Valores obtidos: ' + JSON.stringify({ nome: nome, telefone: telefone, perfil: perfil }));
               
               error.style.display = 'none';
               
-              if(!nome || !senha || !senha2 || !perfil) {
+              if(!nome || !telefone || !senha || !senha2 || !perfil) {
                 error.textContent = '❌ Todos os campos são obrigatórios';
                 error.style.display = 'block';
                 console.log('[DEBUG] Validação: campos vazios');
@@ -653,7 +660,7 @@
               btn.disabled = true;
               btn.innerText = '⏳ Criando...';
               
-              console.log('[DEBUG] Chamando criarNovoUsuario: ' + JSON.stringify({ nome: nome, perfil: perfil }));
+              console.log('[DEBUG] Chamando criarNovoUsuario: ' + JSON.stringify({ nome: nome, telefone: telefone, perfil: perfil }));
               
               google.script.run
                 .withSuccessHandler((resultado) => {
@@ -681,7 +688,7 @@
                   btn.disabled = false;
                   btn.innerText = '✅ Criar Usuário';
                 })
-                .criarNovoUsuario(nome, senha, perfil);
+                .criarNovoUsuario(nome, telefone, senha, perfil);
             }
           </script>
         </body>
@@ -698,15 +705,16 @@
   /**
    * Cria novo usuário
    */
-    function criarNovoUsuario(nome, senha, perfil){
+    function criarNovoUsuario(nome, telefone, senha, perfil){
       try {
         console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, perfil: perfil }));
         
         nome = String(nome).trim();
+        telefone = String(telefone || '').replace(/\D/g, '');
         perfil = String(perfil).toUpperCase();
         
         // ✅ Validações
-        if(!nome || !senha || !perfil){
+        if(!nome || !telefone || !senha || !perfil){
           console.log('[SERVER] Dados incompletos');
           return { ok: false, msg: 'Dados incompletos.' };
         }
@@ -761,6 +769,7 @@
           idUser,
           nome,
           '',
+          telefone,
           senhaHash,
           perfil,
           'SIM',
@@ -796,17 +805,19 @@
         const id = r[0] || '';
         const nome = r[1] || '';
         const email = r[2] || '-';
-        const perfil = r[4] || 'OPERACIONAL';
-        const ativo = String(r[5] || 'SIM').toUpperCase();
+        const telefone = r[3] || '-';
+        const perfil = r[5] || 'OPERACIONAL';
+        const ativo = String(r[6] || 'SIM').toUpperCase();
         const badgeClass = ativo === 'SIM' ? 'badge-on' : 'badge-off';
         rows += `
           <tr>
             <td class="mono">${id}</td>
             <td>
               <div class="nome">${nome}</div>
-              <div class="email-mobile">${email}</div>
+              <div class="email-mobile">${email} | ${telefone}</div>
             </td>
             <td class="hide-mobile">${email}</td>
+            <td class="hide-mobile">${telefone}</td>
             <td><span class="badge-perfil">${perfil}</span></td>
             <td><span class="badge-status ${badgeClass}">${ativo}</span></td>
             <td class="acoes">
@@ -973,7 +984,7 @@
                 <p class="subtitle">Total de registros: <strong id="totalUsuarios">${dados.length}</strong></p>
               </div>
               <div class="toolbar">
-                <input id="searchInput" class="search" type="text" placeholder="Buscar por nome, e-mail ou perfil" oninput="filtrar()" />
+                <input id="searchInput" class="search" type="text" placeholder="Buscar por nome, e-mail, telefone ou perfil" oninput="filtrar()" />
                 <button class="btn btn-primary" onclick="google.script.run.popupCriarUsuario()">➕ Novo Usuário</button>
                 <button class="btn btn-neutral" onclick="google.script.host.close()">Fechar</button>
               </div>
@@ -986,13 +997,14 @@
                     <th style="width:100px">ID</th>
                     <th>Nome</th>
                     <th class="hide-mobile">E-mail</th>
+                    <th class="hide-mobile">Telefone</th>
                     <th style="width:130px">Perfil</th>
                     <th style="width:90px">Ativo</th>
                     <th style="width:90px">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${rows || '<tr><td colspan="6" class="empty">Nenhum usuário encontrado.</td></tr>'}
+                  ${rows || '<tr><td colspan="7" class="empty">Nenhum usuário encontrado.</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -1041,8 +1053,9 @@
 
       const nome = row[1] || '';
       const email = row[2] || '';
-      const perfil = row[4] || 'OPERACIONAL';
-      const ativo = row[5] || 'SIM';
+      const telefone = row[3] || '';
+      const perfil = row[5] || 'OPERACIONAL';
+      const ativo = row[6] || 'SIM';
 
       const html = `
         <html><body style="font-family:Arial">
@@ -1051,6 +1064,8 @@
           <input id="nome" value="${nome}"><br>
           <label>Email</label><br>
           <input id="email" value="${email}" disabled><br>
+          <label>Telefone</label><br>
+          <input id="telefone" value="${telefone}"><br>
           <label>Perfil</label><br>
           <select id="perfil">
             <option value="OPERACIONAL" ${perfil==='OPERACIONAL'?'selected':''}>📦 Operacional</option>
@@ -1066,11 +1081,12 @@
           <script>
             function salvar(){
               const nome = document.getElementById('nome').value;
+              const telefone = document.getElementById('telefone').value;
               const perfil = document.getElementById('perfil').value;
               const ativo = document.getElementById('ativo').value;
               google.script.run
                 .withSuccessHandler(()=>{google.script.host.close();google.script.run.popupListarUsuarios();})
-                .atualizarUsuario('${id}', nome, perfil, ativo);
+                .atualizarUsuario('${id}', nome, telefone, perfil, ativo);
             }
           </script>
         </body></html>`;
@@ -1079,15 +1095,16 @@
       SpreadsheetApp.getUi().showModalDialog(ui,'✏️ Editar Usuário');
     }
 
-    function atualizarUsuario(id, nome, perfil, ativo){
+    function atualizarUsuario(id, nome, telefone, perfil, ativo){
       const ss = SpreadsheetApp.getActive();
       const sh = ss.getSheetByName('USUARIOS');
       const dados = sh.getDataRange().getValues();
       for(let i=1;i<dados.length;i++){
         if(dados[i][0] === id){
           sh.getRange(i+1,2).setValue(nome);
-          sh.getRange(i+1,5).setValue(perfil);
-          sh.getRange(i+1,6).setValue(ativo);
+          sh.getRange(i+1,4).setValue(String(telefone || '').replace(/\D/g, ''));
+          sh.getRange(i+1,6).setValue(perfil);
+          sh.getRange(i+1,7).setValue(ativo);
           registrarAuditoria(id,'USUARIO_ATUALIZADO',`Perfil:${perfil} Ativo:${ativo}`);
           break;
         }
