@@ -96,6 +96,7 @@
             .addItem('🪙 Contas a Pagar', 'popupPainelContasAPagar')
             .addSeparator()
             .addItem('👤 Novo Cliente', 'popupCliente')
+            .addItem('🔍 Consultar Cliente', 'popupBuscarCliente')
             .addItem('👥 Usuários', 'popupListarUsuarios')
             .addSeparator()
             .addItem('🛒 Nova Compra', 'popupCompraV2')
@@ -656,6 +657,7 @@
                 ['⚖️', 'Fluxo de Caixa', 'popupFluxoCaixa'],
                 ['🪙', 'Contas a Pagar', 'popupPainelContasAPagar'],
                 ['👤', 'Novo Cliente', 'popupCliente'],
+                ['🔍', 'Consultar Cliente', 'popupBuscarCliente'],
                 ['👥', 'Usuários', 'popupListarUsuarios'],
                 ['🛒', 'Nova Compra', 'popupCompraV2'],
                 ['❌', 'Cancelamento de Notas', 'popupPainelCancelamentoCompra'],
@@ -6431,8 +6433,12 @@
 
       <script>
         function abrir(pedido){
-          google.script.run.popupComandaExistente(pedido);
-          google.script.host.close();
+          google.script.run
+            .withSuccessHandler(() => google.script.host.close())
+            .withFailureHandler(err => {
+              alert('Erro ao abrir comanda: ' + (err && err.message ? err.message : err));
+            })
+            .popupComandaExistente(pedido);
         }
       </script>
     `;
