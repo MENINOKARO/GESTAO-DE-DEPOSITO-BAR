@@ -94,6 +94,7 @@
             .addItem('📑 Fechamento Fiscal do Dia', 'fecharFiscalDia')
             .addItem('⚖️ Fluxo de Caixa', 'popupFluxoCaixa')
             .addItem('🪙 Contas a Pagar', 'popupPainelContasAPagar')
+            .addItem('💳 Contas a Receber', 'popupPainelContasAReceber')
             .addSeparator()
             .addItem('👤 Novo Cliente', 'popupCliente')
             .addItem('🔍 Consultar Cliente', 'popupBuscarCliente')
@@ -656,6 +657,7 @@
                 ['📑', 'Fechamento Fiscal', 'fecharFiscalDia'],
                 ['⚖️', 'Fluxo de Caixa', 'popupFluxoCaixa'],
                 ['🪙', 'Contas a Pagar', 'popupPainelContasAPagar'],
+                ['💳', 'Contas a Receber', 'popupPainelContasAReceber'],
                 ['👤', 'Novo Cliente', 'popupCliente'],
                 ['🔍', 'Consultar Cliente', 'popupBuscarCliente'],
                 ['👥', 'Usuários', 'popupListarUsuarios'],
@@ -10544,13 +10546,17 @@
 
         <script>
           function cadastrar(){
-            google.script.run.popupContaAPagar();
-            google.script.host.close();
+            google.script.run
+              .withSuccessHandler(()=> google.script.host.close())
+              .withFailureHandler(e=> alert(e.message || e))
+              .popupContaAPagar();
           }
 
           function pagar(){
-            google.script.run.popupContasAPagarPendentes();
-            google.script.host.close();
+            google.script.run
+              .withSuccessHandler(()=> google.script.host.close())
+              .withFailureHandler(e=> alert(e.message || e))
+              .popupContasAPagarPendentes();
           }
         </script>
 
@@ -11054,6 +11060,110 @@
     `;
 
     abrirPopup('💰 Receber', html, 420, 480);
+  }
+
+  function gerarResumoContasAReceberPendentes(){
+
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName('CONTAS_A_RECEBER');
+
+    if(!sh || sh.getLastRow() < 2){
+      return [];
+    }
+
+    const dados = sh.getDataRange().getValues().slice(1);
+    const mapa = {};
+
+    dados.forEach(l=>{
+      const status = String(l[8] || '').toUpperCase();
+      if(status !== 'PENDENTE' && status !== 'PARCIAL') return;
+
+      const saldo = Number(l[6]) || 0;
+      if(saldo <= 0) return;
+
+      const id = String(l[0] || '').trim();
+      const cliente = String(l[3] || 'SEM NOME').trim() || 'SEM NOME';
+      const dataFiado = l[9] ? new Date(l[9]) : null;
+      const dataValida = dataFiado && !isNaN(dataFiado.getTime());
+
+      if(!mapa[cliente]){
+        mapa[cliente] = {
+          cliente,
+          totalFiado: 0,
+          idReferencia: id,
+          dataPrimeiroFiado: dataValida ? dataFiado : null
+        };
+      }
+
+      mapa[cliente].totalFiado += saldo;
+
+      if(dataValida){
+        if(!mapa[cliente].dataPrimeiroFiado || dataFiado < mapa[cliente].dataPrimeiroFiado){
+          mapa[cliente].dataPrimeiroFiado = dataFiado;
+          mapa[cliente].idReferencia = id;
+        }
+      }
+    });
+
+    return Object.keys(mapa)
+      .map(nome=>mapa[nome])
+      .sort((a,b)=>{
+        const da = a.dataPrimeiroFiado ? a.dataPrimeiroFiado.getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.dataPrimeiroFiado ? b.dataPrimeiroFiado.getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
+      });
+  }
+  function popupPainelContasAReceber(){
+
+    const contas = gerarResumoContasAReceberPendentes();
+
+    if(!contas.length){
+      SpreadsheetApp.getUi().alert('Nenhuma conta a receber pendente/parcial.');
+      return;
+    }
+
+    const tz = Session.getScriptTimeZone();
+
+    const html = `
+    <div style="font-family:Arial;display:flex;flex-direction:column;gap:10px">
+
+      <h3>💳 Contas a Receber – Pendentes/Parciais</h3>
+
+      ${contas.map(c=>`
+        <div style="border:1px solid #e5e7eb;padding:10px;border-radius:8px">
+          <strong>${c.cliente}</strong><br>
+          📅 1º Fiado: ${c.dataPrimeiroFiado
+            ? Utilities.formatDate(c.dataPrimeiroFiado, tz, 'dd/MM/yyyy')
+            : '-'}<br>
+          💵 Total em aberto: <strong style="color:#dc2626">R$ ${Number(c.totalFiado).toFixed(2).replace('.',',')}</strong><br>
+          <button onclick="receber('${c.idReferencia}', this)">💰 Receber</button>
+        </div>
+      `).join('')}
+
+      <button onclick="google.script.host.close()">❌ Fechar</button>
+
+      <script>
+        function receber(id, btn){
+          if(btn.disabled) return;
+          btn.disabled = true;
+          btn.innerText = '⏳ Abrindo...';
+
+          google.script.run
+            .withFailureHandler(e=>{
+              alert(e.message || e);
+              btn.disabled = false;
+              btn.innerText = '💰 Receber';
+            })
+            .withSuccessHandler(()=>{
+              google.script.host.close();
+            })
+            .popupReceberContaAReceber(id);
+        }
+      </script>
+    </div>
+    `;
+
+    abrirPopup('💳 Contas a Receber', html, 460, 520);
   }
   function popupPainelFinanceiro(){
 
@@ -11620,7 +11730,7 @@
                 align-items:center;
                 justify-content:center
               "
-              onclick="google.script.run.pagarContaById('${l[0]}')">
+              onclick="pagarConta('${l[0]}', this)">
               💸 Pagar
             </button>       
           </div>
@@ -11662,6 +11772,31 @@
 
         <h4>📌 Contas a Pagar</h4>
         ${contasPagarHtml}
+
+        <script>
+          function pagarConta(id, btn){
+            if(btn){
+              btn.disabled = true;
+              btn.innerText = '⏳ Pagando...';
+            }
+
+            google.script.run
+              .withSuccessHandler(()=>{
+                alert('Conta paga com sucesso!');
+                if(google && google.script && google.script.host){
+                  google.script.host.close();
+                }
+              })
+              .withFailureHandler(e=>{
+                alert((e && e.message) ? e.message : e);
+                if(btn){
+                  btn.disabled = false;
+                  btn.innerText = '💸 Pagar';
+                }
+              })
+              .pagarContaById(id);
+          }
+        </script>
 
       </div>
     `;
