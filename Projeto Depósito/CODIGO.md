@@ -1740,9 +1740,9 @@
 
               })
               .withFailureHandler(e=>{
-                alert(e.message);
+                alert('Erro ao resetar: ' + (e.message || e));
               })
-              .validarSenhaReset(senha);
+              .confirmarResetComSenha(senha);
           }
 
         </script>
@@ -1906,6 +1906,17 @@
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
       }
 
+    }
+
+    function confirmarResetComSenha(senhaDigitada){
+
+      const validacao = validarSenhaReset(senhaDigitada);
+
+      if(!validacao.ok){
+        return validacao;
+      }
+
+      return resetarSistema(false);
     }
     function validarSenhaReset(senhaDigitada){
 
