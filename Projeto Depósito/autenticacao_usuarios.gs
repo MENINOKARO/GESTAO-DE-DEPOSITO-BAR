@@ -32,14 +32,15 @@
         'PERFIL',
         'ATIVO',
         'DATA_CRIACAO',
-        'ULTIMO_ACESSO'
+        'ULTIMO_ACESSO',
+        'TROCA_SENHA_OBRIGATORIA'
       ];
 
       // ========== ABA USUÁRIOS ==========
       let shUsuarios = ss.getSheetByName('USUARIOS');
       if (!shUsuarios) {
         shUsuarios = ss.insertSheet('USUARIOS');
-        shUsuarios.getRange('A1:I1').setValues([[
+        shUsuarios.getRange('A1:J1').setValues([[
           'ID_USER',
           'NOME',
           'EMAIL',
@@ -48,7 +49,8 @@
           'PERFIL',
           'ATIVO',
           'DATA_CRIACAO',
-          'ULTIMO_ACESSO'
+          'ULTIMO_ACESSO',
+          'TROCA_SENHA_OBRIGATORIA'
         ]]);
         shUsuarios.setFrozenRows(1);
       }
@@ -115,6 +117,7 @@
       let ativo = (idx.ATIVO != null ? row[idx.ATIVO] : row[5]) || 'SIM';
       let dataCriacao = (idx.DATA_CRIACAO != null ? row[idx.DATA_CRIACAO] : row[6]) || '';
       let ultimoAcesso = (idx.ULTIMO_ACESSO != null ? row[idx.ULTIMO_ACESSO] : row[7]) || '';
+      let trocaSenhaObrigatoria = (idx.TROCA_SENHA_OBRIGATORIA != null ? row[idx.TROCA_SENHA_OBRIGATORIA] : row[9]) || 'NAO';
 
       const ativoTxt = String(ativo || '').toUpperCase();
       const dataCriacaoTxt = String(dataCriacao || '').toUpperCase();
@@ -136,7 +139,8 @@
         String(perfil || 'OPERACIONAL').toUpperCase(),
         String(ativo || 'SIM').toUpperCase() === 'NAO' ? 'NAO' : 'SIM',
         dataCriacao || new Date(),
-        ultimoAcesso || ''
+        ultimoAcesso || '',
+        String(trocaSenhaObrigatoria || 'NAO').toUpperCase() === 'SIM' ? 'SIM' : 'NAO'
       ]);
     }
 
@@ -161,6 +165,7 @@
     shUsuarios.setColumnWidth(7, 90);
     shUsuarios.setColumnWidth(8, 170);
     shUsuarios.setColumnWidth(9, 170);
+    shUsuarios.setColumnWidth(10, 210);
 
     if (linhasNormalizadas.length) {
       shUsuarios.getRange(2, 8, linhasNormalizadas.length, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
@@ -402,6 +407,21 @@
               google.script.run
                 .withSuccessHandler((resultado) => {
                   if(resultado.ok) {
+                    if (resultado.trocaSenhaObrigatoria) {
+                      google.script.run
+                        .withSuccessHandler(() => {
+                          google.script.host.close();
+                        })
+                        .withFailureHandler((erroTroca) => {
+                          errorMsg.textContent = '❌ Login ok, mas falha ao abrir troca de senha: ' + erroTroca.message;
+                          errorMsg.style.display = 'block';
+                          btnLogin.disabled = false;
+                          loading.style.display = 'none';
+                        })
+                        .popupTrocaSenhaObrigatoria(resultado.idUsuario);
+                      return;
+                    }
+
                     google.script.run
                       .withSuccessHandler(() => {
                         google.script.host.close();
@@ -521,8 +541,10 @@
           ok: true, 
           msg: 'Login realizado com sucesso',
           nomeUsuario: usuarioValido[1],
+          idUsuario: usuarioValido[0],
           idSessao: idSessao,
-          perfil: usuarioValido[5]
+          perfil: usuarioValido[5],
+          trocaSenhaObrigatoria: String(usuarioValido[9] || 'NAO').toUpperCase() === 'SIM'
         };
         
       } catch(e){
@@ -548,6 +570,182 @@
       // Em produção, usar biblioteca de criptografia
       return Utilities.base64Encode(String(senha).trim());
     }
+
+  /**
+   * Reseta senha para temporária e força troca obrigatória no próximo login.
+   */
+    function SENHA_RESET_TEMPORARIA(idUser){
+      try{
+        garantirEstruturausuarios();
+        const ss = SpreadsheetApp.getActive();
+        const sh = ss.getSheetByName('USUARIOS');
+        if(!sh){
+          return { ok:false, msg:'Aba USUARIOS não encontrada.' };
+        }
+
+        const dados = sh.getDataRange().getValues();
+        for(let i = 1; i < dados.length; i++){
+          if(String(dados[i][0]) === String(idUser)){
+            const senhaTemporaria = 'adm123';
+            sh.getRange(i + 1, 5).setValue(gerarHashSenha(senhaTemporaria));
+            sh.getRange(i + 1, 10).setValue('SIM');
+            registrarAuditoria(idUser, 'SENHA_RESET_TEMPORARIA', 'Senha resetada para padrão e troca obrigatória ativada');
+            return { ok:true, msg:'Senha resetada para adm123. Troca obrigatória ativada.' };
+          }
+        }
+
+        return { ok:false, msg:'Usuário não encontrado.' };
+      }catch(e){
+        console.error('Erro em SENHA_RESET_TEMPORARIA:', e);
+        return { ok:false, msg:'Erro ao resetar senha: ' + e.message };
+      }
+    }
+
+  function alterarSenhaObrigatoria(idUser, novaSenha){
+    try{
+      const senha = String(novaSenha || '').trim();
+      if(senha.length < 6){
+        return { ok:false, msg:'A nova senha deve ter no mínimo 6 caracteres.' };
+      }
+
+      garantirEstruturausuarios();
+      const ss = SpreadsheetApp.getActive();
+      const sh = ss.getSheetByName('USUARIOS');
+      const dados = sh.getDataRange().getValues();
+
+      for(let i = 1; i < dados.length; i++){
+        if(String(dados[i][0]) === String(idUser)){
+          sh.getRange(i + 1, 5).setValue(gerarHashSenha(senha));
+          sh.getRange(i + 1, 10).setValue('NAO');
+          sh.getRange(i + 1, 9).setValue(new Date());
+          registrarAuditoria(idUser, 'SENHA_TROCADA_OBRIGATORIA', 'Usuário trocou senha após reset temporário');
+          return { ok:true, msg:'Senha alterada com sucesso.' };
+        }
+      }
+
+      return { ok:false, msg:'Usuário não encontrado.' };
+    }catch(e){
+      console.error('Erro em alterarSenhaObrigatoria:', e);
+      return { ok:false, msg:'Erro ao alterar senha: ' + e.message };
+    }
+  }
+
+  function popupTrocaSenhaObrigatoria(idUser){
+    const html = `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          * { box-sizing: border-box; }
+          body { margin:0; font-family: 'Segoe UI', Tahoma, sans-serif; background:#0f172a; color:#0f172a; }
+          .wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+          .card { width:100%; max-width:460px; background:#fff; border-radius:14px; padding:22px; box-shadow:0 18px 45px rgba(2,6,23,.45); }
+          h1 { margin:0 0 8px; font-size:22px; color:#1e293b; }
+          p { margin:0 0 14px; color:#475569; font-size:13px; line-height:1.4; }
+          .warn { background:#fff7ed; border:1px solid #fdba74; color:#9a3412; border-radius:8px; padding:10px; font-size:12px; margin-bottom:14px; }
+          label { font-weight:700; color:#334155; font-size:13px; display:block; margin:10px 0 6px; }
+          input { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font-size:13px; }
+          .erro { display:none; margin-top:12px; background:#fee2e2; border:1px solid #fecaca; color:#991b1b; padding:10px; border-radius:8px; font-size:12px; }
+          .ok { display:none; margin-top:12px; background:#dcfce7; border:1px solid #bbf7d0; color:#166534; padding:10px; border-radius:8px; font-size:12px; }
+          button { margin-top:14px; width:100%; border:none; border-radius:8px; background:#1d4ed8; color:#fff; padding:11px 12px; font-size:13px; font-weight:700; cursor:pointer; }
+          button:disabled { opacity:.65; cursor:not-allowed; }
+        </style>
+      </head>
+      <body>
+        <div class="wrap">
+          <div class="card">
+            <h1>🔒 Troca de senha obrigatória</h1>
+            <p>Sua senha foi resetada pelo administrador. Para continuar usando o sistema, você deve definir uma nova senha agora.</p>
+            <div class="warn">Esta janela é obrigatória e não pode ser fechada sem concluir a troca de senha.</div>
+
+            <label>Nova senha</label>
+            <input type="password" id="novaSenha" placeholder="Mínimo 6 caracteres" />
+            <label>Confirmar nova senha</label>
+            <input type="password" id="confSenha" placeholder="Repita a nova senha" />
+
+            <div id="erro" class="erro"></div>
+            <div id="ok" class="ok"></div>
+
+            <button id="btnSalvar" onclick="salvar()">Salvar nova senha e entrar</button>
+          </div>
+        </div>
+
+        <script>
+          function bloquearFechamento(){
+            document.addEventListener('keydown', function(e){
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }, true);
+          }
+
+          function salvar(){
+            const senha = document.getElementById('novaSenha').value;
+            const conf = document.getElementById('confSenha').value;
+            const erro = document.getElementById('erro');
+            const ok = document.getElementById('ok');
+            const btn = document.getElementById('btnSalvar');
+
+            erro.style.display = 'none';
+            ok.style.display = 'none';
+
+            if(!senha || !conf){
+              erro.textContent = '❌ Preencha os dois campos.';
+              erro.style.display = 'block';
+              return;
+            }
+            if(senha.length < 6){
+              erro.textContent = '❌ A nova senha deve ter no mínimo 6 caracteres.';
+              erro.style.display = 'block';
+              return;
+            }
+            if(senha !== conf){
+              erro.textContent = '❌ As senhas não conferem.';
+              erro.style.display = 'block';
+              return;
+            }
+
+            btn.disabled = true;
+            google.script.run
+              .withSuccessHandler((res) => {
+                if(!res.ok){
+                  erro.textContent = '❌ ' + (res.msg || 'Falha ao alterar senha.');
+                  erro.style.display = 'block';
+                  btn.disabled = false;
+                  return;
+                }
+
+                ok.textContent = '✅ Senha alterada com sucesso. Abrindo sistema...';
+                ok.style.display = 'block';
+
+                google.script.run
+                  .withSuccessHandler(() => {
+                    google.script.host.close();
+                  })
+                  .withFailureHandler((e) => {
+                    erro.textContent = '❌ Senha alterada, mas falha ao abrir sistema: ' + e.message;
+                    erro.style.display = 'block';
+                    btn.disabled = false;
+                  })
+                  .abrirSistemaPosLogin('');
+              })
+              .withFailureHandler((e) => {
+                erro.textContent = '❌ ' + e.message;
+                erro.style.display = 'block';
+                btn.disabled = false;
+              })
+              .alterarSenhaObrigatoria('${idUser}', senha);
+          }
+
+          bloquearFechamento();
+        </script>
+      </body>
+      </html>`;
+
+    const ui = HtmlService.createHtmlOutput(html).setWidth(520).setHeight(560);
+    SpreadsheetApp.getUi().showModalDialog(ui, '🔒 Troca de senha obrigatória');
+  }
 
 /**
  * 📋 GERENCIAMENTO DE USUÁRIOS
@@ -771,7 +969,8 @@
           perfil,
           'SIM',
           agora,
-          agora
+          agora,
+          'NAO'
         ]);
         
         console.log('[SERVER] ✅ Linha adicionada com sucesso');
@@ -827,6 +1026,7 @@
             <td class="hide-mobile">${ultimo || '-'}</td>
             <td class="acoes">
               <button class="btn-icon btn-edit" title="Editar usuário" onclick="google.script.run.editarUsuario('${id}')">✏️</button>
+              <button class="btn-icon" title="Limpar senha (adm123)" onclick="confirmarResetSenha('${id}','${nome.replace(/'/g, "\\'")}')">🔁</button>
               <button class="btn-icon btn-delete" title="Excluir usuário" onclick="confirmarExclusao('${id}','${nome.replace(/'/g, "\\'")}')">🗑️</button>
             </td>
           </tr>`;
@@ -1037,6 +1237,24 @@
               const ok = confirm('Deseja realmente excluir o usuário "' + nome + '"?');
               if(!ok) return;
               google.script.run.deletarUsuario(id);
+            }
+
+            function confirmarResetSenha(id, nome){
+              const ok = confirm('Resetar senha de "' + nome + '" para adm123 e forçar troca no próximo login?');
+              if(!ok) return;
+
+              google.script.run
+                .withSuccessHandler((res) => {
+                  if(res && res.ok){
+                    alert('✅ ' + res.msg);
+                  } else {
+                    alert('❌ ' + ((res && res.msg) || 'Falha ao resetar senha.'));
+                  }
+                })
+                .withFailureHandler((e) => {
+                  alert('❌ Erro ao resetar senha: ' + e.message);
+                })
+                .SENHA_RESET_TEMPORARIA(id);
             }
           </script>
         </body>
@@ -1296,7 +1514,8 @@
           email: dados[i][2],
           telefone: dados[i][3],
           perfil: dados[i][5],
-          ativo: dados[i][6]
+          ativo: dados[i][6],
+          trocaSenhaObrigatoria: String(dados[i][9] || 'NAO').toUpperCase() === 'SIM' ? 'SIM' : 'NAO'
         };
       }
     }
