@@ -791,7 +791,7 @@
             <div class="grid">
               <div class="form-group full"><label>👤 Nome Completo</label><input type="text" id="nome" placeholder="Ex: João Silva" required /></div>
               <div class="form-group"><label>✉️ E-mail</label><input type="email" id="email" placeholder="nome@empresa.com" /></div>
-              <div class="form-group"><label>📞 Telefone</label><input type="text" id="telefone" placeholder="(xx) xxxxx-xxxx" required /></div>
+              <div class="form-group"><label>📞 Telefone</label><input type="text" id="telefone" placeholder="(71) 9 9876-5432" required /></div>
               <div class="form-group"><label>🔑 Senha</label><input type="password" id="senha" placeholder="Mínimo 6 caracteres" required /></div>
               <div class="form-group"><label>🔄 Confirmar Senha</label><input type="password" id="senha2" placeholder="Repita a senha" required /></div>
               <div class="form-group full"><label>👔 Perfil de Acesso</label><select id="perfil" required><option value="OPERACIONAL">📦 Operacional</option><option value="GERENCIAL">👨‍💼 Gerencial</option></select></div>
@@ -801,7 +801,7 @@
 
             <div class="form-group">
               <label>📞 Telefone</label>
-              <input type="text" id="telefone" placeholder="(xx) xxxxx-xxxx" required />
+              <input type="text" id="telefone" placeholder="(71) 9 9876-5432" required />
             </div>
             
             <div class="form-group">
@@ -828,6 +828,23 @@
             </div>
           </div>
           <script>
+            function formatTelefoneBR(valor) {
+              const digits = String(valor || '').replace(/\D/g, '').slice(0, 11);
+
+              if(digits.length <= 2) return digits;
+              if(digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+              if(digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+
+              return `(${digits.slice(0,2)}) ${digits.slice(2,3)} ${digits.slice(3,7)}-${digits.slice(7,11)}`;
+            }
+
+            const inputTelefone = document.getElementById('telefone');
+            if(inputTelefone){
+              inputTelefone.addEventListener('input', e => {
+                e.target.value = formatTelefoneBR(e.target.value);
+              });
+            }
+
             function salvarUsuario() {
               const error = document.getElementById('error');
               const nome = document.getElementById('nome').value.trim();

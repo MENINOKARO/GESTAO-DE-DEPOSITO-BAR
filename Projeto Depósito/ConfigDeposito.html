@@ -162,7 +162,7 @@
 
       <div class="form-group">
         <label for="telefone">📞 Telefone</label>
-        <input type="text" id="telefone" name="telefone" placeholder="Ex: (11) 98765-4321">
+        <input type="text" id="telefone" name="telefone" placeholder="Ex: (71) 9 9876-5432">
         <div class="success" id="ok_telefone"></div>
       </div>
 
@@ -224,14 +224,16 @@
 
     // utilitários de formatação
     function formatPhone(val){
-      let digits = (val || '').replace(/\D/g, '');
+      const digits = (val || '').replace(/\D/g, '').slice(0, 11);
+
       if(digits.length <= 2) return digits;
       if(digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
       if(digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
-      return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
+
+      return `(${digits.slice(0,2)}) ${digits.slice(2,3)} ${digits.slice(3,7)}-${digits.slice(7,11)}`;
     }
     function formatCNPJ(val){
-      let digits = (val || '').replace(/\D/g, '');
+      const digits = (val || '').replace(/\D/g, '').slice(0, 14);
       if(digits.length <= 2) return digits;
       if(digits.length <= 5) return `${digits.slice(0,2)}.${digits.slice(2)}`;
       if(digits.length <= 8) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5)}`;
@@ -251,7 +253,14 @@
       document.getElementById('telefone').addEventListener('blur', e => {
         e.target.value = formatPhone(e.target.value);
       });
-      document.getElementById('cnpj').addEventListener('blur', e => {
+      telInput.addEventListener('blur', e => {
+        e.target.value = formatPhone(e.target.value);
+      });
+
+      cnpjInput.addEventListener('input', e => {
+        e.target.value = formatCNPJ(e.target.value);
+      });
+      cnpjInput.addEventListener('blur', e => {
         e.target.value = formatCNPJ(e.target.value);
       });
     });
