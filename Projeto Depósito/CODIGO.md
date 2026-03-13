@@ -51,10 +51,7 @@
 // ===============================
 
   const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
-<<<<<<< codex/review-admin-password-reset-process-1ytjhw
-  const SENHA_RESET_TEMPORARIA = 'adm123';
-=======
->>>>>>> main
+
 
   function onOpen() {
 
@@ -1934,7 +1931,6 @@
 
       const props = PropertiesService.getScriptProperties();
 
-<<<<<<< codex/review-admin-password-reset-process-1ytjhw
       // remove e recria com senha temporária conhecida
       props.deleteProperty('SENHA_RESET');
       props.setProperty('SENHA_RESET', SENHA_RESET_TEMPORARIA);
@@ -1956,7 +1952,6 @@
       popupTrocarSenhaReset();
       return resultado;
     }
-=======
       // remove e recria com padrão conhecido
       props.deleteProperty('SENHA_RESET');
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
@@ -1967,7 +1962,6 @@
         msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
       };
     }
->>>>>>> main
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
       abrirAba('HOME');
