@@ -829,18 +829,18 @@
           </div>
           <script>
             function formatTelefoneBR(valor) {
-              var digits = String(valor || '').replace(/\D/g, '').slice(0, 11);
+              const digits = String(valor || '').replace(/\D/g, '').slice(0, 11);
 
               if(digits.length <= 2) return digits;
-              if(digits.length <= 6) return '(' + digits.slice(0,2) + ') ' + digits.slice(2);
-              if(digits.length <= 10) return '(' + digits.slice(0,2) + ') ' + digits.slice(2,6) + '-' + digits.slice(6);
+              if(digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+              if(digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
 
-              return '(' + digits.slice(0,2) + ') ' + digits.slice(2,3) + ' ' + digits.slice(3,7) + '-' + digits.slice(7,11);
+              return `(${digits.slice(0,2)}) ${digits.slice(2,3)} ${digits.slice(3,7)}-${digits.slice(7,11)}`;
             }
 
-            var inputTelefone = document.getElementById('telefone');
+            const inputTelefone = document.getElementById('telefone');
             if(inputTelefone){
-              inputTelefone.addEventListener('input', function(e){
+              inputTelefone.addEventListener('input', e => {
                 e.target.value = formatTelefoneBR(e.target.value);
               });
             }
@@ -1346,7 +1346,7 @@
                 </div>
                 <div>
                   <label>📱 Telefone</label>
-                  <input id="telefone" value="${telefone}" placeholder="(71) 9 9876-5432">
+                  <input id="telefone" value="${telefone}" placeholder="(00) 00000-0000">
                 </div>
               </div>
 
@@ -1400,24 +1400,6 @@
             </div>
 
             <script>
-              function formatTelefoneBR(valor){
-                var digits = String(valor || '').replace(/\D/g, '').slice(0, 11);
-
-                if(digits.length <= 2) return digits;
-                if(digits.length <= 6) return '(' + digits.slice(0,2) + ') ' + digits.slice(2);
-                if(digits.length <= 10) return '(' + digits.slice(0,2) + ') ' + digits.slice(2,6) + '-' + digits.slice(6);
-
-                return '(' + digits.slice(0,2) + ') ' + digits.slice(2,3) + ' ' + digits.slice(3,7) + '-' + digits.slice(7,11);
-              }
-
-              var campoTelefone = document.getElementById('telefone');
-              if(campoTelefone){
-                campoTelefone.value = formatTelefoneBR(campoTelefone.value);
-                campoTelefone.addEventListener('input', function(e){
-                  e.target.value = formatTelefoneBR(e.target.value);
-                });
-              }
-
               function salvar(){
                 const nome = document.getElementById('nome').value.trim();
                 const telefone = document.getElementById('telefone').value.trim();
