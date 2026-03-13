@@ -51,18 +51,7 @@
 // ===============================
 
   const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
-  const SENHA_RESET_TEMPORARIA = 'adm123';
 
-  function obterSenhaResetPadrao(){
-    return (typeof SENHA_RESET_PADRAO !== 'undefined' && SENHA_RESET_PADRAO)
-      ? SENHA_RESET_PADRAO
-      : 'A1D2M1N@2026';
-  }
-  function obterSenhaResetTemporaria(){
-    return (typeof SENHA_RESET_TEMPORARIA !== 'undefined' && SENHA_RESET_TEMPORARIA)
-      ? SENHA_RESET_TEMPORARIA
-      : 'adm123';
-  }
 
   function onOpen() {
 
@@ -1898,7 +1887,7 @@
       if(!senha){
 
         // 🔑 senha padrão inicial
-        props.setProperty('SENHA_RESET', obterSenhaResetPadrao());
+        props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
 
         // 🔁 flag de troca obrigatória
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
@@ -1944,15 +1933,12 @@
 
       // remove e recria com senha temporária conhecida
       props.deleteProperty('SENHA_RESET');
-      const senhaTemp = (typeof SENHA_RESET_TEMPORARIA !== 'undefined' && SENHA_RESET_TEMPORARIA)
-        ? SENHA_RESET_TEMPORARIA
-        : 'adm123';
-      props.setProperty('SENHA_RESET', senhaTemp);
+      props.setProperty('SENHA_RESET', SENHA_RESET_TEMPORARIA);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       return {
         ok: true,
-        msg: `Senha de reset redefinida para "${senhaTemp}" e troca obrigatória ativada.`
+        msg: 'Senha de reset redefinida para "adm123" e troca obrigatória ativada.'
       };
     }
     function limparSenhaResetSolicitandoTroca(){
@@ -1965,6 +1951,16 @@
 
       popupTrocarSenhaReset();
       return resultado;
+      
+      // remove e recria com padrão conhecido
+      props.deleteProperty('SENHA_RESET');
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+      garantirSenhaResetObrigatoria();
+    
+      return {
+        ok: true,
+        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
+        };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
@@ -11889,14 +11885,13 @@
 
     if(!props.getProperty('SENHA_RESET')){
       // Define senha padrão
-      const senhaPadrao = obterSenhaResetPadrao();
-      props.setProperty('SENHA_RESET', senhaPadrao);
+      props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       registrarLog(
         'RESET_SENHA_CONFIG',
         'Senha de reset configurada',
-        senhaPadrao,
+        SENHA_RESET_PADRAO,
         'Sistema'
       );
     }
