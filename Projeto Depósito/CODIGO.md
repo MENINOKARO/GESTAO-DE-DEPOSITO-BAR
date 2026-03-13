@@ -52,6 +52,18 @@
 
   const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
 
+  function SENHA_RESET_TEMPORARIA(){
+    return 'adm123';
+  }
+
+  function obterSenhaResetTemporaria(){
+    if(typeof SENHA_RESET_TEMPORARIA === 'function'){
+      return String(SENHA_RESET_TEMPORARIA()).trim();
+    }
+
+    return 'adm123';
+  }
+
 
   function onOpen() {
 
@@ -1933,7 +1945,7 @@
 
       // remove e recria com senha temporária conhecida
       props.deleteProperty('SENHA_RESET');
-      props.setProperty('SENHA_RESET', SENHA_RESET_TEMPORARIA);
+      props.setProperty('SENHA_RESET', obterSenhaResetTemporaria());
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       return {
@@ -1941,9 +1953,12 @@
         msg: 'Senha de reset redefinida para "adm123" e troca obrigatória ativada.'
       };
     }
+    function limparSenhaTemporaria(){
+      return limparSenhaReset();
+    }
     function limparSenhaResetSolicitandoTroca(){
 
-      const resultado = limparSenhaReset();
+      const resultado = limparSenhaTemporaria();
 
       if(typeof popupMensagem === 'function'){
         popupMensagem('🔐 Segurança', resultado.msg + ' Defina uma nova senha agora.');
@@ -1951,16 +1966,6 @@
 
       popupTrocarSenhaReset();
       return resultado;
-      
-      // remove e recria com padrão conhecido
-      props.deleteProperty('SENHA_RESET');
-      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
-      garantirSenhaResetObrigatoria();
-    
-      return {
-        ok: true,
-        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
-        };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
