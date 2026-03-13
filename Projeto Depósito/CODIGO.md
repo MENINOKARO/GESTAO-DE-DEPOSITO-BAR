@@ -326,7 +326,7 @@
 
       return nome ? nome.toString().trim() : 'DEPÓSITO';
     }
-    function organizarConfig(){
+    function organizarConfig(silencioso){
 
       const ss = SpreadsheetApp.getActive();
 
@@ -375,8 +375,10 @@
       sh.setFrozenRows(1);
 
 
-      SpreadsheetApp.getUi()
-        .alert('✅ CONFIG organizado com sucesso.');
+      if(!silencioso){
+        SpreadsheetApp.getUi()
+          .alert('✅ CONFIG organizado com sucesso.');
+      }
 
     }
     function getConfig(chave){
@@ -1594,52 +1596,13 @@
       // =========================
       // 4️⃣ ABAS A LIMPAR
       // =========================
-      const abas = [
-        'VENDAS',
-        'COMPRAS',
-        'ESTOQUE',
-        'PRODUTOS',
-        'COMANDAS',
-        'COMANDA_ITENS',
-        'CAIXA',
-        'CAIXA_FECHAMENTO',
-        'CAIXA_FISCAL',
-        'DELIVERY',
-        'DELIVERY_ITENS',
-        'CLIENTES',
-        'CONFIG',
-        'LOG_SISTEMA',
-        'CONTAS_A_PAGAR',
-        'CONTAS_A_RECEBER'
-      ];
-
-      // =========================
-      // 5️⃣ LIMPEZA SEGURA
-      // =========================
-      abas.forEach(nome => {
-
-        const sh = ss.getSheetByName(nome);
-
-        if(!sh) return;
-
-        const lastRow = sh.getLastRow();
-        const lastCol = sh.getLastColumn();
-
-        // mantém cabeçalho
-        if(lastRow > 1){
-
-          sh.getRange(2, 1, lastRow-1, lastCol)
-            .clearContent();
-
-        }
-
-      });
+      limparAbasSistemaParaReset(ss);
 
       // =========================
       // 6️⃣ RECRIA CONFIG PADRÃO
       // =========================
       if(typeof organizarConfig === 'function'){
-        organizarConfig();
+        organizarConfig(true);
       
         // =========================
         // 7️⃣ RENOVA SENHA DE RESET
@@ -1675,6 +1638,29 @@
       iniciarSistemaAposReset();
       return true;
 
+    }
+    function limparAbasSistemaParaReset(ss){
+
+      const planilhas = (ss || SpreadsheetApp.getActive()).getSheets();
+
+      planilhas.forEach(sh => {
+
+        const nome = sh.getName();
+        const lastRow = sh.getLastRow();
+        const lastCol = sh.getLastColumn();
+
+        // CONFIG é recriada no próximo passo.
+        if(nome === 'CONFIG'){
+          sh.clear();
+          return;
+        }
+
+        if(lastRow <= 1 || lastCol === 0) return;
+
+        // Mantém cabeçalho, limpa completamente o restante.
+        sh.getRange(2, 1, lastRow - 1, lastCol)
+          .clearContent();
+      });
     }
     function popupSenhaReset(){
 
@@ -1913,7 +1899,11 @@
         return { ok:false, msg:'Senha incorreta.' };
       }
 
-      return { ok:true };
+      const obrigatoria = PropertiesService
+        .getScriptProperties()
+        .getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
+
+      return { ok:true, trocar: obrigatoria };
     }
     function definirNovaSenhaReset(nova){
 
