@@ -11669,7 +11669,7 @@
                 align-items:center;
                 justify-content:center
               "
-              onclick="google.script.run.popupReceberContaAReceber('${mapa[c].id}')">
+              onclick="google.script.run.popupReceberClienteContaAReceber(decodeURIComponent('${encodeURIComponent(c)}'))">
               💰 Receber
             </button>        
           </div>
