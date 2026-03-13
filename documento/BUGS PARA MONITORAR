@@ -44,3 +44,9 @@
 38 erro de parse número
 39 erro de normalização texto
 40 erro de busca produto
+
+41 repositório local sem remote Git configurado (impossível sincronizar/pull/push automático)
+42 conectividade externa com github bloqueada no ambiente (CONNECT tunnel failed 403)
+43 log de criação de usuário pode falhar por variável indefinida em runtime
+44 excesso de logs [DEBUG]/[SERVER] em produção pode expor dados sensíveis e degradar performance
+45 funções client-side inline em HTML embutido dificultam teste automatizado e rastreio de erro
