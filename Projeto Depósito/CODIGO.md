@@ -1967,6 +1967,12 @@
       abrirAba('HOME');
     }
     function abrirCaixa(){
+      // Mantém compatibilidade com chamadas antigas e
+      // padroniza o fluxo para o painel de opções do caixa.
+      if(typeof abrirCaixaOpcoes === 'function'){
+        abrirCaixaOpcoes();
+        return;
+      }
       abrirAba('CAIXA');
     }
     function abrirEstoque(){
