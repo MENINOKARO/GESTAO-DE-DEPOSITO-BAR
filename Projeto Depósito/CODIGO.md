@@ -50,6 +50,20 @@
 // MENU / INICIALIZAÇÃO
 // ===============================
 
+  const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
+  const SENHA_RESET_TEMPORARIA = 'adm123';
+
+  function obterSenhaResetPadrao(){
+    return (typeof SENHA_RESET_PADRAO !== 'undefined' && SENHA_RESET_PADRAO)
+      ? SENHA_RESET_PADRAO
+      : 'A1D2M1N@2026';
+  }
+  function obterSenhaResetTemporaria(){
+    return (typeof SENHA_RESET_TEMPORARIA !== 'undefined' && SENHA_RESET_TEMPORARIA)
+      ? SENHA_RESET_TEMPORARIA
+      : 'adm123';
+  }
+
   function onOpen() {
 
     try {
@@ -130,6 +144,7 @@
             .addItem('🚀 Iniciar Sistema', 'initSistema')
             .addItem('🚧 Resetar Sistema', 'popupSenhaReset')
             .addItem('🔐 Alterar Senha de Reset', 'popupTrocarSenhaReset')
+            .addItem('🧽 Limpar Senha de Reset', 'limparSenhaResetSolicitandoTroca')
             .addItem('⚙️ Configurar Depósito', 'abrirConfiguracaoDeposito')
             .addItem('🔄 Recarregar Menu', 'recarregarMenu')
             .addItem('💾 Fazer Backup Agora', 'fazerBackupSistema')
@@ -326,7 +341,7 @@
 
       return nome ? nome.toString().trim() : 'DEPÓSITO';
     }
-    function organizarConfig(){
+    function organizarConfig(silencioso){
 
       const ss = SpreadsheetApp.getActive();
 
@@ -375,8 +390,10 @@
       sh.setFrozenRows(1);
 
 
-      SpreadsheetApp.getUi()
-        .alert('✅ CONFIG organizado com sucesso.');
+      if(!silencioso){
+        SpreadsheetApp.getUi()
+          .alert('✅ CONFIG organizado com sucesso.');
+      }
 
     }
     function getConfig(chave){
@@ -696,6 +713,7 @@
                 ['🚀', 'Iniciar Sistema', 'initSistema'],
                 ['🚧', 'Resetar Sistema', 'popupSenhaReset'],
                 ['🔐', 'Trocar Senha Reset', 'popupTrocarSenhaReset'],
+                ['🧽', 'Limpar Senha Reset', 'limparSenhaResetSolicitandoTroca'],
                 ['⚙️', 'Configurar Depósito', 'abrirConfiguracaoDeposito'],
                 ['🔄', 'Recarregar Menu', 'recarregarMenu'],
                 ['💾', 'Backup', 'fazerBackupSistema'],
@@ -1594,58 +1612,23 @@
       // =========================
       // 4️⃣ ABAS A LIMPAR
       // =========================
-      const abas = [
-        'VENDAS',
-        'COMPRAS',
-        'ESTOQUE',
-        'PRODUTOS',
-        'COMANDAS',
-        'COMANDA_ITENS',
-        'CAIXA',
-        'CAIXA_FECHAMENTO',
-        'CAIXA_FISCAL',
-        'DELIVERY',
-        'DELIVERY_ITENS',
-        'CLIENTES',
-        'CONFIG',
-        'LOG_SISTEMA',
-        'CONTAS_A_PAGAR',
-        'CONTAS_A_RECEBER'
-      ];
-
-      // =========================
-      // 5️⃣ LIMPEZA SEGURA
-      // =========================
-      abas.forEach(nome => {
-
-        const sh = ss.getSheetByName(nome);
-
-        if(!sh) return;
-
-        const lastRow = sh.getLastRow();
-        const lastCol = sh.getLastColumn();
-
-        // mantém cabeçalho
-        if(lastRow > 1){
-
-          sh.getRange(2, 1, lastRow-1, lastCol)
-            .clearContent();
-
-        }
-
-      });
+      limparAbasSistemaParaReset(ss);
 
       // =========================
       // 6️⃣ RECRIA CONFIG PADRÃO
       // =========================
       if(typeof organizarConfig === 'function'){
-        organizarConfig();
+        organizarConfig(true);
       
         // =========================
         // 7️⃣ RENOVA SENHA DE RESET
         // =========================
         const props = PropertiesService.getScriptProperties();
+
+        // 🔄 limpa senha atual e força padrão + troca obrigatória
+        props.deleteProperty('SENHA_RESET');
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
         if(typeof garantirSenhaResetObrigatoria === 'function'){
           garantirSenhaResetObrigatoria();
         }
@@ -1675,6 +1658,29 @@
       iniciarSistemaAposReset();
       return true;
 
+    }
+    function limparAbasSistemaParaReset(ss){
+
+      const planilhas = (ss || SpreadsheetApp.getActive()).getSheets();
+
+      planilhas.forEach(sh => {
+
+        const nome = sh.getName();
+        const lastRow = sh.getLastRow();
+        const lastCol = sh.getLastColumn();
+
+        // CONFIG é recriada no próximo passo.
+        if(nome === 'CONFIG'){
+          sh.clear();
+          return;
+        }
+
+        if(lastRow <= 1 || lastCol === 0) return;
+
+        // Mantém cabeçalho, limpa completamente o restante.
+        sh.getRange(2, 1, lastRow - 1, lastCol)
+          .clearContent();
+      });
     }
     function popupSenhaReset(){
 
@@ -1892,7 +1898,7 @@
       if(!senha){
 
         // 🔑 senha padrão inicial
-        props.setProperty('SENHA_RESET', 'admin123');
+        props.setProperty('SENHA_RESET', obterSenhaResetPadrao());
 
         // 🔁 flag de troca obrigatória
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
@@ -1913,7 +1919,11 @@
         return { ok:false, msg:'Senha incorreta.' };
       }
 
-      return { ok:true };
+      const obrigatoria = PropertiesService
+        .getScriptProperties()
+        .getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
+
+      return { ok:true, trocar: obrigatoria };
     }
     function definirNovaSenhaReset(nova){
 
@@ -1928,11 +1938,43 @@
       const props = PropertiesService.getScriptProperties();
       Logger.log(props.getProperty('SENHA_RESET'));
     }
+    function limparSenhaReset(){
+
+      const props = PropertiesService.getScriptProperties();
+
+      // remove e recria com senha temporária conhecida
+      props.deleteProperty('SENHA_RESET');
+      const senhaTemp = obterSenhaResetTemporaria();
+      props.setProperty('SENHA_RESET', senhaTemp);
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
+      return {
+        ok: true,
+        msg: `Senha de reset redefinida para "${senhaTemp}" e troca obrigatória ativada.`
+      };
+    }
+    function limparSenhaResetSolicitandoTroca(){
+
+      const resultado = limparSenhaReset();
+
+      if(typeof popupMensagem === 'function'){
+        popupMensagem('🔐 Segurança', resultado.msg + ' Defina uma nova senha agora.');
+      }
+
+      popupTrocarSenhaReset();
+      return resultado;
+    }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
       abrirAba('HOME');
     }
     function abrirCaixa(){
+      // Mantém compatibilidade com chamadas antigas e
+      // padroniza o fluxo para o painel de opções do caixa.
+      if(typeof abrirCaixaOpcoes === 'function'){
+        abrirCaixaOpcoes();
+        return;
+      }
       abrirAba('CAIXA');
     }
     function abrirEstoque(){
@@ -2071,6 +2113,10 @@
               🔐 Alterar Senha de Reset
             </button>
 
+            <button class="btn primary" onclick="run('limparSenha')">
+              🧽 Limpar Senha de Reset
+            </button>
+
             <button class="btn primary" onclick="run('trocarLogin')">
               🔀 Trocar Login
             </button>
@@ -2160,6 +2206,10 @@
 
         case 'trocarLogin':
           trocarLogin();
+          break;
+
+        case 'limparSenha':
+          limparSenhaResetSolicitandoTroca();
           break;
 
         case 'logout':
@@ -11837,13 +11887,14 @@
 
     if(!props.getProperty('SENHA_RESET')){
       // Define senha padrão
-      props.setProperty('SENHA_RESET', 'A1D2M1N@2026');
+      const senhaPadrao = obterSenhaResetPadrao();
+      props.setProperty('SENHA_RESET', senhaPadrao);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       registrarLog(
         'RESET_SENHA_CONFIG',
         'Senha de reset configurada',
-        'admin123',
+        senhaPadrao,
         'Sistema'
       );
     }
