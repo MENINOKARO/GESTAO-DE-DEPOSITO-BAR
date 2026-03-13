@@ -50,6 +50,8 @@
 // MENU / INICIALIZAÇÃO
 // ===============================
 
+  const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
+
   function onOpen() {
 
     try {
@@ -326,7 +328,7 @@
 
       return nome ? nome.toString().trim() : 'DEPÓSITO';
     }
-    function organizarConfig(){
+    function organizarConfig(silencioso){
 
       const ss = SpreadsheetApp.getActive();
 
@@ -375,8 +377,10 @@
       sh.setFrozenRows(1);
 
 
-      SpreadsheetApp.getUi()
-        .alert('✅ CONFIG organizado com sucesso.');
+      if(!silencioso){
+        SpreadsheetApp.getUi()
+          .alert('✅ CONFIG organizado com sucesso.');
+      }
 
     }
     function getConfig(chave){
@@ -1594,58 +1598,23 @@
       // =========================
       // 4️⃣ ABAS A LIMPAR
       // =========================
-      const abas = [
-        'VENDAS',
-        'COMPRAS',
-        'ESTOQUE',
-        'PRODUTOS',
-        'COMANDAS',
-        'COMANDA_ITENS',
-        'CAIXA',
-        'CAIXA_FECHAMENTO',
-        'CAIXA_FISCAL',
-        'DELIVERY',
-        'DELIVERY_ITENS',
-        'CLIENTES',
-        'CONFIG',
-        'LOG_SISTEMA',
-        'CONTAS_A_PAGAR',
-        'CONTAS_A_RECEBER'
-      ];
-
-      // =========================
-      // 5️⃣ LIMPEZA SEGURA
-      // =========================
-      abas.forEach(nome => {
-
-        const sh = ss.getSheetByName(nome);
-
-        if(!sh) return;
-
-        const lastRow = sh.getLastRow();
-        const lastCol = sh.getLastColumn();
-
-        // mantém cabeçalho
-        if(lastRow > 1){
-
-          sh.getRange(2, 1, lastRow-1, lastCol)
-            .clearContent();
-
-        }
-
-      });
+      limparAbasSistemaParaReset(ss);
 
       // =========================
       // 6️⃣ RECRIA CONFIG PADRÃO
       // =========================
       if(typeof organizarConfig === 'function'){
-        organizarConfig();
+        organizarConfig(true);
       
         // =========================
         // 7️⃣ RENOVA SENHA DE RESET
         // =========================
         const props = PropertiesService.getScriptProperties();
+
+        // 🔄 limpa senha atual e força padrão + troca obrigatória
+        props.deleteProperty('SENHA_RESET');
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
         if(typeof garantirSenhaResetObrigatoria === 'function'){
           garantirSenhaResetObrigatoria();
         }
@@ -1675,6 +1644,29 @@
       iniciarSistemaAposReset();
       return true;
 
+    }
+    function limparAbasSistemaParaReset(ss){
+
+      const planilhas = (ss || SpreadsheetApp.getActive()).getSheets();
+
+      planilhas.forEach(sh => {
+
+        const nome = sh.getName();
+        const lastRow = sh.getLastRow();
+        const lastCol = sh.getLastColumn();
+
+        // CONFIG é recriada no próximo passo.
+        if(nome === 'CONFIG'){
+          sh.clear();
+          return;
+        }
+
+        if(lastRow <= 1 || lastCol === 0) return;
+
+        // Mantém cabeçalho, limpa completamente o restante.
+        sh.getRange(2, 1, lastRow - 1, lastCol)
+          .clearContent();
+      });
     }
     function popupSenhaReset(){
 
@@ -1892,7 +1884,7 @@
       if(!senha){
 
         // 🔑 senha padrão inicial
-        props.setProperty('SENHA_RESET', 'admin123');
+        props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
 
         // 🔁 flag de troca obrigatória
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
@@ -1913,7 +1905,11 @@
         return { ok:false, msg:'Senha incorreta.' };
       }
 
-      return { ok:true };
+      const obrigatoria = PropertiesService
+        .getScriptProperties()
+        .getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
+
+      return { ok:true, trocar: obrigatoria };
     }
     function definirNovaSenhaReset(nova){
 
@@ -1927,6 +1923,20 @@
     function debugSenha(){
       const props = PropertiesService.getScriptProperties();
       Logger.log(props.getProperty('SENHA_RESET'));
+    }
+    function limparSenhaReset(){
+
+      const props = PropertiesService.getScriptProperties();
+
+      // remove e recria com padrão conhecido
+      props.deleteProperty('SENHA_RESET');
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+      garantirSenhaResetObrigatoria();
+
+      return {
+        ok: true,
+        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
+      };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
@@ -11837,13 +11847,13 @@
 
     if(!props.getProperty('SENHA_RESET')){
       // Define senha padrão
-      props.setProperty('SENHA_RESET', 'A1D2M1N@2026');
+      props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       registrarLog(
         'RESET_SENHA_CONFIG',
         'Senha de reset configurada',
-        'admin123',
+        SENHA_RESET_PADRAO,
         'Sistema'
       );
     }
