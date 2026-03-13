@@ -641,7 +641,8 @@
                 ['🚚', 'Delivery', 'popupPainelDelivery2'],
                 ['📝', 'Financeiro', 'popupPainelFinanceiro'],
                 ['💰', 'Caixa', 'abrirCaixaOpcoes'],
-                ['📦', 'Estoque', 'abrirEstoqueOpcoes']
+                ['📦', 'Estoque', 'abrirEstoqueOpcoes'],
+                ['💬', 'WhatsApp', 'abrirPainelWhatsApp']
               ]
             },
             {
@@ -670,7 +671,9 @@
                 ['🛒', 'Nova Compra', 'popupCompraV2'],
                 ['❌', 'Cancelamento de Notas', 'popupPainelCancelamentoCompra'],
                 ['💲', 'Análise de Lucratividade', 'abrirAnaliseProduto'],
-                ['🛍️', 'Gestão de Produto', 'popupProdutoManager']
+                ['🛍️', 'Gestão de Produto', 'popupProdutoManager'],
+                ['📖', 'Manual', 'abrirManualDoSistema'],
+                ['📂', 'Drive', 'abrirDriveLink']
               ]
             },
             {
@@ -708,11 +711,8 @@
                 ['💾', 'Backup', 'fazerBackupSistema'],
                 ['📜', 'Ver Logs', 'abrirAbaLog'],
                 ['🧹', 'Padronizar Abas', 'padronizarTodasAbasSistema'],
-                ['📖', 'Manual', 'abrirManualDoSistema'],
                 ['🔀', 'Trocar Login', 'trocarLogin'],
-                ['🚪', 'Logout', 'fazerLogout'],
-                ['📂', 'Drive', 'abrirDriveLink'],
-                ['💬', 'WhatsApp', 'abrirPainelWhatsApp']
+                ['🚪', 'Logout', 'fazerLogout']
               ]
             }
           ];
@@ -1552,7 +1552,7 @@
       }
     }
   // MODULO SENHA 
-    function resetarSistema(){
+    function resetarSistema(ignorarConfirmacao){
 
       const ss = SpreadsheetApp.getActive();
 
@@ -1561,23 +1561,25 @@
       // =========================
       const ui = SpreadsheetApp.getUi();
 
-      const resp = ui.alert(
-        'RESET TOTAL',
-        '⚠️ ATENÇÃO!\n\n' +
-        'Isso irá APAGAR:\n' +
-        '- Vendas\n' +
-        '- Compras\n' +
-        '- Caixa\n' +
-        '- Clientes\n' +
-        '- Comandas\n' +
-        '- Logs\n\n' +
-        'Essa ação é IRREVERSÍVEL.\n\n' +
-        'Deseja continuar?',
-        ui.ButtonSet.YES_NO
-      );
+      if(!ignorarConfirmacao){
+        const resp = ui.alert(
+          'RESET TOTAL',
+          '⚠️ ATENÇÃO!\n\n' +
+          'Isso irá APAGAR:\n' +
+          '- Vendas\n' +
+          '- Compras\n' +
+          '- Caixa\n' +
+          '- Clientes\n' +
+          '- Comandas\n' +
+          '- Logs\n\n' +
+          'Essa ação é IRREVERSÍVEL.\n\n' +
+          'Deseja continuar?',
+          ui.ButtonSet.YES_NO
+        );
 
-      if(resp !== ui.Button.YES){
-        return false;
+        if(resp !== ui.Button.YES){
+          return { ok:false, msg:'Reset cancelado pelo usuário.' };
+        }
       }
 
       // =========================
@@ -1645,7 +1647,7 @@
 
       ui.alert('✅ Sistema resetado com sucesso.');
       iniciarSistemaAposReset();
-      return true;
+      return { ok:true, msg:'Sistema resetado com sucesso.' };
 
     }
     function limparAbasSistemaParaReset(ss){
@@ -1730,7 +1732,11 @@
                 }
 
                 google.script.host.close();
-                google.script.run.resetarSistema();
+                google.script.run
+                  .withFailureHandler(e=>{
+                    alert('Erro ao resetar: ' + (e.message || e));
+                  })
+                  .resetarSistema(true);
 
               })
               .withFailureHandler(e=>{
@@ -1845,42 +1851,49 @@
 
       abrirPopup('🔐 Atualizar Senha', html, 380, 340);
     }
+    function getResetProps(){
+      return PropertiesService.getScriptProperties();
+    }
+    function normalizarSenha(valor){
+      return String(valor || '').trim();
+    }
     function alterarSenhaReset(senhaAtual, novaSenha){
 
-      const props = PropertiesService.getScriptProperties();
-
-      const senhaSalva = props.getProperty('SENHA_RESET');
+      const props = getResetProps();
+      const senhaSalva = normalizarSenha(props.getProperty('SENHA_RESET'));
+      const senhaAtualLimpa = normalizarSenha(senhaAtual);
+      const novaSenhaLimpa = normalizarSenha(novaSenha);
 
       if(!senhaSalva){
         return { ok:false, msg:'Senha não configurada.' };
       }
 
-      if(String(senhaAtual).trim() !== String(senhaSalva).trim()){
+      if(senhaAtualLimpa !== senhaSalva){
         return { ok:false, msg:'Senha atual incorreta.' };
       }
 
-      if(!novaSenha || String(novaSenha).trim().length < 4){
+      if(novaSenhaLimpa.length < 4){
         return { ok:false, msg:'Nova senha inválida.' };
       }
 
+      if(novaSenhaLimpa === senhaSalva){
+        return { ok:false, msg:'A nova senha deve ser diferente da atual.' };
+      }
+
       // 🔥 salva nova senha
-      props.setProperty('SENHA_RESET', String(novaSenha).trim());
+      props.setProperty('SENHA_RESET', novaSenhaLimpa);
 
       // remove flag obrigatória
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'NAO');
 
-      // 🔎 TESTE DE CONFIRMAÇÃO
-      const teste = props.getProperty('SENHA_RESET');
-
-      return { 
+      return {
         ok:true,
-        msg:'Senha alterada.',
-        debug: teste
+        msg:'Senha alterada.'
       };
     }
     function garantirSenhaReset(){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
       let senha = props.getProperty('SENHA_RESET');
 
@@ -1896,49 +1909,47 @@
     }
     function validarSenhaReset(senhaDigitada){
 
-      const senhaSalva = PropertiesService
-        .getScriptProperties()
-        .getProperty('SENHA_RESET');
+      const props = getResetProps();
+      const senhaSalva = normalizarSenha(props.getProperty('SENHA_RESET'));
+      const senhaDigitadaLimpa = normalizarSenha(senhaDigitada);
 
       if(!senhaSalva){
         return { ok:false, msg:'Senha não configurada.' };
       }
 
-      if(String(senhaDigitada).trim() !== String(senhaSalva).trim()){
+      if(senhaDigitadaLimpa !== senhaSalva){
         return { ok:false, msg:'Senha incorreta.' };
       }
 
-      const obrigatoria = PropertiesService
-        .getScriptProperties()
-        .getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
+      const obrigatoria = props.getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
 
       return { ok:true, trocar: obrigatoria };
     }
     function definirNovaSenhaReset(nova){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
-      props.setProperty('SENHA_RESET', nova.trim());
+      props.setProperty('SENHA_RESET', normalizarSenha(nova));
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'NAO');
 
       return true;
     }
     function debugSenha(){
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
       Logger.log(props.getProperty('SENHA_RESET'));
     }
     function limparSenhaReset(){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
-      // remove e recria com senha temporária conhecida
+      // remove e recria com senha padrão conhecida
       props.deleteProperty('SENHA_RESET');
-      props.setProperty('SENHA_RESET', SENHA_RESET_TEMPORARIA);
+      props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       return {
         ok: true,
-        msg: 'Senha de reset redefinida para "adm123" e troca obrigatória ativada.'
+        msg: 'Senha de reset redefinida para o padrão e troca obrigatória ativada.'
       };
     }
     function limparSenhaResetSolicitandoTroca(){
@@ -1951,16 +1962,6 @@
 
       popupTrocarSenhaReset();
       return resultado;
-      
-      // remove e recria com padrão conhecido
-      props.deleteProperty('SENHA_RESET');
-      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
-      garantirSenhaResetObrigatoria();
-    
-      return {
-        ok: true,
-        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
-        };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
@@ -3716,7 +3717,29 @@
             const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
             if(!ok) return;
           }
-  
+
+          if(btn){
+            btn.disabled = true;
+            btn.innerText = '⏳ Salvando...';
+          }
+
+          google.script.run
+            .withSuccessHandler(()=>{
+              alert('✅ Cliente cadastrado com sucesso!');
+              google.script.host.close();
+              google.script.run.voltarTelaCliente();
+            })
+            .withFailureHandler(e=>{
+              alert('Erro ao salvar cliente: ' + (e.message || e));
+              if(btn){
+                btn.disabled = false;
+                btn.innerText = '💾 Salvar Cliente';
+              }
+            })
+            .salvarCliente(
+              nome.value,
+              tel.value,
+              end.value,
               ref.value,
               obs.value
             );
@@ -4255,7 +4278,7 @@
         <option>💵 Dinheiro</option>
       </select>
 
-      <button onclick="finalizar()">📦 Fazer Pedido</button>
+      <button id="btnFinalizar" onclick="finalizar()">📦 Fazer Pedido</button>
 
       <script>
         let carrinho = [];
@@ -4269,6 +4292,8 @@
         const totalEl = document.getElementById('total');
         const pagEl = document.getElementById('pag');
         const entregadorEl = document.getElementById('entregador');
+        const btnFinalizarEl = document.getElementById('btnFinalizar');
+        let processandoPedido = false;
 
         // 🔥 BUSCA CLIENTE TEMPORÁRIO (AJUSTE)
         google.script.run.withSuccessHandler(nome => {
@@ -4349,12 +4374,22 @@
         }
 
         function finalizar(){
+          if(processandoPedido) return;
           if(!carrinho.length) return alert('Carrinho vazio');
           if(!entregadorEl.value) return alert('Informe o entregador');
 
+          processandoPedido = true;
+          btnFinalizarEl.disabled = true;
+          btnFinalizarEl.innerText = '⏳ Registrando pedido...';
+
           google.script.run
             .withSuccessHandler(()=>google.script.host.close())
-            .withFailureHandler(e=>alert(e.message||e))
+            .withFailureHandler(e=>{
+              alert(e.message||e);
+              processandoPedido = false;
+              btnFinalizarEl.disabled = false;
+              btnFinalizarEl.innerText = '📦 Fazer Pedido';
+            })
             .salvarDeliveryCarrinho(
               clienteEl.value,
               carrinho,
@@ -4368,52 +4403,73 @@
   }
   function salvarDeliveryCarrinho(cliente, itens, pagamento, entregador){
 
-    validarEstoqueCarrinho(itens);
-    // 🔒 BLOQUEIO FIADO
-    if(pagamento === '🧾 Fiado'){
-      validarClienteFiado(cliente);
-    }
-    const ss = SpreadsheetApp.getActive();
-    garantirDeliveryItens();
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(10000);
+    try {
 
-    const del = ss.getSheetByName('DELIVERY');
+      const cache = CacheService.getScriptCache();
+      const assinatura = Utilities.base64EncodeWebSafe(JSON.stringify([
+        String(cliente || '').trim().toUpperCase(),
+        String(entregador || '').trim().toUpperCase(),
+        String(pagamento || '').trim().toUpperCase(),
+        (itens || []).map(i => [String(i.produto || '').trim().toUpperCase(), Number(i.qtd) || 0, Number(i.unit) || 0])
+      ]));
 
-    if(!del){
-      throw new Error('Aba DELIVERY não encontrada.');
-    }
+      const chaveRepeticao = 'DELIVERY_DUP_' + assinatura;
+      if(cache.get(chaveRepeticao)){
+        throw new Error('Pedido já está sendo processado. Aguarde alguns segundos.');
+      }
+      cache.put(chaveRepeticao, '1', 8);
 
-    const pedido = gerarNumeroDelivery();
+      validarEstoqueCarrinho(itens);
+      // 🔒 BLOQUEIO FIADO
+      if(pagamento === '🧾 Fiado'){
+        validarClienteFiado(cliente);
+      }
+      const ss = SpreadsheetApp.getActive();
+      garantirDeliveryItens();
 
-    let totalPedido = 0;
-    itens.forEach(i=>{
-      totalPedido += Number(i.qtd) * Number(i.unit);
-    });
+      const del = ss.getSheetByName('DELIVERY');
 
-    del.appendRow([
-      pedido,
-      new Date(),
-      cliente || '',
-      'VER ITENS',
-      itens.length,
-      totalPedido,
-      pagamento,
-      'PEDIDO FEITO',
-      entregador || '',   // 🔥 ENTREGADOR AQUI
-      ''                  // ID_VENDA (mantido)
-    ]);
+      if(!del){
+        throw new Error('Aba DELIVERY não encontrada.');
+      }
 
-    itens.forEach(i=>{
-      inserirLinhaNoTopo('DELIVERY_ITENS', [
+      const pedido = gerarNumeroDelivery();
+
+      let totalPedido = 0;
+      itens.forEach(i=>{
+        totalPedido += Number(i.qtd) * Number(i.unit);
+      });
+
+      del.appendRow([
         pedido,
-        i.produto,
-        Number(i.qtd),
-        Number(i.unit),
-        Number(i.qtd) * Number(i.unit),
-        'NAO'
+        new Date(),
+        cliente || '',
+        'VER ITENS',
+        itens.length,
+        totalPedido,
+        pagamento,
+        'PEDIDO FEITO',
+        entregador || '',   // 🔥 ENTREGADOR AQUI
+        ''                  // ID_VENDA (mantido)
       ]);
-    });
 
-    return { ok:true };
+      itens.forEach(i=>{
+        inserirLinhaNoTopo('DELIVERY_ITENS', [
+          pedido,
+          i.produto,
+          Number(i.qtd),
+          Number(i.unit),
+          Number(i.qtd) * Number(i.unit),
+          'NAO'
+        ]);
+      });
+
+      return { ok:true };
+    } finally {
+      lock.releaseLock();
+    }
   }
   function botoesDeliveryPainel(pedido, status){
     let btns = `
@@ -11269,13 +11325,14 @@
   function popupReceberClienteContaAReceber(cliente){
 
     const nomeCliente = String(cliente || '').trim();
+    const clienteKeyBusca = normalizeString(nomeCliente);
     if(!nomeCliente){
       SpreadsheetApp.getUi().alert('Cliente inválido.');
       return;
     }
 
     const contas = gerarResumoContasAReceberPendentes();
-    const item = contas.find(c => String(c.clienteKey || '').toUpperCase() === nomeCliente.toUpperCase());
+    const item = contas.find(c => normalizeString(c.clienteKey || '') === clienteKeyBusca);
 
     if(!item){
       SpreadsheetApp.getUi().alert('Nenhuma conta pendente/parcial encontrada para este cliente.');
