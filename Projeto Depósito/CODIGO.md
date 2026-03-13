@@ -88,6 +88,7 @@
           ui.createMenu('🚚 Delivery')
             .addItem('🚚 Novo Delivery', 'popupDelivery')
             .addItem('📦 Painel de Delivery', 'popupPainelDelivery2')
+            .addItem('💬 WhatsApp', 'abrirPainelWhatsApp')
         )
         .addSeparator()
         .addSubMenu(
@@ -105,6 +106,7 @@
             .addSeparator()
             .addItem('🛒 Nova Compra', 'popupCompraV2')
             .addItem('❌ Cancelamento de Notas', 'popupPainelCancelamentoCompra')
+            .addItem('📂 Drive', 'abrirDriveLink')
             .addSeparator()
             .addItem('💲 Análise de Lucratividade', 'abrirAnaliseProduto')
             .addItem('🛍️ Gestão de Produto', 'popupProdutoManager')
@@ -139,13 +141,12 @@
             .addItem('💾 Fazer Backup Agora', 'fazerBackupSistema')
             .addItem('📜 Ver Logs', 'abrirAbaLog')
             .addItem('🧹 Padronizar Todas as Abas', 'padronizarTodasAbasSistema')
+            .addSeparator()
             .addItem('📖 Manual do Sistema', 'abrirManualDoSistema')
             .addSeparator()
             .addItem('🔀 Trocar Login', 'trocarLogin')
-            .addItem('📂 Drive', 'abrirDriveLink')
-            .addItem('💬 WhatsApp', 'abrirPainelWhatsApp')
-            .addSeparator()
             .addItem('🚪 Logout', 'fazerLogout')
+            
         )
         .addToUi();
 
@@ -262,10 +263,7 @@
     if(typeof padronizarTodasAbasSistema === 'function'){
       padronizarTodasAbasSistema();
     }
-    
-    SpreadsheetApp.getUi().alert(
-      '✅ Estrutura do sistema verificada, autenticação configurada e tema aplicado!'
-    );
+
   }
   function aplicarTema(){
     SpreadsheetApp.getActive().getSheets().forEach(sh=>sh.setHiddenGridlines(true));
@@ -12338,7 +12336,7 @@
       .reduce((s, l) => s + (Number(l[2]) || 0), 0);
 
     const totalVendas = dadosVendas.reduce((s, l) => s + (Number(l[3]) || 0), 0);
-    const totalCompras = dadosCompras.reduce((s, l) => s + ((Number(l[2]) || 0) * (Number(l[3]) || 0)), 0);
+    const totalCompras = dadosCompras.reduce((s, l) => s + ((Number(l[3]) || 0)), 0);
     const totalCRAberto = dadosCR
       .filter(l => String(l[8]).toUpperCase() !== 'QUITADO')
       .reduce((s, l) => s + (Number(l[6]) || 0), 0);
@@ -12355,7 +12353,7 @@
       ['Saídas no Caixa', totalSaidas, 'Somatório CAIXA tipo Saída'],
       ['Resultado Caixa', totalEntradas - totalSaidas, 'Entradas - Saídas'],
       ['Total Vendas', totalVendas, 'Somatório VENDAS coluna Valor'],
-      ['Total Compras (Qtd*Valor)', totalCompras, 'Somatório COMPRAS'],
+      ['Total Compras', totalCompras, 'Somatório COMPRAS'],
       ['Contas a Receber em Aberto', totalCRAberto, 'CONTAS_A_RECEBER não quitadas'],
       ['Contas a Pagar Pendentes', totalCPendente, 'CONTAS_A_PAGAR abertas/pendentes'],
       ['Resultado Gerencial Estimado', totalVendas - totalCompras - totalCPendente + totalCRAberto, 'Vendas - Compras - CP + CR']
@@ -13284,122 +13282,3 @@
       console.error('Erro ao enviar email:', e);
     }
   }
-/* 
- * ═══════════════════════════════════════════════════════════════════════════
- * 📚 DOCUMENTAÇÃO - VERSÃO 1.0 COM CORREÇÕES (Março 2026)
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * Arquivos de Documentação Importantes:
- *
- * 1. RESUMO_AJUSTES_REALIZADOS.md
- *    └─ Visão geral de todas as 8 correções implementadas
- *    └─ Métricas de mudanças
- *    └─ Testes recomendados
- *    └─ Próximos passos
- *
- * 2. README_FUNCIONAMENTO_CORRIGIDO.md
- *    └─ Manual completo de operação
- *    └─ Guias passo-a-passo para cada funcionalidade
- *    └─ Tabelas de comportamento esperado
- *    └─ Seção de troubleshooting
- *
- * 3. ESTUDO_FUNCIONAMENTO_SISTEMA.md
- *    └─ Análise profunda da arquitetura
- *    └─ Diagramas ASCII dos fluxos
- *    └─ Exemplo detalhado de caso de uso
- *    └─ Pontos-chave de entendimento
- *
- * 4. BUGS_ENCONTRADOS_E_CORRECOES.md
- *    └─ Lista de 10 bugs encontrados
- *    └─ Explicação técnica de cada um
- *    └─ Severidade e impacto
- *    └─ Soluções implementadas
- *
- * ═══════════════════════════════════════════════════════════════════════════
- * MUDANÇAS PRINCIPAIS (v1.0 - Março 2026)
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * ✅ CORREÇÕES DE TYPE COERCION
- *    → Comparações == alteradas para === com Number() explícito
- *    → Evita falsos positivos/negativos em buscas
- *    → 6 funções corrigidas
- *
- * ✅ BUSCA DE PAGAMENTOS PARCIAIS
- *    → .includes(pedido) agora convert para String(pedido)
- *    → Saldo da comanda calcula corretamente
- *    → Evita NaN em operações
- *
- * ✅ PADRONIZAÇÃO DE ORIGEM
- *    → 'COMANDA' → 'COMANDA_BALCAO'
- *    → 'DELIVERY' → 'DELIVERY_PEDIDO'
- *    → Filtros e relatórios funcionam corretamente
- *
- * ✅ FUNÇÃO DUPLICADA REMOVIDA
- *    → salvarItensComandaAberta() removida
- *    → salvarContinuarVendendo() é única fonte
- *    → Código mais limpo
- *
- * ✅ TIPO BOOLEANO
- *    → Filtro de itens novos agora é rigoroso
- *    → Previne bugs com string 'false'
- *
- * ✅ DEVOLUÇÃO DE ESTOQUE EM CANCELAMENTO
- *    → Novo: Delivery cancelado após encaminhado devolve estoque
- *    → Estoque nunca fica inconsistente
- *    → Auditoria completa do que foi revertido
- *
- * ═══════════════════════════════════════════════════════════════════════════
- * COMPORTAMENTO ESPERADO (OK para produção)
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * 🍺 COMANDA BALCÃO:
- *    ✓ Estoque baixa IMEDIATAMENTE
- *    ✓ Cliente fica TRAVADO após 1º item
- *    ✓ Suporta múltiplas adições com 'Continuar Vendendo'
- *    ✓ Pagamento parcial funciona 100%
- *    ✓ Fiado registra em CONTAS_A_RECEBER
- *
- * 📂 COMANDA ABERTA:
- *    ✓ Itens históricos aparecem TRAVADOS (não removíveis)
- *    ✓ Itens novos destraváveis com filtro rigoroso
- *    ✓ Saldo calcula: total consumido - pagamentos parciais
- *    ✓ Estoque validado ANTES de cada operação
- *    ✓ Permite pagamento parcial com saldo atualizado
- *
- * 🚚 DELIVERY:
- *    ✓ Estoque NÃO baixa ao criar (PEDIDO FEITO)
- *    ✓ Estoque BAIXA APENAS ao encaminhar (EM ANDAMENTO)
- *    ✓ Cancelamento DEVOLVE estoque se foi encaminhado
- *    ✓ Entregador é campo obrigatório
- *    ✓ Fiado BLOQUEADO (validação rejeita)
- *
- * ═══════════════════════════════════════════════════════════════════════════
- * DEPLOY / PRODUÇÃO
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * Antes de usar em produção:
- * 1. Ler RESUMO_AJUSTES_REALIZADOS.md (visão geral)
- * 2. Consultar README_FUNCIONAMENTO_CORRIGIDO.md (manual)
- * 3. Testar cenários listados em RESUMO_AJUSTES_REALIZADOS.md
- * 4. Manter backup pré-alterações
- * 5. Monitorar logs por 48h
- * ═══════════════════════════════════════════════════════════════════════════        
- */
-
-
-/*
- * ===============================================
- * 🌐 MODO WEB APP (HTML + API Apps Script)
- * ===============================================
- * Novos arquivos adicionados:
- * - WebApp.gs   : endpoint doGet() + bridge executarApi()
- * - WebApp.html : interface web moderna em HTML/CSS/JS
- *
- * Publicação sugerida:
- * 1) Implantar > Nova implantação > Tipo: Aplicativo da Web
- * 2) Executar como: você
- * 3) Quem tem acesso: usuários autorizados
- *
- * A tela Web usa google.script.run.executarApi(nomeFuncao, args)
- * para reaproveitar as funções já existentes deste projeto.
- */
