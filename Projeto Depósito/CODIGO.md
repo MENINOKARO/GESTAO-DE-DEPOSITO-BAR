@@ -50,6 +50,8 @@
 // MENU / INICIALIZAÇÃO
 // ===============================
 
+  const SENHA_RESET_PADRAO = 'A1D2M1N@2026';
+
   function onOpen() {
 
     try {
@@ -1608,7 +1610,11 @@
         // 7️⃣ RENOVA SENHA DE RESET
         // =========================
         const props = PropertiesService.getScriptProperties();
+
+        // 🔄 limpa senha atual e força padrão + troca obrigatória
+        props.deleteProperty('SENHA_RESET');
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
         if(typeof garantirSenhaResetObrigatoria === 'function'){
           garantirSenhaResetObrigatoria();
         }
@@ -1878,7 +1884,7 @@
       if(!senha){
 
         // 🔑 senha padrão inicial
-        props.setProperty('SENHA_RESET', 'admin123');
+        props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
 
         // 🔁 flag de troca obrigatória
         props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
@@ -1917,6 +1923,20 @@
     function debugSenha(){
       const props = PropertiesService.getScriptProperties();
       Logger.log(props.getProperty('SENHA_RESET'));
+    }
+    function limparSenhaReset(){
+
+      const props = PropertiesService.getScriptProperties();
+
+      // remove e recria com padrão conhecido
+      props.deleteProperty('SENHA_RESET');
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+      garantirSenhaResetObrigatoria();
+
+      return {
+        ok: true,
+        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
+      };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
@@ -11827,13 +11847,13 @@
 
     if(!props.getProperty('SENHA_RESET')){
       // Define senha padrão
-      props.setProperty('SENHA_RESET', 'A1D2M1N@2026');
+      props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       registrarLog(
         'RESET_SENHA_CONFIG',
         'Senha de reset configurada',
-        'admin123',
+        SENHA_RESET_PADRAO,
         'Sistema'
       );
     }
