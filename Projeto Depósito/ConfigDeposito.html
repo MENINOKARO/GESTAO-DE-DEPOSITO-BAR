@@ -204,7 +204,7 @@
 
       <div class="button-group">
         <button type="button" class="primary" onclick="salvar()">💾 Salvar Configuração</button>
-        <button type="button" class="secondary" onclick="fechar()">✕ Cancelar</button>
+        <button type="button" id="btnCancelar" class="secondary" onclick="fechar()">✕ Cancelar</button>
       </div>
     </form>
   </div>
@@ -220,6 +220,8 @@
   </div>
 
   <script>
+    const SETUP_OBRIGATORIO = <?!= setupObrigatorio ? 'true' : 'false' ?>;
+
     // utilitários de formatação
     function formatPhone(val){
       let digits = (val || '').replace(/\D/g, '');
@@ -240,6 +242,12 @@
     // aplicar formatação ao perder foco
     window.addEventListener('load', () => {
       carregarDados();
+
+      if(SETUP_OBRIGATORIO){
+        const btnCancelar = document.getElementById('btnCancelar');
+        if(btnCancelar){ btnCancelar.style.display = 'none'; }
+      }
+
       document.getElementById('telefone').addEventListener('blur', e => {
         e.target.value = formatPhone(e.target.value);
       });
@@ -340,6 +348,15 @@
     }
 
     function fechar(){
+      if(SETUP_OBRIGATORIO){
+        abrirPopupPadrao(
+          '⚠️ Configuração obrigatória',
+          'Finalize a configuração do depósito para continuar usando o sistema.',
+          'aviso'
+        );
+        return;
+      }
+
       google.script.host.close();
     }
   </script>
