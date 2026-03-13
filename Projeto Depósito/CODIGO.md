@@ -1845,42 +1845,49 @@
 
       abrirPopup('🔐 Atualizar Senha', html, 380, 340);
     }
+    function getResetProps(){
+      return PropertiesService.getScriptProperties();
+    }
+    function normalizarSenha(valor){
+      return String(valor || '').trim();
+    }
     function alterarSenhaReset(senhaAtual, novaSenha){
 
-      const props = PropertiesService.getScriptProperties();
-
-      const senhaSalva = props.getProperty('SENHA_RESET');
+      const props = getResetProps();
+      const senhaSalva = normalizarSenha(props.getProperty('SENHA_RESET'));
+      const senhaAtualLimpa = normalizarSenha(senhaAtual);
+      const novaSenhaLimpa = normalizarSenha(novaSenha);
 
       if(!senhaSalva){
         return { ok:false, msg:'Senha não configurada.' };
       }
 
-      if(String(senhaAtual).trim() !== String(senhaSalva).trim()){
+      if(senhaAtualLimpa !== senhaSalva){
         return { ok:false, msg:'Senha atual incorreta.' };
       }
 
-      if(!novaSenha || String(novaSenha).trim().length < 4){
+      if(novaSenhaLimpa.length < 4){
         return { ok:false, msg:'Nova senha inválida.' };
       }
 
+      if(novaSenhaLimpa === senhaSalva){
+        return { ok:false, msg:'A nova senha deve ser diferente da atual.' };
+      }
+
       // 🔥 salva nova senha
-      props.setProperty('SENHA_RESET', String(novaSenha).trim());
+      props.setProperty('SENHA_RESET', novaSenhaLimpa);
 
       // remove flag obrigatória
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'NAO');
 
-      // 🔎 TESTE DE CONFIRMAÇÃO
-      const teste = props.getProperty('SENHA_RESET');
-
-      return { 
+      return {
         ok:true,
-        msg:'Senha alterada.',
-        debug: teste
+        msg:'Senha alterada.'
       };
     }
     function garantirSenhaReset(){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
       let senha = props.getProperty('SENHA_RESET');
 
@@ -1896,49 +1903,47 @@
     }
     function validarSenhaReset(senhaDigitada){
 
-      const senhaSalva = PropertiesService
-        .getScriptProperties()
-        .getProperty('SENHA_RESET');
+      const props = getResetProps();
+      const senhaSalva = normalizarSenha(props.getProperty('SENHA_RESET'));
+      const senhaDigitadaLimpa = normalizarSenha(senhaDigitada);
 
       if(!senhaSalva){
         return { ok:false, msg:'Senha não configurada.' };
       }
 
-      if(String(senhaDigitada).trim() !== String(senhaSalva).trim()){
+      if(senhaDigitadaLimpa !== senhaSalva){
         return { ok:false, msg:'Senha incorreta.' };
       }
 
-      const obrigatoria = PropertiesService
-        .getScriptProperties()
-        .getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
+      const obrigatoria = props.getProperty('RESET_SENHA_OBRIGATORIA') === 'SIM';
 
       return { ok:true, trocar: obrigatoria };
     }
     function definirNovaSenhaReset(nova){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
-      props.setProperty('SENHA_RESET', nova.trim());
+      props.setProperty('SENHA_RESET', normalizarSenha(nova));
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'NAO');
 
       return true;
     }
     function debugSenha(){
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
       Logger.log(props.getProperty('SENHA_RESET'));
     }
     function limparSenhaReset(){
 
-      const props = PropertiesService.getScriptProperties();
+      const props = getResetProps();
 
-      // remove e recria com senha temporária conhecida
+      // remove e recria com senha padrão conhecida
       props.deleteProperty('SENHA_RESET');
-      props.setProperty('SENHA_RESET', SENHA_RESET_TEMPORARIA);
+      props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
 
       return {
         ok: true,
-        msg: 'Senha de reset redefinida para "adm123" e troca obrigatória ativada.'
+        msg: 'Senha de reset redefinida para o padrão e troca obrigatória ativada.'
       };
     }
     function limparSenhaResetSolicitandoTroca(){
@@ -1951,16 +1956,6 @@
 
       popupTrocarSenhaReset();
       return resultado;
-      
-      // remove e recria com padrão conhecido
-      props.deleteProperty('SENHA_RESET');
-      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
-      garantirSenhaResetObrigatoria();
-    
-      return {
-        ok: true,
-        msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
-        };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
