@@ -3623,7 +3623,7 @@
           </div>
   
           <div class="actions">
-            <button id="btnSalvar" class="btn-save" onclick="salvar(this)">💾 Salvar Cliente</button>
+            <button id="btnSalvar" class="btn-save" onclick="salvarClientePopup(this)">💾 Salvar Cliente</button>
             <button class="btn-cancel" onclick="cancelar()">Cancelar</button>
           </div>
         </div>
@@ -3721,7 +3721,7 @@
           google.script.run.voltarTelaCliente();
         }
   
-        function salvar(btn){
+        function salvarClientePopup(btn){
           if(!nome.value.trim()){
             alert('Informe o nome do cliente 👤');
             return;
@@ -3766,6 +3766,12 @@
               obs.value
             );
         }
+
+        // Compatibilidade com versões antigas do popup
+        function salvar(btn){
+          salvarClientePopup(btn);
+        }
+      </script>
     `, 640, 700);
   }
   function salvarCliente(nome, tel, end, ref, obs){
