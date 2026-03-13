@@ -11083,32 +11083,30 @@
 
       const id = String(l[0] || '').trim();
       const cliente = String(l[3] || 'SEM NOME').trim() || 'SEM NOME';
-      const clienteKey = cliente.toUpperCase();
       const dataFiado = l[9] ? new Date(l[9]) : null;
       const dataValida = dataFiado && !isNaN(dataFiado.getTime());
 
-      if(!mapa[clienteKey]){
-        mapa[clienteKey] = {
+      if(!mapa[cliente]){
+        mapa[cliente] = {
           cliente,
-          clienteKey,
           totalFiado: 0,
           idReferencia: id,
           dataPrimeiroFiado: dataValida ? dataFiado : null
         };
       }
 
-      mapa[clienteKey].totalFiado += saldo;
+      mapa[cliente].totalFiado += saldo;
 
       if(dataValida){
-        if(!mapa[clienteKey].dataPrimeiroFiado || dataFiado < mapa[clienteKey].dataPrimeiroFiado){
-          mapa[clienteKey].dataPrimeiroFiado = dataFiado;
-          mapa[clienteKey].idReferencia = id;
+        if(!mapa[cliente].dataPrimeiroFiado || dataFiado < mapa[cliente].dataPrimeiroFiado){
+          mapa[cliente].dataPrimeiroFiado = dataFiado;
+          mapa[cliente].idReferencia = id;
         }
       }
     });
 
     return Object.keys(mapa)
-      .map(k=>mapa[k])
+      .map(nome=>mapa[nome])
       .sort((a,b)=>{
         const da = a.dataPrimeiroFiado ? a.dataPrimeiroFiado.getTime() : Number.MAX_SAFE_INTEGER;
         const db = b.dataPrimeiroFiado ? b.dataPrimeiroFiado.getTime() : Number.MAX_SAFE_INTEGER;
@@ -11138,14 +11136,14 @@
             ? Utilities.formatDate(c.dataPrimeiroFiado, tz, 'dd/MM/yyyy')
             : '-'}<br>
           💵 Total em aberto: <strong style="color:#dc2626">R$ ${Number(c.totalFiado).toFixed(2).replace('.',',')}</strong><br>
-          <button onclick="receber(decodeURIComponent('${encodeURIComponent(c.cliente)}'), this)">💰 Receber</button>
+          <button onclick="receber('${c.idReferencia}', this)">💰 Receber</button>
         </div>
       `).join('')}
 
       <button onclick="google.script.host.close()">❌ Fechar</button>
 
       <script>
-        function receber(cliente, btn){
+        function receber(id, btn){
           if(btn.disabled) return;
           btn.disabled = true;
           btn.innerText = '⏳ Abrindo...';
@@ -11159,211 +11157,13 @@
             .withSuccessHandler(()=>{
               google.script.host.close();
             })
-            .popupReceberClienteContaAReceber(cliente);
+            .popupReceberContaAReceber(id);
         }
       </script>
     </div>
     `;
 
     abrirPopup('💳 Contas a Receber', html, 460, 520);
-  }
-
-  function popupReceberClienteContaAReceber(cliente){
-
-    const nomeCliente = String(cliente || '').trim();
-    if(!nomeCliente){
-      SpreadsheetApp.getUi().alert('Cliente inválido.');
-      return;
-    }
-
-    const contas = gerarResumoContasAReceberPendentes();
-    const item = contas.find(c => String(c.clienteKey || '').toUpperCase() === nomeCliente.toUpperCase());
-
-    if(!item){
-      SpreadsheetApp.getUi().alert('Nenhuma conta pendente/parcial encontrada para este cliente.');
-      return;
-    }
-
-    const html = `
-    <div style="display:flex;flex-direction:column;gap:12px;font-family:Arial">
-
-      <h3 style="text-align:center">💰 Receber Parcial (Cliente)</h3>
-
-      <div style="
-        background:#020617;
-        color:#e5e7eb;
-        padding:10px;
-        border-radius:10px;
-        text-align:center
-      ">
-        <strong>${item.cliente}</strong><br>
-        <small>Recebimento consolidado de múltiplos fiados</small>
-      </div>
-
-      <div>
-        💵 Saldo total em aberto:
-        <strong style="color:#16a34a">
-          R$ ${Number(item.totalFiado).toFixed(2).replace('.',',')}
-        </strong>
-      </div>
-
-      <label>Valor a receber</label>
-      <input id="valor" placeholder="R$ 0,00">
-
-      <label>Forma de recebimento</label>
-      <select id="forma">
-        <option value="⚡ Pix">⚡ Pix</option>
-        <option value="💵 Dinheiro">💵 Dinheiro</option>
-        <option value="💳 Cartão Débito">💳 Cartão Débito</option>
-        <option value="💳 Cartão Crédito">💳 Cartão Crédito</option>
-      </select>
-
-      <button id="btn" onclick="confirmar()">
-        💾 Registrar Recebimento
-      </button>
-
-      <button onclick="google.script.host.close()">❌ Cancelar</button>
-
-      <script>
-        const inputValor = document.getElementById('valor');
-        const selectForma = document.getElementById('forma');
-        const btn = document.getElementById('btn');
-        let processando = false;
-
-        inputValor.addEventListener('input', ()=>{
-          let v = inputValor.value.replace(/\D/g,'');
-          if(!v){
-            inputValor.value = '';
-            return;
-          }
-          v = (Number(v)/100).toFixed(2);
-          inputValor.value = 'R$ ' + v.replace('.',',');
-        });
-
-        function confirmar(){
-          if(processando) return;
-          processando = true;
-
-          let valor = inputValor.value
-            .replace('R$','')
-            .replace(',','.')
-            .trim();
-
-          valor = Number(valor);
-
-          if(!valor || valor <= 0){
-            alert('Informe um valor válido.');
-            processando = false;
-            return;
-          }
-
-          btn.disabled = true;
-          btn.innerText = '⏳ Processando...';
-
-          google.script.run
-            .withFailureHandler(e=>{
-              alert(e.message || e);
-              btn.disabled = false;
-              btn.innerText = '💾 Registrar Recebimento';
-              processando = false;
-            })
-            .withSuccessHandler(()=>{
-              google.script.host.close();
-              google.script.run.popupContasAReceber();
-            })
-            .receberParcialContaAReceberCliente(
-              decodeURIComponent('${encodeURIComponent(nomeCliente)}'),
-              valor,
-              selectForma.value
-            );
-        }
-      </script>
-
-    </div>
-    `;
-
-    abrirPopup('💰 Receber', html, 420, 500);
-  }
-  function receberParcialContaAReceberCliente(cliente, valor, forma){
-
-    valor = Number(valor);
-    if(valor <= 0){
-      throw new Error('Valor inválido.');
-    }
-
-    const nomeCliente = String(cliente || '').trim().toUpperCase();
-    if(!nomeCliente){
-      throw new Error('Cliente inválido.');
-    }
-
-    const ss = SpreadsheetApp.getActive();
-    const sh = ss.getSheetByName('CONTAS_A_RECEBER');
-    const dados = sh.getDataRange().getValues();
-
-    const contas = dados
-      .map((l,i)=>({ linha:i+1, dados:l }))
-      .slice(1)
-      .filter(o=>{
-        const cli = String(o.dados[3] || '').trim().toUpperCase();
-        const status = String(o.dados[8] || '').toUpperCase();
-        const saldo = Number(o.dados[6]) || 0;
-        return cli === nomeCliente && (status === 'PENDENTE' || status === 'PARCIAL') && saldo > 0;
-      })
-      .sort((a,b)=>{
-        const da = a.dados[9] ? new Date(a.dados[9]).getTime() : Number.MAX_SAFE_INTEGER;
-        const db = b.dados[9] ? new Date(b.dados[9]).getTime() : Number.MAX_SAFE_INTEGER;
-        return da - db;
-      });
-
-    if(!contas.length){
-      throw new Error('Nenhuma conta pendente/parcial encontrada para o cliente.');
-    }
-
-    const saldoTotal = contas.reduce((acc,o)=> acc + (Number(o.dados[6]) || 0), 0);
-    if(valor > saldoTotal){
-      throw new Error('Valor maior que o saldo total em aberto do cliente.');
-    }
-
-    let restante = valor;
-    const resumo = [];
-
-    contas.forEach(o=>{
-      if(restante <= 0) return;
-
-      const id = String(o.dados[0] || '');
-      const total = Number(o.dados[4]) || 0;
-      const recebido = Number(o.dados[5]) || 0;
-      const saldo = Number(o.dados[6]) || 0;
-
-      const abatimento = Math.min(restante, saldo);
-      const novoRecebido = recebido + abatimento;
-      const novoSaldo = total - novoRecebido;
-
-      sh.getRange(o.linha, 6).setValue(novoRecebido);
-      sh.getRange(o.linha, 7).setValue(novoSaldo);
-      sh.getRange(o.linha, 9).setValue(novoSaldo === 0 ? 'QUITADO' : 'PARCIAL');
-
-      resumo.push(`${id}: +${abatimento.toFixed(2)}`);
-      restante -= abatimento;
-    });
-
-    registrarCaixa(
-      agoraBrasil(),
-      'Entrada',
-      valor,
-      forma,
-      'CONTAS_A_RECEBER',
-      `CLIENTE:${nomeCliente}`
-    );
-
-    registrarLog(
-      'RECEBIMENTO_CLIENTE',
-      nomeCliente,
-      `SaldoTotal:${saldoTotal.toFixed(2)}`,
-      `Recebido:${valor.toFixed(2)} | ${resumo.join(' | ')}`
-    );
-
-    return true;
   }
   function popupPainelFinanceiro(){
 
