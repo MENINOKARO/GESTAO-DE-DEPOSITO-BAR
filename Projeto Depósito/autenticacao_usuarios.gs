@@ -898,7 +898,7 @@
    */
     function criarNovoUsuario(nome, telefone, senha, perfil){
       try {
-        console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, email: email, perfil: perfil }));
+        console.log('[SERVER] criarNovoUsuario chamado: ' + JSON.stringify({ nome: nome, telefone: telefone, perfil: perfil }));
         
         nome = String(nome).trim();
         telefone = String(telefone || '').replace(/\D/g, '');
