@@ -1731,8 +1731,12 @@
                   return;
                 }
 
-                alert(res.msg || 'Sistema resetado com sucesso.');
                 google.script.host.close();
+                google.script.run
+                  .withFailureHandler(e=>{
+                    alert('Erro ao resetar: ' + (e.message || e));
+                  })
+                  .resetarSistema(false);
 
               })
               .withFailureHandler(e=>{
