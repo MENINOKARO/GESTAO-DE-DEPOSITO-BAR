@@ -3855,13 +3855,17 @@
       <script>
 
         function novo(){
-          google.script.run.popupCliente();
-          google.script.host.close();
+          google.script.run
+            .withSuccessHandler(()=> google.script.host.close())
+            .withFailureHandler(e=> alert('Erro ao abrir cadastro: ' + (e.message || e)))
+            .popupCliente();
         }
 
         function buscar(){
-          google.script.run.popupBuscarCliente();
-          google.script.host.close();
+          google.script.run
+            .withSuccessHandler(()=> google.script.host.close())
+            .withFailureHandler(e=> alert('Erro ao abrir busca: ' + (e.message || e)))
+            .popupBuscarCliente();
         }
 
         function fechar(){

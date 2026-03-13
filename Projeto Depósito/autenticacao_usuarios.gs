@@ -1269,56 +1269,154 @@
       const sh = ss.getSheetByName('USUARIOS');
       const dados = sh.getDataRange().getValues();
       let row = null;
+
       for(let i=1;i<dados.length;i++){
-        if(String(dados[i][0]) === String(id)){ row = dados[i]; break; }
+        if(String(dados[i][0]) === String(id)){
+          row = dados[i];
+          break;
+        }
       }
-      if(!row){ uiNotificar('Usuário não encontrado.','aviso','Usuários'); return; }
+
+      if(!row){
+        uiNotificar('Usuário não encontrado.','aviso','Usuários');
+        return;
+      }
 
       const nome = row[1] || '';
       const email = row[2] || '';
       const telefone = row[3] || '';
       const perfil = row[5] || 'OPERACIONAL';
       const ativo = row[6] || 'SIM';
+      const dataCriacao = row[7] || '';
+      const ultimoAcesso = row[8] || '';
+      const trocaSenhaObrigatoria = row[9] || 'NAO';
 
       const html = `
-        <html><body style="font-family:Arial">
-          <h3>✏️ Editar Usuário</h3>
-          <label>Nome</label><br>
-          <input id="nome" value="${nome}"><br>
-          <label>Email</label><br>
-          <input id="email" value="${email}" disabled><br>
-          <label>Telefone</label><br>
-          <input id="telefone" value="${telefone}"><br>
-          <label>Perfil</label><br>
-          <select id="perfil">
-            <option value="OPERACIONAL" ${perfil==='OPERACIONAL'?'selected':''}>📦 Operacional</option>
-            <option value="GERENCIAL" ${perfil==='GERENCIAL'?'selected':''}>👨‍💼 Gerencial</option>
-          </select><br>
-          <label>Ativo</label><br>
-          <select id="ativo">
-            <option value="SIM" ${ativo==='SIM'?'selected':''}>SIM</option>
-            <option value="NAO" ${ativo==='NAO'?'selected':''}>NÃO</option>
-          </select><br><br>
-          <button onclick="salvar()">💾 Salvar</button>
-          <button onclick="google.script.host.close()">❌ Cancelar</button>
-          <script>
-            function salvar(){
-              const nome = document.getElementById('nome').value;
-              const telefone = document.getElementById('telefone').value;
-              const perfil = document.getElementById('perfil').value;
-              const ativo = document.getElementById('ativo').value;
-              google.script.run
-                .withSuccessHandler(()=>{google.script.host.close();google.script.run.popupListarUsuarios();})
-                .atualizarUsuario('${id}', nome, telefone, perfil, ativo);
-            }
-          </script>
-        </body></html>`;
+        <html>
+          <head>
+            <base target="_top">
+            <style>
+              body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#0f172a}
+              .popup{padding:16px}
+              .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+              .grid.full{grid-template-columns:1fr}
+              label{display:block;font-size:12px;font-weight:700;margin:6px 0 4px;color:#334155}
+              input,select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+              input[disabled]{background:#e2e8f0;color:#475569}
+              .info{margin-top:12px;padding:10px;border-radius:10px;background:#f1f5f9;font-size:12px;color:#334155;line-height:1.5}
+              .actions{display:flex;gap:8px;margin-top:12px}
+              button{flex:1;padding:10px;border:none;border-radius:8px;font-weight:700;cursor:pointer}
+              .btn-primary{background:#2563eb;color:#fff}
+              .btn-success{background:#16a34a;color:#fff}
+              .btn-secondary{background:#475569;color:#fff}
+            </style>
+          </head>
+          <body>
+            <div class="popup">
+              <h3 style="margin:0 0 12px;text-align:center">✏️👤 Editar Usuário</h3>
 
-      const ui = HtmlService.createHtmlOutput(html).setWidth(620).setHeight(700);
-      SpreadsheetApp.getUi().showModalDialog(ui,'✏️ Editar Usuário');
+              <div class="grid full">
+                <div>
+                  <label>🆔 ID do Usuário</label>
+                  <input id="idUser" value="${id}" disabled>
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>👤 Nome</label>
+                  <input id="nome" value="${nome}">
+                </div>
+                <div>
+                  <label>📱 Telefone</label>
+                  <input id="telefone" value="${telefone}" placeholder="(00) 00000-0000">
+                </div>
+              </div>
+
+              <div class="grid full">
+                <div>
+                  <label>📧 Email</label>
+                  <input id="email" value="${email}" disabled>
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>🛡️ Perfil</label>
+                  <select id="perfil">
+                    <option value="OPERACIONAL" ${perfil==='OPERACIONAL'?'selected':''}>📦 Operacional</option>
+                    <option value="GERENCIAL" ${perfil==='GERENCIAL'?'selected':''}>👨‍💼 Gerencial</option>
+                  </select>
+                </div>
+                <div>
+                  <label>✅ Status</label>
+                  <select id="ativo">
+                    <option value="SIM" ${ativo==='SIM'?'selected':''}>🟢 Ativo</option>
+                    <option value="NAO" ${ativo==='NAO'?'selected':''}>🔴 Inativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>🔐 Troca de senha obrigatória</label>
+                  <select id="trocaSenhaObrigatoria">
+                    <option value="NAO" ${trocaSenhaObrigatoria==='NAO'?'selected':''}>Não</option>
+                    <option value="SIM" ${trocaSenhaObrigatoria==='SIM'?'selected':''}>Sim</option>
+                  </select>
+                </div>
+                <div>
+                  <label>🕘 Último acesso</label>
+                  <input id="ultimoAcesso" value="${ultimoAcesso}" disabled>
+                </div>
+              </div>
+
+              <div class="info">
+                📅 <strong>Data de criação:</strong> ${dataCriacao || '-'}<br>
+                ℹ️ Ajuste os campos necessários e clique em <strong>Salvar Alterações</strong>.
+              </div>
+
+              <div class="actions">
+                <button class="btn-secondary" onclick="google.script.host.close()">❌ Cancelar</button>
+                <button class="btn-success" onclick="salvar()">💾 Salvar Alterações</button>
+              </div>
+            </div>
+
+            <script>
+              function salvar(){
+                const nome = document.getElementById('nome').value.trim();
+                const telefone = document.getElementById('telefone').value.trim();
+                const perfil = document.getElementById('perfil').value;
+                const ativo = document.getElementById('ativo').value;
+                const trocaSenhaObrigatoria = document.getElementById('trocaSenhaObrigatoria').value;
+
+                if(!nome){
+                  alert('Informe o nome do usuário.');
+                  return;
+                }
+
+                google.script.run
+                  .withSuccessHandler((res)=>{
+                    if(!res || !res.ok){
+                      alert((res && res.msg) || 'Falha ao atualizar usuário.');
+                      return;
+                    }
+                    alert('✅ Usuário atualizado com sucesso.');
+                    google.script.host.close();
+                    google.script.run.popupListarUsuarios();
+                  })
+                  .withFailureHandler(e=> alert('❌ Erro: ' + (e.message || e)))
+                  .atualizarUsuario('${id}', nome, telefone, perfil, ativo, trocaSenhaObrigatoria);
+              }
+            </script>
+          </body>
+        </html>`;
+
+      const ui = HtmlService.createHtmlOutput(html).setWidth(700).setHeight(660);
+      SpreadsheetApp.getUi().showModalDialog(ui,'✏️👤 Editar Usuário');
     }
 
-    function atualizarUsuario(id, nome, telefone, perfil, ativo){
+    function atualizarUsuario(id, nome, telefone, perfil, ativo, trocaSenhaObrigatoria){
       const ss = SpreadsheetApp.getActive();
       const sh = ss.getSheetByName('USUARIOS');
       const dados = sh.getDataRange().getValues();
@@ -1328,7 +1426,8 @@
           sh.getRange(i+1,4).setValue(String(telefone || '').replace(/\D/g, ''));
           sh.getRange(i+1,6).setValue(perfil);
           sh.getRange(i+1,7).setValue(ativo);
-          registrarAuditoria(id,'USUARIO_ATUALIZADO',`Perfil:${perfil} Ativo:${ativo}`);
+          sh.getRange(i+1,10).setValue((trocaSenhaObrigatoria || 'NAO').toUpperCase());
+          registrarAuditoria(id,'USUARIO_ATUALIZADO',`Perfil:${perfil} Ativo:${ativo} TrocaSenha:${(trocaSenhaObrigatoria || 'NAO').toUpperCase()}`);
           return { ok:true };
         }
       }
