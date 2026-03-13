@@ -250,10 +250,7 @@
         if(btnCancelar){ btnCancelar.style.display = 'none'; }
       }
 
-      const telInput = document.getElementById('telefone');
-      const cnpjInput = document.getElementById('cnpj');
-
-      telInput.addEventListener('input', e => {
+      document.getElementById('telefone').addEventListener('blur', e => {
         e.target.value = formatPhone(e.target.value);
       });
       telInput.addEventListener('blur', e => {
