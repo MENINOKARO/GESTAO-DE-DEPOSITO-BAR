@@ -1951,16 +1951,16 @@
 
       popupTrocarSenhaReset();
       return resultado;
-    }
+      
       // remove e recria com padrão conhecido
       props.deleteProperty('SENHA_RESET');
       props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
       garantirSenhaResetObrigatoria();
-
+    
       return {
         ok: true,
         msg: 'Senha de reset redefinida para padrão e troca obrigatória ativada.'
-      };
+        };
     }
   // FUNÇÕES PARA ABRIR ABAS
     function abrirHome(){
