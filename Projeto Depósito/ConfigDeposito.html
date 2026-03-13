@@ -250,7 +250,14 @@
         if(btnCancelar){ btnCancelar.style.display = 'none'; }
       }
 
+<<<<<<< codex/validate-password-module-functions-0e95t9
+      const telInput = document.getElementById('telefone');
+      const cnpjInput = document.getElementById('cnpj');
+
+      telInput.addEventListener('input', e => {
+=======
       document.getElementById('telefone').addEventListener('blur', e => {
+>>>>>>> main
         e.target.value = formatPhone(e.target.value);
       });
       telInput.addEventListener('blur', e => {
