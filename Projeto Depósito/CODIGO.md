@@ -153,6 +153,11 @@
       // 🔹 Inicialização silenciosa
       inicializacaoSilenciosa();
 
+      // 🔒 Se o setup não foi concluído, força fluxo inicial.
+      if(getConfig('SETUP_CONCLUIDO') !== 'SIM'){
+        popupBoasVindasSistema();
+      }
+
     } catch (e) {
       console.error('❌ Erro no onOpen:', e.message);
       SpreadsheetApp.getUi().alert('⚠️ Erro ao carregar menu: ' + e.message);
@@ -1393,10 +1398,13 @@
         flop: lista.slice(-5).reverse()
       };
     }
-    function abrirConfiguracaoDeposito(){
+    function abrirConfiguracaoDeposito(forcarConclusao){
 
-      const html = HtmlService
-        .createHtmlOutputFromFile('ConfigDeposito')
+      const template = HtmlService.createTemplateFromFile('ConfigDeposito');
+      template.setupObrigatorio = forcarConclusao === true;
+
+      const html = template
+        .evaluate()
         .setWidth(500)
         .setHeight(550);
 
@@ -1510,8 +1518,8 @@
             sh.appendRow(['SETUP_CONCLUIDO', 'SIM', 'Configuração inicial finalizada']);
           }
 
-          // 🚀 GARANTE ESTRUTURA DRIVE
-          garantirEstruturaDriveSistema();
+          // 🚀 GARANTE ESTRUTURA + CONCLUSÃO DO SETUP
+          concluirConfiguracaoInicialSistema();
 
           // 📝 REGISTRA CONCLUSÃO
           registrarLog(
@@ -1723,18 +1731,12 @@
                   return;
                 }
 
-                if(res.trocar){
-                  google.script.host.close();
-                  google.script.run.popupTrocarSenhaReset();
-                  return;
-                }
-
                 google.script.host.close();
                 google.script.run
                   .withFailureHandler(e=>{
                     alert('Erro ao resetar: ' + (e.message || e));
                   })
-                  .resetarSistema(true);
+                  .resetarSistema(false);
 
               })
               .withFailureHandler(e=>{
@@ -1906,6 +1908,12 @@
 
     }
     function validarSenhaReset(senhaDigitada){
+
+      if(typeof garantirSenhaResetObrigatoria === 'function'){
+        garantirSenhaResetObrigatoria();
+      } else if(typeof garantirSenhaReset === 'function'){
+        garantirSenhaReset();
+      }
 
       const props = getResetProps();
       const senhaSalva = normalizarSenha(props.getProperty('SENHA_RESET'));
@@ -10177,8 +10185,8 @@
   }
   function finalizarConfiguracaoInicial(){
 
-    // 1️⃣ Abre configuração do depósito
-    abrirConfiguracaoDeposito();
+    // 1️⃣ Abre configuração obrigatória do depósito
+    abrirConfiguracaoDeposito(true);
 
     // 2️⃣ Loga APENAS o início do setup
     registrarLog(
