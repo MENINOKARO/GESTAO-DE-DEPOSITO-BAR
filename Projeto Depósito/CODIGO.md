@@ -3715,10 +3715,25 @@
           }
           tel.value = n;
         });
+
+        tel.addEventListener('blur', () => {
+          const digits = tel.value.replace(/\D/g,'').slice(0,11);
+          if(digits.length === 11){
+            tel.value = digits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+          } else if(digits.length === 10){
+            tel.value = digits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+          }
+        });
   
+        function fecharEVoltarTelaCliente(){
+          google.script.run
+            .withSuccessHandler(() => google.script.host.close())
+            .withFailureHandler(() => google.script.host.close())
+            .voltarTelaCliente();
+        }
+
         function cancelar(){
-          google.script.host.close();
-          google.script.run.voltarTelaCliente();
+          fecharEVoltarTelaCliente();
         }
   
         function salvarClientePopup(btn){
@@ -3727,10 +3742,16 @@
             return;
           }
   
-          if(tel.value.replace(/\D/g,'').length < 10){
-            const okTel = confirm('Telefone parece incompleto. Deseja salvar mesmo assim?');
-            if(!okTel) return;
+          const telDigits = tel.value.replace(/\D/g,'').slice(0,11);
+          if(telDigits.length < 10 || telDigits.length > 11){
+            alert('Informe um telefone válido no formato brasileiro: DDD + número.');
+            tel.focus();
+            return;
           }
+
+          tel.value = telDigits.length === 11
+            ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+            : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
 
           const nomeUpper = nome.value.trim().toUpperCase();
           const existe = ${JSON.stringify(clientes)}.includes(nomeUpper);
@@ -3748,8 +3769,7 @@
           google.script.run
             .withSuccessHandler(()=>{
               alert('✅ Cliente cadastrado com sucesso!');
-              google.script.host.close();
-              google.script.run.voltarTelaCliente();
+              fecharEVoltarTelaCliente();
             })
             .withFailureHandler(e=>{
               alert('Erro ao salvar cliente: ' + (e.message || e));
@@ -3779,14 +3799,27 @@
     const ss = SpreadsheetApp.getActive();
     const sh = ss.getSheetByName('CLIENTES');
   
-    const nomeFinal = nome.trim().toUpperCase();
+    const nomeFinal = String(nome || '').trim().toUpperCase();
+    const telDigits = String(tel || '').replace(/\D/g, '').slice(0, 11);
+
+    if(!nomeFinal){
+      throw new Error('Nome do cliente é obrigatório.');
+    }
+
+    if(telDigits.length < 10 || telDigits.length > 11){
+      throw new Error('Telefone inválido. Use DDD + número (10 ou 11 dígitos).');
+    }
+
+    const telFormatado = telDigits.length === 11
+      ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+      : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   
     // ============================
     // 1️⃣ SALVA CLIENTE (INALTERADO)
     // ============================
     sh.appendRow([
       nomeFinal,
-      tel,
+      telFormatado,
       end,
       ref,
       obs ? obs.toString().trim() : ''
