@@ -3574,59 +3574,37 @@ function popupCliente(){
     .map(c => c.toUpperCase());
 
   abrirPopup('👤➕ Novo Cliente', `
-    <style>
-      .cliente-card{ background:#fff; border-radius:15px; box-shadow:0 20px 60px rgba(0,0,0,.12); padding:20px; }
-      .cliente-header{ text-align:center; margin-bottom:14px; }
-      .cliente-header p{ color:#64748b; font-size:12px; margin-top:4px; }
-      .cliente-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-      .form-group{ margin-bottom:0; }
-      .form-group.full{ grid-column:1 / -1; }
-      .form-group label{ display:block; color:#334155; font-weight:600; margin-bottom:6px; font-size:13px; }
-      .form-group input{ width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px; margin-top:0; }
-      .form-group input:focus{ outline:none; border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.1); }
-      .buttons{ display:flex; gap:10px; margin-top:12px; }
-      .buttons button{ flex:1; padding:11px; border:none; border-radius:8px; font-weight:600; font-size:13px; margin-top:0; }
-      .btn-salvar{ background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; }
-      .btn-cancelar{ background:#e2e8f0; color:#0f172a; }
-      @media(max-width:620px){ .cliente-grid{ grid-template-columns:1fr; } }
-    </style>
+    <div style="display:flex;flex-direction:column;gap:12px">
 
-    <div class="cliente-card">
-      <div class="cliente-header">
-        <p>Padrão visual alinhado ao cadastro de usuário</p>
+      <div>
+        <label>👤 Nome do Cliente</label>
+        <input id="nome" placeholder="Digite o nome completo">
       </div>
 
-      <div class="cliente-grid">
-        <div class="form-group full">
-          <label>👤 Nome do Cliente</label>
-          <input id="nome" placeholder="Digite o nome completo">
-        </div>
-
-        <div class="form-group">
-          <label>📞 Telefone</label>
-          <input id="tel" placeholder="Digite apenas números">
-        </div>
-
-        <div class="form-group">
-          <label>📍 Referência</label>
-          <input id="ref" placeholder="Ponto de referência (opcional)">
-        </div>
-
-        <div class="form-group full">
-          <label>🏠 Endereço</label>
-          <input id="end" placeholder="Rua, número, bairro">
-        </div>
+      <div>
+        <label>📞 Telefone</label>
+        <input id="tel" placeholder="Digite apenas números">
       </div>
 
-      <div class="buttons">
-        <button id="btnSalvar" class="btn-salvar" onclick="salvar(this)">
-          💾 Salvar Cliente
-        </button>
-
-        <button class="btn-cancelar" onclick="cancelar()">
-          ❌ Cancelar
-        </button>
+      <div>
+        <label>🏠 Endereço</label>
+        <input id="end" placeholder="Rua, número, bairro">
       </div>
+
+      <div>
+        <label>📍 Referência</label>
+        <input id="ref" placeholder="Ponto de referência (opcional)">
+      </div>
+
+      <hr>
+
+      <button id="btnSalvar" class="btn-success" onclick="salvar(this)">
+        💾 Salvar Cliente
+      </button>
+
+      <button class="btn-secondary" onclick="cancelar()">
+        ❌ Cancelar
+      </button>
     </div>
 
     <script>
@@ -3642,7 +3620,7 @@ function popupCliente(){
       // 📞 máscara progressiva
       tel.addEventListener('input', () => {
 
-        let n = tel.value.replace(/\D/g,'').slice(0,11);
+        let n = tel.value.replace(/\\D/g,'').slice(0,11);
         let f = '';
 
         if(n.length >= 1){
@@ -3679,7 +3657,7 @@ function popupCliente(){
 
         if(existe){
           const ok = confirm(
-            '⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?'
+            '⚠️ Cliente já cadastrado com este nome.\\n\\nDeseja salvar mesmo assim?'
           );
           if(!ok) return;
         }
@@ -3712,7 +3690,7 @@ function popupCliente(){
       }
 
     </script>
-  `, 520, 620);
+  `, 520, 600);
 }
 function salvarCliente(nome,tel,end,ref){
   SpreadsheetApp.getActive().getSheetByName('CLIENTES')
@@ -3770,41 +3748,27 @@ function getClienteTempDelivery(){
     const nomes = dados.map(c => c[0]);
 
     const html = `
-      <style>
-        .cliente-card{ background:#fff; border-radius:15px; box-shadow:0 20px 60px rgba(0,0,0,.12); padding:20px; }
-        .cliente-header{ text-align:center; margin-bottom:14px; }
-        .cliente-header p{ color:#64748b; font-size:12px; margin-top:4px; }
-        .form-group label{ display:block; color:#334155; font-weight:600; margin-bottom:6px; font-size:13px; }
-        .form-group input{ width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px; margin-top:0; }
-        .form-group input:focus{ outline:none; border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.1); }
-        .buttons{ display:flex; gap:10px; margin-top:12px; }
-        .buttons button{ flex:1; padding:11px; border:none; border-radius:8px; font-weight:600; font-size:13px; margin-top:0; }
-        .btn-buscar{ background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; }
-        .btn-fechar{ background:#e2e8f0; color:#0f172a; }
-        #dados{ margin-top:12px; }
-        #dados hr{ border:0; border-top:1px solid #e2e8f0; margin:10px 0 12px; }
-      </style>
+      <div style="display:flex;flex-direction:column;gap:12px">
 
-      <div class="cliente-card">
-        <div class="cliente-header">
-          <p>Consulta e atualização no mesmo padrão visual</p>
-        </div>
+        <h3>🔍 Buscar Cliente</h3>
 
-        <div class="form-group">
-          <label>👤 Nome do Cliente</label>
-          <input list="lista" id="nome" placeholder="Selecione um cliente">
-        </div>
+        <label>Nome</label>
+        <input list="lista" id="nome">
 
         <datalist id="lista">
           ${nomes.map(n => `<option value="${n}">`).join('')}
         </datalist>
 
-        <div class="buttons">
-          <button class="btn-buscar" onclick="buscar()">🔎 Buscar</button>
-          <button class="btn-fechar" onclick="cancelar()">❌ Fechar</button>
-        </div>
+        <button class="btn-primary" onclick="buscar()">
+          🔎 Buscar
+        </button>
 
         <div id="dados"></div>
+
+        <button class="btn-secondary" onclick="cancelar()">
+          ❌ Fechar
+        </button>
+
       </div>
 
       <script>
@@ -3831,22 +3795,18 @@ function getClienteTempDelivery(){
           dados.innerHTML = \`
             <hr>
 
-            <div class="form-group">
-              <label>📞 Telefone</label>
-              <input id="tel" value="\${c.tel}">
-            </div>
+            <label>Telefone</label>
+            <input id="tel" value="\${c.tel}">
 
-            <div class="form-group">
-              <label>🏠 Endereço</label>
-              <input id="end" value="\${c.end}">
-            </div>
+            <label>Endereço</label>
+            <input id="end" value="\${c.end}">
 
-            <div class="form-group">
-              <label>📍 Referência</label>
-              <input id="ref" value="\${c.ref}">
-            </div>
+            <label>Referência</label>
+            <input id="ref" value="\${c.ref}">
 
-            <button class="btn-buscar" onclick="salvar()">💾 Atualizar</button>
+            <button class="btn-success" onclick="salvar()">
+              💾 Atualizar
+            </button>
           \`;
         }
 
@@ -3864,14 +3824,10 @@ function getClienteTempDelivery(){
             );
         }
 
-        function cancelar(){
-          google.script.host.close();
-        }
-
       </script>
     `;
 
-    abrirPopup('🔍 Cliente', html, 520, 620);
+    abrirPopup('🔍 Cliente', html, 420, 520);
   }
   function getClientePorNome(nome){
 
