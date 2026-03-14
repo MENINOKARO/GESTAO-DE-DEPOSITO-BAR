@@ -1731,17 +1731,12 @@
                   return;
                 }
 
-<<<<<<< codex/validate-password-module-functions-0e95t9
-                alert(res.msg || 'Sistema resetado com sucesso.');
-                google.script.host.close();
-=======
                 google.script.host.close();
                 google.script.run
                   .withFailureHandler(e=>{
                     alert('Erro ao resetar: ' + (e.message || e));
                   })
                   .resetarSistema(false);
->>>>>>> main
 
               })
               .withFailureHandler(e=>{
@@ -3750,10 +3745,11 @@
         }
 
         function salvarClientePopup(btn){
-          if(!nome.value.trim()){
-            alert('Informe o nome do cliente 👤');
-            return;
-          }
+          try {
+            if(!nome.value.trim()){
+              alert('Informe o nome do cliente 👤');
+              return;
+            }
 
           const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
           if(telDigits.length !== 11){
@@ -3764,39 +3760,46 @@
 
           tel.value = telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
 
-          const nomeUpper = nome.value.trim().toUpperCase();
-          const listaClientes = ${JSON.stringify(clientes)};
-          const existe = listaClientes.includes(nomeUpper);
+            const nomeUpper = nome.value.trim().toUpperCase();
+            const listaClientes = ${JSON.stringify(clientes)};
+            const existe = listaClientes.includes(nomeUpper);
 
-          if(existe){
-            const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
-            if(!ok) return;
+            if(existe){
+              const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
+              if(!ok) return;
+            }
+
+            if(btn){
+              btn.disabled = true;
+              btn.innerText = '⏳ Salvando...';
+            }
+
+            google.script.run
+              .withSuccessHandler(()=>{
+                alert('✅ Cliente cadastrado com sucesso!');
+                fecharEVoltarTelaCliente();
+              })
+              .withFailureHandler(e=>{
+                alert('Erro ao salvar cliente: ' + (e.message || e));
+                if(btn){
+                  btn.disabled = false;
+                  btn.innerText = '💾 Salvar Cliente';
+                }
+              })
+              .salvarCliente(
+                nome.value,
+                tel.value,
+                end.value,
+                ref.value,
+                obs.value
+              );
+          } catch (e) {
+            alert('Erro inesperado no formulário: ' + (e.message || e));
+            if(btn){
+              btn.disabled = false;
+              btn.innerText = '💾 Salvar Cliente';
+            }
           }
-
-          if(btn){
-            btn.disabled = true;
-            btn.innerText = '⏳ Salvando...';
-          }
-
-          google.script.run
-            .withSuccessHandler(()=>{
-              alert('✅ Cliente cadastrado com sucesso!');
-              fecharEVoltarTelaCliente();
-            })
-            .withFailureHandler(e=>{
-              alert('Erro ao salvar cliente: ' + (e.message || e));
-              if(btn){
-                btn.disabled = false;
-                btn.innerText = '💾 Salvar Cliente';
-              }
-            })
-            .salvarCliente(
-              nome.value,
-              tel.value,
-              end.value,
-              ref.value,
-              obs.value
-            );
         }
 
         function salvar(btn){
@@ -3823,11 +3826,13 @@
       throw new Error('Nome do cliente é obrigatório.');
     }
 
-    if(telDigits.length !== 11){
-      throw new Error('Telefone inválido. Use DDD + 9 dígitos (11 números).');
+    if(telDigits.length !== 10 && telDigits.length !== 11){
+      throw new Error('Telefone inválido. Use DDD + número (10 ou 11 dígitos).');
     }
 
-    const telFormatado = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    const telFormatado = telDigits.length === 11
+      ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+      : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   
     // ============================
     // 1️⃣ SALVA CLIENTE (INALTERADO)
@@ -9760,6 +9765,7 @@
           <p class="hint">${nome}</p>
 
           <button class="card" onclick="google.script.run.abrirWhatsappPedidosChegados()">📥 Verificar Pedidos que Chegaram</button>
+          <button class="card" onclick="google.script.run.popupSimuladorBotWhatsapp()">🤖 Conversar com Bot (Teste)</button>
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
@@ -9823,6 +9829,51 @@
     `;
 
     SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(760).setHeight(460), '📥 Pedidos WhatsApp');
+  }
+
+  function popupSimuladorBotWhatsapp(){
+    const html = `
+      <div style="font-family:Arial;padding:10px;display:flex;flex-direction:column;gap:8px">
+        <h3 style="margin:0">🤖 Conversar com Bot WhatsApp (Simulação)</h3>
+        <small>Use para testar a conversa e criação automática de pedido no Delivery.</small>
+
+        <label>📞 Telefone do cliente</label>
+        <input id="tel" placeholder="(11) 91234-5678" />
+
+        <label>💬 Mensagem</label>
+        <textarea id="msg" rows="4" placeholder="Ex.: quero fazer pedido de 2 caixas de cerveja"></textarea>
+
+        <button id="btn" class="btn-success" onclick="enviar()">Enviar para Bot</button>
+      </div>
+
+      <script>
+        function enviar(){
+          const tel = document.getElementById('tel').value;
+          const msg = document.getElementById('msg').value;
+          const btn = document.getElementById('btn');
+          if(!tel || !msg){
+            alert('Preencha telefone e mensagem.');
+            return;
+          }
+          btn.disabled = true;
+          btn.innerText = '⏳ Processando...';
+
+          google.script.run
+            .withSuccessHandler((r)=>{
+              alert('✅ Bot respondeu com sucesso. ' + (r && r.msg ? r.msg : ''));
+              google.script.host.close();
+            })
+            .withFailureHandler((e)=>{
+              alert('Erro: ' + (e.message || e));
+              btn.disabled = false;
+              btn.innerText = 'Enviar para Bot';
+            })
+            .simularMensagemBotWhatsapp(tel, msg);
+        }
+      </script>
+    `;
+
+    abrirPopup('🤖 Simular conversa do bot', html, 460, 420);
   }
 
   function abrirPopupConsultaFiadoWhatsapp(){

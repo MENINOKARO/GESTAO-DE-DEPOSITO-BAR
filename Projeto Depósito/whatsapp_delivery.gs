@@ -10,7 +10,8 @@ function inicializarWhatsappMVP() {
     WHATSAPP_TOKEN: '',
     WHATSAPP_WEBHOOK_SECRET: '',
     WHATSAPP_PROVIDER_URL: '',
-    WHATSAPP_RATE_LIMIT_PER_MIN: '30'
+    WHATSAPP_RATE_LIMIT_PER_MIN: '30',
+    WHATSAPP_ALLOW_UNSIGNED: 'NAO'
   };
 
   Object.keys(defaults).forEach(function(k) {
@@ -20,6 +21,30 @@ function inicializarWhatsappMVP() {
   });
 
   return { ok: true, msg: 'Configuração base do WhatsApp inicializada.' };
+}
+
+function doPost(e) {
+  try {
+    const raw = (e && e.postData && e.postData.contents) || '{}';
+    const body = JSON.parse(raw);
+    const action = String((body && body.action) || '').toUpperCase();
+    const signature = String((e && e.parameter && e.parameter.signature) || '');
+
+    let result;
+    if (action === 'RECEBER_PEDIDO') {
+      result = receberPedidoWhatsapp(body, signature);
+    } else {
+      result = processarMensagemClienteWhatsapp(body, signature);
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, result: result }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message || String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function receberPedidoWhatsapp(payload, signature) {
@@ -103,12 +128,39 @@ function validarSegurancaWebhook_(payload, signature) {
     throw new Error('Webhook secret não configurado.');
   }
 
+  const allowUnsigned = props.getProperty('WHATSAPP_ALLOW_UNSIGNED') === 'SIM';
+  if (!signature && allowUnsigned) {
+    return true;
+  }
+
   const raw = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
   const bytes = Utilities.computeHmacSha256Signature(raw, secret);
   const digest = Utilities.base64Encode(bytes);
   if (String(signature || '') !== String(digest)) {
     throw new Error('Assinatura inválida do webhook.');
   }
+}
+
+function simularMensagemBotWhatsapp(telefone, texto) {
+  const payload = {
+    clienteTelefone: String(telefone || '').replace(/\D/g, ''),
+    texto: String(texto || '')
+  };
+
+  const resposta = gerarRespostaBotWhatsapp_(payload.texto);
+  let idPedido = '';
+
+  if (resposta.criarPrePedido) {
+    idPedido = criarPrePedidoWhatsapp_(payload.clienteTelefone, payload.texto).idPedido;
+  }
+
+  registrarEventoWhatsapp_(idPedido || 'N/A', 'SIMULACAO_BOT', 'Mensagem simulada no painel interno.');
+  return {
+    ok: true,
+    msg: resposta.mensagem,
+    criarPrePedido: resposta.criarPrePedido,
+    idPedido: idPedido
+  };
 }
 
 function aplicarRateLimitWhatsapp_() {
