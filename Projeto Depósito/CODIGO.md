@@ -3755,14 +3755,14 @@
             return;
           }
 
-          const telDigits = tel.value.replace(/\D/g,'').slice(0,11);
+          const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
           if(telDigits.length !== 11){
             alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
             tel.focus();
             return;
           }
 
-          tel.value = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+          tel.value = telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
 
           const nomeUpper = nome.value.trim().toUpperCase();
           const listaClientes = ${JSON.stringify(clientes)};
