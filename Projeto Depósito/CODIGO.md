@@ -1731,17 +1731,12 @@
                   return;
                 }
 
-<<<<<<< codex/validate-password-module-functions-0e95t9
-                alert(res.msg || 'Sistema resetado com sucesso.');
-                google.script.host.close();
-=======
                 google.script.host.close();
                 google.script.run
                   .withFailureHandler(e=>{
                     alert('Erro ao resetar: ' + (e.message || e));
                   })
                   .resetarSistema(false);
->>>>>>> main
 
               })
               .withFailureHandler(e=>{
@@ -3756,16 +3751,14 @@
               return;
             }
 
-            const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
-            if(telDigits.length !== 10 && telDigits.length !== 11){
-              alert('Informe um telefone válido com DDD (10 ou 11 números).');
-              tel.focus();
-              return;
-            }
+          const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
+          if(telDigits.length !== 11){
+            alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
+            tel.focus();
+            return;
+          }
 
-            tel.value = telDigits.length === 11
-              ? telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3')
-              : telDigits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
+          tel.value = telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
 
             const nomeUpper = nome.value.trim().toUpperCase();
             const listaClientes = ${JSON.stringify(clientes)};
