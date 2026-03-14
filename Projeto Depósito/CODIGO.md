@@ -3750,53 +3750,63 @@
         }
 
         function salvarClientePopup(btn){
-          if(!nome.value.trim()){
-            alert('Informe o nome do cliente 👤');
-            return;
+          try {
+            if(!nome.value.trim()){
+              alert('Informe o nome do cliente 👤');
+              return;
+            }
+
+            const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
+            if(telDigits.length !== 10 && telDigits.length !== 11){
+              alert('Informe um telefone válido com DDD (10 ou 11 números).');
+              tel.focus();
+              return;
+            }
+
+            tel.value = telDigits.length === 11
+              ? telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3')
+              : telDigits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
+
+            const nomeUpper = nome.value.trim().toUpperCase();
+            const listaClientes = ${JSON.stringify(clientes)};
+            const existe = listaClientes.includes(nomeUpper);
+
+            if(existe){
+              const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
+              if(!ok) return;
+            }
+
+            if(btn){
+              btn.disabled = true;
+              btn.innerText = '⏳ Salvando...';
+            }
+
+            google.script.run
+              .withSuccessHandler(()=>{
+                alert('✅ Cliente cadastrado com sucesso!');
+                fecharEVoltarTelaCliente();
+              })
+              .withFailureHandler(e=>{
+                alert('Erro ao salvar cliente: ' + (e.message || e));
+                if(btn){
+                  btn.disabled = false;
+                  btn.innerText = '💾 Salvar Cliente';
+                }
+              })
+              .salvarCliente(
+                nome.value,
+                tel.value,
+                end.value,
+                ref.value,
+                obs.value
+              );
+          } catch (e) {
+            alert('Erro inesperado no formulário: ' + (e.message || e));
+            if(btn){
+              btn.disabled = false;
+              btn.innerText = '💾 Salvar Cliente';
+            }
           }
-
-          const telDigits = tel.value.replace(/\D/g,'').slice(0,11);
-          if(telDigits.length !== 11){
-            alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
-            tel.focus();
-            return;
-          }
-
-          tel.value = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-
-          const nomeUpper = nome.value.trim().toUpperCase();
-          const listaClientes = ${JSON.stringify(clientes)};
-          const existe = listaClientes.includes(nomeUpper);
-
-          if(existe){
-            const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
-            if(!ok) return;
-          }
-
-          if(btn){
-            btn.disabled = true;
-            btn.innerText = '⏳ Salvando...';
-          }
-
-          google.script.run
-            .withSuccessHandler(()=>{
-              alert('✅ Cliente cadastrado com sucesso!');
-              fecharEVoltarTelaCliente();
-            })
-            .withFailureHandler(e=>{
-              alert('Erro ao salvar cliente: ' + (e.message || e));
-              if(btn){
-                btn.disabled = false;
-                btn.innerText = '💾 Salvar Cliente';
-              }
-            })
-            .salvarCliente(
-              nome.value,
-              tel.value,
-              end.value,
-              ref.value,
-              obs.value
-            );
         }
 
         function salvar(btn){
@@ -3823,11 +3833,13 @@
       throw new Error('Nome do cliente é obrigatório.');
     }
 
-    if(telDigits.length !== 11){
-      throw new Error('Telefone inválido. Use DDD + 9 dígitos (11 números).');
+    if(telDigits.length !== 10 && telDigits.length !== 11){
+      throw new Error('Telefone inválido. Use DDD + número (10 ou 11 dígitos).');
     }
 
-    const telFormatado = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    const telFormatado = telDigits.length === 11
+      ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+      : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   
     // ============================
     // 1️⃣ SALVA CLIENTE (INALTERADO)
