@@ -522,7 +522,74 @@ function salvarEstadoAtendimentoWhatsapp_(telefone, estado) {
 
   registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
 
-  return { idPedido: idPedido };
+  for (let i = dados.length - 1; i >= 1; i--) {
+    if (String(dados[i][0] || '') === String(telefone || '')) {
+      sh.deleteRow(i + 1);
+    }
+  }
+}
+
+function criarPedidoDeliveryWhatsapp_(telefone, itensCarrinho) {
+  const ss = SpreadsheetApp.getActive();
+  const deliverySh = ss.getSheetByName('DELIVERY');
+
+  if (!deliverySh) {
+    throw new Error('Aba DELIVERY não encontrada.');
+  }
+
+  if (typeof garantirDeliveryItens === 'function') {
+    garantirDeliveryItens();
+  }
+
+  let pedidoNumero = (deliverySh.getLastRow() - 1) + 1;
+  if (typeof gerarNumeroDelivery === 'function') {
+    pedidoNumero = gerarNumeroDelivery();
+  }
+
+  const total = itensCarrinho.reduce(function(acc, i) {
+    return acc + (Number(i.qtd || 0) * Number(i.unit || 0));
+  }, 0);
+
+  const idRef = 'WPP-BOT-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+
+  deliverySh.appendRow([
+    pedidoNumero,
+    new Date(),
+    'WHATSAPP ' + telefone,
+    'VER ITENS',
+    itensCarrinho.length,
+    Number(total.toFixed(2)),
+    '⚡ Pix',
+    'PEDIDO FEITO',
+    'WHATSAPP_BOT',
+    idRef
+  ]);
+
+  const itensSh = ss.getSheetByName('DELIVERY_ITENS');
+  if (itensSh) {
+    itensCarrinho.forEach(function(i) {
+      const linha = [
+        pedidoNumero,
+        i.produto,
+        Number(i.qtd || 0),
+        Number(i.unit || 0),
+        Number((Number(i.qtd || 0) * Number(i.unit || 0)).toFixed(2)),
+        'NAO'
+      ];
+
+      if (typeof inserirLinhaNoTopo === 'function') {
+        inserirLinhaNoTopo('DELIVERY_ITENS', linha);
+      } else {
+        itensSh.appendRow(linha);
+      }
+    });
+  }
+
+  return {
+    pedido: pedidoNumero,
+    total: Number(total.toFixed(2)),
+    idRef: idRef
+  };
 }
 
 function registrarPrePedidoNoDelivery_(idPrePedido, telefone, textoLivre) {
