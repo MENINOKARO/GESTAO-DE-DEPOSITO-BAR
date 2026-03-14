@@ -3752,13 +3752,15 @@
             }
 
           const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
-          if(telDigits.length !== 11){
-            alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
+          if(telDigits.length !== 10 && telDigits.length !== 11){
+            alert('Informe um telefone válido com DDD + número (10 ou 11 dígitos).');
             tel.focus();
             return;
           }
 
-          tel.value = telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
+          tel.value = telDigits.length === 11
+            ? telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3')
+            : telDigits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
 
             const nomeUpper = nome.value.trim().toUpperCase();
             const listaClientes = ${JSON.stringify(clientes)};
@@ -11955,7 +11957,7 @@
 
     if(!sh){
       sh = ss.insertSheet('CONTAS_A_RECEBER');
-      sh.getRange('A1:I1').setValues([[
+      sh.getRange('A1:K1').setValues([[
         'ID',
         'Origem',
         'Referencia',
@@ -11964,7 +11966,9 @@
         'Valor_Recebido',
         'Saldo',
         'Forma_Original',
-        'Status'
+        'Status',
+        'Data',
+        'Obs'
       ]]);
     }
   }
