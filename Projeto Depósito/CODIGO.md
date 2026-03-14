@@ -3563,402 +3563,152 @@
 // ===============================
 // CLIENTES
 // ===============================
-  function popupCliente(){
+function popupCliente(){
 
-    const ss = SpreadsheetApp.getActive();
-    const clientes = ss.getSheetByName('CLIENTES')
-      .getDataRange().getValues()
-      .slice(1)
-      .map(c => c[0])
-      .filter(Boolean)
-      .map(c => c.toUpperCase());
+  const ss = SpreadsheetApp.getActive();
+  const clientes = ss.getSheetByName('CLIENTES')
+    .getDataRange().getValues()
+    .slice(1)
+    .map(c => c[0])
+    .filter(Boolean)
+    .map(c => c.toUpperCase());
 
-    abrirPopup('👤➕ Novo Cliente', `
-      <div class="cli-wrap">
-        <div class="cli-card">
-          <div class="cli-header">
-            <h3>👤 Cadastro de Cliente</h3>
-            <p>Preencha as informações relevantes para atendimento, delivery e fiado.</p>
-          </div>
+  abrirPopup('👤➕ Novo Cliente', `
+    <div style="display:flex;flex-direction:column;gap:12px">
 
-          <div class="cli-grid">
-            <div class="field field-2">
-              <label>👤 Nome do Cliente <span>*</span></label>
-              <input id="nome" placeholder="Ex.: João da Silva" maxlength="80">
-            </div>
-
-            <div class="field">
-              <label>📞 Telefone (WhatsApp) <span>*</span></label>
-              <input id="tel" placeholder="(11) 91234-5678" inputmode="numeric" maxlength="15">
-              <small>Formato brasileiro (DDD + número).</small>
-            </div>
-
-            <div class="field">
-              <label>📍 Referência</label>
-              <input id="ref" placeholder="Ex.: Próximo ao mercado / portão azul" maxlength="120">
-            </div>
-
-            <div class="field field-2">
-              <label>🏠 Endereço</label>
-              <input id="end" placeholder="Rua, número, bairro, complemento" maxlength="140">
-            </div>
-
-            <div class="field field-2">
-              <label>📝 Observações</label>
-              <textarea id="obs" rows="3" placeholder="Ex.: Preferência de contato, horário de entrega, restrições..."></textarea>
-            </div>
-          </div>
-
-          <div class="info-box">
-            <strong>Informações relevantes:</strong>
-            <ul>
-              <li>Telefone válido acelera contato no delivery.</li>
-              <li>Endereço + referência reduz erro de entrega.</li>
-              <li>Observações ajudam no histórico do cliente.</li>
-            </ul>
-          </div>
-
-          <div class="actions">
-            <button id="btnSalvar" class="btn-save">💾 Salvar Cliente</button>
-            <button class="btn-cancel" onclick="cancelar()">Cancelar</button>
-          </div>
-        </div>
+      <div>
+        <label>👤 Nome do Cliente</label>
+        <input id="nome" placeholder="Digite o nome completo">
       </div>
 
-      <style>
-        .cli-wrap { font-family: Arial, sans-serif; }
-        .cli-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          background: #ffffff;
-          box-shadow: 0 8px 24px rgba(15,23,42,.08);
-          padding: 14px;
+      <div>
+        <label>📞 Telefone</label>
+        <input id="tel" placeholder="Digite apenas números">
+      </div>
+
+      <div>
+        <label>🏠 Endereço</label>
+        <input id="end" placeholder="Rua, número, bairro">
+      </div>
+
+      <div>
+        <label>📍 Referência</label>
+        <input id="ref" placeholder="Ponto de referência (opcional)">
+      </div>
+
+      <hr>
+
+      <button id="btnSalvar" class="btn-success" onclick="salvar(this)">
+        💾 Salvar Cliente
+      </button>
+
+      <button class="btn-secondary" onclick="cancelar()">
+        ❌ Cancelar
+      </button>
+    </div>
+
+    <script>
+
+      const nome = document.getElementById('nome');
+      const tel  = document.getElementById('tel');
+      const end  = document.getElementById('end');
+      const ref  = document.getElementById('ref');
+
+      // 🎯 foco automático
+      nome.focus();
+
+      // 📞 máscara progressiva
+      tel.addEventListener('input', () => {
+
+        let n = tel.value.replace(/\\D/g,'').slice(0,11);
+        let f = '';
+
+        if(n.length >= 1){
+          f = '(' + n.slice(0,2);
         }
-        .cli-header h3 { margin: 0; font-size: 18px; color: #0f172a; }
-        .cli-header p { margin: 6px 0 0; color: #64748b; font-size: 12px; }
-
-        .cli-grid {
-          margin-top: 14px;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
+        if(n.length >= 3){
+          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3);
         }
-        .field { display: flex; flex-direction: column; gap: 5px; }
-        .field-2 { grid-column: span 2; }
-        label { font-weight: 700; font-size: 12px; color: #0f172a; }
-        label span { color: #dc2626; }
-
-        input, textarea {
-          border: 1px solid #cbd5e1;
-          border-radius: 10px;
-          padding: 10px;
-          font-size: 13px;
-          outline: none;
+        if(n.length >= 4){
+          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3) + '.' + n.slice(3,7);
         }
-
-        input:focus, textarea:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 2px rgba(37,99,235,.15);
-        }
-
-        small { color: #64748b; font-size: 11px; }
-
-        .info-box {
-          margin-top: 12px;
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-radius: 10px;
-          padding: 10px;
-          font-size: 12px;
-          color: #1e3a8a;
-        }
-
-        .actions {
-          margin-top: 14px;
-          display: flex;
-          gap: 8px;
-          justify-content: flex-end;
-        }
-
-        .btn-save, .btn-cancel {
-          border: none;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-weight: 700;
-          cursor: pointer;
+        if(n.length >= 8){
+          f = '(' + n.slice(0,2) + ') ' + n.slice(2,3) + '.' + n.slice(3,7) + '-' + n.slice(7,11);
         }
 
-        .btn-save { background: #16a34a; color: #fff; }
-        .btn-save:hover { background: #15803d; }
+        tel.value = f;
+      });
 
-        .btn-cancel { background: #e2e8f0; color: #0f172a; }
-        .btn-cancel:hover { background: #cbd5e1; }
-      </style>
-
-      <script>
-
-        const listaClientes = ${JSON.stringify(clientes)};
-
-        const nome = document.getElementById('nome');
-        const tel  = document.getElementById('tel');
-        const end  = document.getElementById('end');
-        const ref  = document.getElementById('ref');
-        const obs  = document.getElementById('obs');
-        const btnSalvar = document.getElementById('btnSalvar');
-
-        nome.focus();
-
-        if(btnSalvar){
-          btnSalvar.addEventListener('click', () => salvarClientePopup());
-        }
-
-        tel.addEventListener('input', () => {
-          let n = tel.value.replace(/\\D/g,'').slice(0,11);
-
-          if (n.length <= 10) {
-            n = n.replace(/(\\d{2})(\\d)/, '($1) $2');
-            n = n.replace(/(\\d{4})(\\d)/, '$1-$2');
-          } else {
-            n = n.replace(/(\\d{2})(\\d)/, '($1) $2');
-            n = n.replace(/(\\d{5})(\\d)/, '$1-$2');
-          }
-
-          tel.value = n;
-        });
-
-        tel.addEventListener('blur', () => {
-
-          const digits = tel.value.replace(/\\D/g,'').slice(0,11);
-
-          if(digits.length === 11){
-            tel.value = digits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
-          } else if(digits.length === 10){
-            tel.value = digits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
-          }
-
-        });
-
-        function fecharEVoltarTelaCliente(){
-          google.script.run
-            .withSuccessHandler(() => google.script.host.close())
-            .withFailureHandler(() => google.script.host.close())
-            .voltarTelaCliente();
-        }
-
-        function cancelar(){
-          fecharEVoltarTelaCliente();
-        }
-
-        function salvarClientePopup(){
-          const btn = btnSalvar;
-
-          try {
-            if(!nome.value.trim()){
-              alert('Informe o nome do cliente 👤');
-              return;
-            }
-
-          const telDigits = tel.value.replace(/\\D/g,'').slice(0,11);
-          if(telDigits.length !== 10 && telDigits.length !== 11){
-            alert('Informe um telefone válido com DDD + número (10 ou 11 dígitos).');
-            tel.focus();
-            return;
-          }
-
-          tel.value = telDigits.length === 11
-            ? telDigits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3')
-            : telDigits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
-
-            const nomeUpper = nome.value.trim().toUpperCase();
-            const existe = listaClientes.includes(nomeUpper);
-
-            if(existe){
-              const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
-              if(!ok) return;
-            }
-
-            if(btn){
-              btn.disabled = true;
-              btn.innerText = '⏳ Salvando...';
-            }
-
-            google.script.run
-              .withSuccessHandler(()=>{
-                alert('✅ Cliente cadastrado com sucesso!');
-                fecharEVoltarTelaCliente();
-              })
-              .withFailureHandler(e=>{
-                alert('Erro ao salvar cliente: ' + (e.message || e));
-                if(btn){
-                  btn.disabled = false;
-                  btn.innerText = '💾 Salvar Cliente';
-                }
-              })
-              .salvarCliente(
-                nome.value,
-                tel.value,
-                end.value,
-                ref.value,
-                obs.value
-              );
-          } catch (e) {
-            alert('Erro inesperado no formulário: ' + (e.message || e));
-            if(btn){
-              btn.disabled = false;
-              btn.innerText = '💾 Salvar Cliente';
-            }
-          }
-        }
-
-        function salvar(){
-          salvarClientePopup();
-        }
-
-      </script>
-
-    `, 640, 700);
-  }
-  function salvarCliente(nome, tel, end, ref, obs){
-  
-    const ss = SpreadsheetApp.getActive();
-    const sh = ss.getSheetByName('CLIENTES');
-
-    if(!sh){
-      throw new Error('Aba CLIENTES não encontrada.');
-    }
-  
-    const nomeFinal = String(nome || '').trim().toUpperCase();
-    const telDigits = String(tel || '').replace(/\D/g, '').slice(0, 11);
-
-    if(!nomeFinal){
-      throw new Error('Nome do cliente é obrigatório.');
-    }
-
-    if(telDigits.length !== 10 && telDigits.length !== 11){
-      throw new Error('Telefone inválido. Use DDD + número (10 ou 11 dígitos).');
-    }
-
-    const telFormatado = telDigits.length === 11
-      ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-      : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-  
-    // ============================
-    // 1️⃣ SALVA CLIENTE (INALTERADO)
-    // ============================
-    sh.appendRow([
-      nomeFinal,
-      telFormatado,
-      end,
-      ref,
-      obs ? obs.toString().trim() : ''
-    ]);
-  
-    // ============================
-    // 2️⃣ GARANTE CONTA FIADO
-    // ============================
-    // Obs.: não bloqueia o cadastro do cliente se houver falha apenas na rotina financeira/log.
-    try {
-      garantirContasAReceber();
-  
-      const cr = ss.getSheetByName('CONTAS_A_RECEBER');
-      const dados = cr.getDataRange().getValues();
-  
-      const jaExiste = dados.some((l,i) =>
-        i > 0 &&
-        l[1] === 'CLIENTE' &&
-        l[3] === nomeFinal &&
-        l[7] === 'FIADO'
-      );
-  
-      if(!jaExiste){
-  
-        // ✅ CRIA CONTA FIADO FIXA PELO PADRÃO OFICIAL
-        criarContaAReceber(
-          'CLIENTE',        // Origem
-          'FIADO_FIXO',     // Referência
-          nomeFinal,        // Cliente
-          0,                // Valor
-          'FIADO'           // Forma
-        );
+      // ✅ cancelar correto
+      function cancelar(){
+        google.script.host.close();
+        google.script.run.voltarTelaCliente();
       }
 
-      registrarLog(
-        'CLIENTE_CADASTRADO',
-        nomeFinal,
-        '',
-        'CONTA_FIADO_OK'
-      );
-    } catch (e) {
-      registrarLog(
-        'CLIENTE_CADASTRADO',
-        nomeFinal,
-        '',
-        'CONTA_FIADO_FALHA: ' + (e && e.message ? e.message : e)
-      );
-    }
+      function salvar(btn){
 
-    return true;
-  }
-  function setClienteTempDelivery(nome){
-    CacheService.getScriptCache()
-      .put('CLIENTE_TEMP_DELIVERY', nome, 300);
-  }
-  function getClienteTempDelivery(){
-    const cache = CacheService.getScriptCache();
-    const nome = cache.get('CLIENTE_TEMP_DELIVERY');
-    if(nome){
-      cache.remove('CLIENTE_TEMP_DELIVERY'); // 🔥 LIMPA APÓS USO
-    }
-    return nome;
-  }
-  function popupMenuCliente(origem){
-
-    // salva origem
-    CacheService.getScriptCache()
-      .put('ORIGEM_CLIENTE', origem || '', 300);
-
-    const html = `
-      <div style="text-align:center;display:flex;flex-direction:column;gap:14px">
-
-        <button class="btn-success" onclick="novo()">
-          ➕ Cadastrar Novo
-        </button>
-
-        <button class="btn-primary" onclick="buscar()">
-          🔍 Buscar / Editar
-        </button>
-
-        <button class="btn-secondary" onclick="fechar()">
-          ❌ Cancelar
-        </button>
-
-      </div>
-
-      <script>
-
-        function novo(){
-          google.script.run
-            .withSuccessHandler(()=> google.script.host.close())
-            .withFailureHandler(e=> alert('Erro ao abrir cadastro: ' + (e.message || e)))
-            .popupCliente();
+        if(!nome.value){
+          alert('Informe o nome do cliente 👤');
+          return;
         }
 
-        function buscar(){
-          google.script.run
-            .withSuccessHandler(()=> google.script.host.close())
-            .withFailureHandler(e=> alert('Erro ao abrir busca: ' + (e.message || e)))
-            .popupBuscarCliente();
+        const nomeUpper = nome.value.trim().toUpperCase();
+        const existe = ${JSON.stringify(clientes)}.includes(nomeUpper);
+
+        if(existe){
+          const ok = confirm(
+            '⚠️ Cliente já cadastrado com este nome.\\n\\nDeseja salvar mesmo assim?'
+          );
+          if(!ok) return;
         }
 
-        function fechar(){
-          google.script.host.close();
-        }
+        // 🔒 bloqueia clique duplo
+        btn.disabled = true;
+        btn.innerText = '⏳ Salvando...';
 
-      </script>
-    `;
+        google.script.run
+          .withFailureHandler(err => {
 
-    abrirPopup('👤 Menu de Clientes', html, 360, 280);
+            alert(err.message || err);
+
+            btn.disabled = false;
+            btn.innerText = '💾 Salvar Cliente';
+
+          })
+          .withSuccessHandler(() => {
+
+            google.script.host.close();
+            google.script.run.voltarTelaCliente();
+
+          })
+          .salvarCliente(
+            nome.value.trim(),
+            tel.value,
+            end.value,
+            ref.value
+          );
+      }
+
+    </script>
+  `, 520, 600);
+}
+function salvarCliente(nome,tel,end,ref){
+  SpreadsheetApp.getActive().getSheetByName('CLIENTES')
+    .appendRow([nome,tel,end,ref,'']);
+}
+function setClienteTempDelivery(nome){
+  CacheService.getScriptCache()
+    .put('CLIENTE_TEMP_DELIVERY', nome, 300);
+}
+function getClienteTempDelivery(){
+  const cache = CacheService.getScriptCache();
+  const nome = cache.get('CLIENTE_TEMP_DELIVERY');
+  if(nome){
+    cache.remove('CLIENTE_TEMP_DELIVERY'); // 🔥 LIMPA APÓS USO
   }
+  return nome;
+}
+
   function voltarTelaCliente(){
 
     const cache = CacheService.getScriptCache();
