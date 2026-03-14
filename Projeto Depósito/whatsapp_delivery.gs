@@ -141,6 +141,28 @@ function validarSegurancaWebhook_(payload, signature) {
   }
 }
 
+function simularMensagemBotWhatsapp(telefone, texto) {
+  const payload = {
+    clienteTelefone: String(telefone || '').replace(/\D/g, ''),
+    texto: String(texto || '')
+  };
+
+  const resposta = gerarRespostaBotWhatsapp_(payload.texto);
+  let idPedido = '';
+
+  if (resposta.criarPrePedido) {
+    idPedido = criarPrePedidoWhatsapp_(payload.clienteTelefone, payload.texto).idPedido;
+  }
+
+  registrarEventoWhatsapp_(idPedido || 'N/A', 'SIMULACAO_BOT', 'Mensagem simulada no painel interno.');
+  return {
+    ok: true,
+    msg: resposta.mensagem,
+    criarPrePedido: resposta.criarPrePedido,
+    idPedido: idPedido
+  };
+}
+
 function aplicarRateLimitWhatsapp_() {
   const cache = CacheService.getScriptCache();
   const props = PropertiesService.getScriptProperties();
@@ -498,10 +520,7 @@ function salvarEstadoAtendimentoWhatsapp_(telefone, estado) {
   return true;
 }
 
-function limparEstadoAtendimentoWhatsapp_(telefone) {
-  const ss = SpreadsheetApp.getActive();
-  const sh = obterOuCriarAbaAtendimentoWhatsapp_(ss);
-  const dados = sh.getDataRange().getValues();
+  registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
 
   for (let i = dados.length - 1; i >= 1; i--) {
     if (String(dados[i][0] || '') === String(telefone || '')) {
@@ -571,4 +590,57 @@ function criarPedidoDeliveryWhatsapp_(telefone, itensCarrinho) {
     total: Number(total.toFixed(2)),
     idRef: idRef
   };
+}
+
+function registrarPrePedidoNoDelivery_(idPrePedido, telefone, textoLivre) {
+  const ss = SpreadsheetApp.getActive();
+  const deliverySh = ss.getSheetByName('DELIVERY');
+
+  if (!deliverySh) {
+    registrarEventoWhatsapp_(idPrePedido, 'ERRO_PRE_PEDIDO', 'Aba DELIVERY não encontrada para registrar pré-pedido.');
+    return;
+  }
+
+  if (typeof garantirDeliveryItens === 'function') {
+    garantirDeliveryItens();
+  }
+
+  const pedidoNumero = (typeof gerarNumeroDelivery === 'function')
+    ? gerarNumeroDelivery()
+    : (deliverySh.getLastRow() - 1) + 1;
+
+  const clienteNome = 'WHATSAPP ' + telefone;
+  const produtoPlaceholder = 'PEDIDO VIA WHATSAPP - CONFERIR ITENS';
+  const observacao = String(textoLivre || '').slice(0, 500);
+
+  deliverySh.appendRow([
+    pedidoNumero,
+    new Date(),
+    clienteNome,
+    produtoPlaceholder,
+    1,
+    0,
+    '⚡ Pix',
+    'PEDIDO FEITO',
+    'BOT_WHATSAPP',
+    idPrePedido
+  ]);
+
+  const itensSh = ss.getSheetByName('DELIVERY_ITENS');
+  if (itensSh) {
+    itensSh.appendRow([
+      pedidoNumero,
+      produtoPlaceholder + ' | ' + observacao,
+      1,
+      0,
+      0,
+      'NAO'
+    ]);
+  }
+
+  registrarEventoWhatsapp_(
+    idPrePedido,
+    'PRE_PEDIDO_DELIVERY_CRIADO',
+    'Pré-pedido registrado no DELIVERY como PEDIDO FEITO. Pedido #' + pedidoNumero
+  );
 }
