@@ -292,59 +292,233 @@ function processarMensagemClienteWhatsapp(payload, signature) {
     throw new Error('Telefone do cliente é obrigatório para o bot.');
   }
 
-  const resposta = gerarRespostaBotWhatsapp_(textoLivre);
-  enviarMensagemWhatsapp_(telefone, resposta.mensagem);
+  const produtos = listarProdutosWhatsapp_();
+  const estado = obterEstadoAtendimentoWhatsapp_(telefone);
+  const texto = String(textoLivre || '').trim();
+  const textoLower = texto.toLowerCase();
 
-  if (resposta.criarPrePedido) {
-    const prePedido = criarPrePedidoWhatsapp_(telefone, textoLivre);
-    registrarEventoWhatsapp_(prePedido.idPedido, 'PRE_PEDIDO_BOT', 'Pré-pedido gerado pelo bot e enviado para conferência interna.');
-    return { ok: true, bot: true, idPedido: prePedido.idPedido, msg: 'Pré-pedido criado pelo bot.' };
+  if (!texto || ['oi', 'olá', 'ola', 'menu', 'cardapio', 'cardápio', 'iniciar', 'comecar', 'começar'].indexOf(textoLower) >= 0) {
+    limparEstadoAtendimentoWhatsapp_(telefone);
+    const novoEstado = { etapa: 'AGUARDANDO_ITENS', itens: [] };
+    salvarEstadoAtendimentoWhatsapp_(telefone, novoEstado);
+
+    const mensagemInicial = [
+      'Olá! 👋 Sou o assistente do delivery.',
+      'Envie os itens do pedido neste formato: *nome do produto x quantidade*',
+      'Ex.: *Skol Lata x 6*',
+      'Quando terminar, envie *finalizar*.',
+      '',
+      montarCardapioWhatsapp_(produtos)
+    ].join('\n');
+
+    enviarMensagemWhatsapp_(telefone, mensagemInicial);
+    return { ok: true, bot: true, msg: 'Cardápio enviado.' };
   }
 
-  return { ok: true, bot: true, msg: 'Mensagem processada pelo bot.' };
+  if (textoLower === 'cancelar') {
+    limparEstadoAtendimentoWhatsapp_(telefone);
+    enviarMensagemWhatsapp_(telefone, 'Pedido cancelado. Se quiser iniciar novamente, envie *oi* ou *menu*.');
+    return { ok: true, bot: true, msg: 'Atendimento cancelado.' };
+  }
+
+  if (!estado || estado.etapa !== 'AGUARDANDO_ITENS') {
+    salvarEstadoAtendimentoWhatsapp_(telefone, { etapa: 'AGUARDANDO_ITENS', itens: [] });
+  }
+
+  const estadoAtual = obterEstadoAtendimentoWhatsapp_(telefone) || { etapa: 'AGUARDANDO_ITENS', itens: [] };
+  const itensCarrinho = Array.isArray(estadoAtual.itens) ? estadoAtual.itens : [];
+
+  if (textoLower === 'finalizar') {
+    if (!itensCarrinho.length) {
+      enviarMensagemWhatsapp_(telefone, 'Seu carrinho está vazio. Envie um item no formato *produto x quantidade*.');
+      return { ok: true, bot: true, msg: 'Carrinho vazio.' };
+    }
+
+    const pedido = criarPedidoDeliveryWhatsapp_(telefone, itensCarrinho);
+    limparEstadoAtendimentoWhatsapp_(telefone);
+
+    const resumo = itensCarrinho
+      .map(function(i) { return '- ' + i.produto + ' x ' + i.qtd + ' = R$ ' + Number(i.total).toFixed(2).replace('.', ','); })
+      .join('\n');
+
+    enviarMensagemWhatsapp_(telefone,
+      '✅ Pedido criado com sucesso!\n' +
+      'Nº do pedido: *' + pedido.pedido + '*\n\n' +
+      'Resumo:\n' + resumo + '\n\n' +
+      'Total: *R$ ' + Number(pedido.total).toFixed(2).replace('.', ',') + '*\n' +
+      'Em breve nosso time confirma entrega e pagamento.'
+    );
+
+    registrarEventoWhatsapp_(pedido.idRef || String(pedido.pedido), 'PEDIDO_CRIADO_BOT', 'Pedido criado automaticamente no DELIVERY.');
+    return { ok: true, bot: true, pedido: pedido.pedido, msg: 'Pedido criado no delivery.' };
+  }
+
+  const item = interpretarItemMensagemWhatsapp_(texto, produtos);
+  if (!item) {
+    enviarMensagemWhatsapp_(telefone,
+      'Não consegui identificar o item. Envie no formato *produto x quantidade* (ex.: *Skol Lata x 6*).\n\n' +
+      montarCardapioWhatsapp_(produtos)
+    );
+    return { ok: true, bot: true, msg: 'Mensagem não reconhecida.' };
+  }
+
+  const idx = itensCarrinho.findIndex(function(i) {
+    return normalizarTextoWhatsapp_(i.produto) === normalizarTextoWhatsapp_(item.produto);
+  });
+
+  if (idx >= 0) {
+    itensCarrinho[idx].qtd += item.qtd;
+    itensCarrinho[idx].total = Number((itensCarrinho[idx].qtd * itensCarrinho[idx].unit).toFixed(2));
+  } else {
+    itensCarrinho.push(item);
+  }
+
+  salvarEstadoAtendimentoWhatsapp_(telefone, {
+    etapa: 'AGUARDANDO_ITENS',
+    itens: itensCarrinho
+  });
+
+  const subtotal = itensCarrinho.reduce(function(acc, i) { return acc + Number(i.total || 0); }, 0);
+  enviarMensagemWhatsapp_(telefone,
+    '✅ Item adicionado: *' + item.produto + ' x ' + item.qtd + '*\n' +
+    'Subtotal atual: *R$ ' + subtotal.toFixed(2).replace('.', ',') + '*\n\n' +
+    'Envie outro item ou *finalizar* para concluir.'
+  );
+
+  return { ok: true, bot: true, msg: 'Item adicionado ao carrinho.' };
 }
 
-function gerarRespostaBotWhatsapp_(textoLivre) {
-  const t = String(textoLivre || '').toLowerCase();
+function listarProdutosWhatsapp_() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('PRODUTOS');
+  if (!sh || sh.getLastRow() < 2) return [];
 
-  if (!t) {
-    return {
-      criarPrePedido: false,
-      mensagem: 'Olá! 👋 Me diga os itens e quantidades (ex.: 2 cervejas, 1 gelo) para eu montar seu pedido.'
-    };
+  const dados = sh.getRange(2, 1, sh.getLastRow() - 1, 12).getValues();
+  return dados
+    .map(function(r) {
+      return {
+        nome: String(r[0] || '').trim(),
+        preco: Number(r[4] || 0),
+        estoque: Number(r[11] || 0)
+      };
+    })
+    .filter(function(p) { return p.nome && p.preco > 0; });
+}
+
+function montarCardapioWhatsapp_(produtos) {
+  if (!produtos || !produtos.length) {
+    return 'No momento não consegui carregar o cardápio. Tente novamente em instantes.';
   }
 
-  if (t.includes('pedido') || t.includes('quero') || t.includes('comprar')) {
-    return {
-      criarPrePedido: true,
-      mensagem: 'Perfeito! ✅ Já anotei seu pedido e vou encaminhar para o atendente confirmar valores e entrega.'
-    };
+  const lista = produtos.slice(0, 40).map(function(p) {
+    return '• ' + p.nome + ' — R$ ' + Number(p.preco).toFixed(2).replace('.', ',');
+  }).join('\n');
+
+  return '📋 *Cardápio*\n' + lista;
+}
+
+function normalizarTextoWhatsapp_(txt) {
+  return String(txt || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function interpretarItemMensagemWhatsapp_(texto, produtos) {
+  const msg = String(texto || '').trim();
+  if (!msg) return null;
+
+  let qtd = 1;
+  let nomeBase = msg;
+
+  let m = msg.match(/(.+)\s*[xX]\s*(\d{1,3})$/);
+  if (m) {
+    nomeBase = String(m[1] || '').trim();
+    qtd = Number(m[2] || 1);
+  } else {
+    m = msg.match(/^(\d{1,3})\s+(.+)$/);
+    if (m) {
+      qtd = Number(m[1] || 1);
+      nomeBase = String(m[2] || '').trim();
+    }
   }
 
-  if (t.includes('fiado')) {
-    return {
-      criarPrePedido: false,
-      mensagem: 'Para consulta de fiado, informe seu nome completo e CPF que o atendente vai te retornar em seguida.'
-    };
+  if (!qtd || qtd <= 0) return null;
+
+  const baseNorm = normalizarTextoWhatsapp_(nomeBase);
+  let produtoEscolhido = null;
+
+  for (let i = 0; i < produtos.length; i++) {
+    const pn = normalizarTextoWhatsapp_(produtos[i].nome);
+    if (pn === baseNorm || pn.indexOf(baseNorm) >= 0 || baseNorm.indexOf(pn) >= 0) {
+      produtoEscolhido = produtos[i];
+      break;
+    }
   }
 
+  if (!produtoEscolhido) return null;
+
+  const unit = Number(produtoEscolhido.preco || 0);
   return {
-    criarPrePedido: false,
-    mensagem: 'Recebi sua mensagem 👍 Se quiser comprar, escreva "quero fazer pedido" com itens e quantidades.'
+    produto: produtoEscolhido.nome,
+    qtd: qtd,
+    unit: unit,
+    total: Number((qtd * unit).toFixed(2))
   };
 }
 
-function criarPrePedidoWhatsapp_(telefone, textoLivre) {
-  const ss = SpreadsheetApp.getActive();
-  let sh = ss.getSheetByName('WHATSAPP_PRE_PEDIDOS');
-
+function obterOuCriarAbaAtendimentoWhatsapp_(ss) {
+  let sh = ss.getSheetByName('WHATSAPP_ATENDIMENTO');
   if (!sh) {
-    sh = ss.insertSheet('WHATSAPP_PRE_PEDIDOS');
-    sh.appendRow(['ID_PEDIDO', 'TELEFONE', 'MENSAGEM_CLIENTE', 'STATUS', 'CRIADO_EM']);
+    sh = ss.insertSheet('WHATSAPP_ATENDIMENTO');
+    sh.appendRow(['TELEFONE', 'ETAPA', 'ITENS_JSON', 'ATUALIZADO_EM']);
+  }
+  return sh;
+}
+
+function obterEstadoAtendimentoWhatsapp_(telefone) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = obterOuCriarAbaAtendimentoWhatsapp_(ss);
+  const dados = sh.getDataRange().getValues();
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0] || '') === String(telefone || '')) {
+      let itens = [];
+      try {
+        itens = JSON.parse(String(dados[i][2] || '[]'));
+      } catch (e) {
+        itens = [];
+      }
+      return {
+        etapa: String(dados[i][1] || 'AGUARDANDO_ITENS'),
+        itens: Array.isArray(itens) ? itens : []
+      };
+    }
   }
 
-  const idPedido = 'WPP-BOT-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
-  sh.appendRow([idPedido, telefone, textoLivre, 'AGUARDANDO_CONFERENCIA', new Date()]);
+  return null;
+}
+
+function salvarEstadoAtendimentoWhatsapp_(telefone, estado) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = obterOuCriarAbaAtendimentoWhatsapp_(ss);
+  const dados = sh.getDataRange().getValues();
+  const etapa = String((estado && estado.etapa) || 'AGUARDANDO_ITENS');
+  const itensJson = JSON.stringify((estado && estado.itens) || []);
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0] || '') === String(telefone || '')) {
+      sh.getRange(i + 1, 2, 1, 3).setValues([[etapa, itensJson, new Date()]]);
+      return true;
+    }
+  }
+
+  sh.appendRow([telefone, etapa, itensJson, new Date()]);
+  return true;
+}
 
   registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
 
