@@ -10,7 +10,8 @@ function inicializarWhatsappMVP() {
     WHATSAPP_TOKEN: '',
     WHATSAPP_WEBHOOK_SECRET: '',
     WHATSAPP_PROVIDER_URL: '',
-    WHATSAPP_RATE_LIMIT_PER_MIN: '30'
+    WHATSAPP_RATE_LIMIT_PER_MIN: '30',
+    WHATSAPP_ALLOW_UNSIGNED: 'NAO'
   };
 
   Object.keys(defaults).forEach(function(k) {
@@ -20,6 +21,30 @@ function inicializarWhatsappMVP() {
   });
 
   return { ok: true, msg: 'Configuração base do WhatsApp inicializada.' };
+}
+
+function doPost(e) {
+  try {
+    const raw = (e && e.postData && e.postData.contents) || '{}';
+    const body = JSON.parse(raw);
+    const action = String((body && body.action) || '').toUpperCase();
+    const signature = String((e && e.parameter && e.parameter.signature) || '');
+
+    let result;
+    if (action === 'RECEBER_PEDIDO') {
+      result = receberPedidoWhatsapp(body, signature);
+    } else {
+      result = processarMensagemClienteWhatsapp(body, signature);
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, result: result }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message || String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function receberPedidoWhatsapp(payload, signature) {
@@ -103,12 +128,39 @@ function validarSegurancaWebhook_(payload, signature) {
     throw new Error('Webhook secret não configurado.');
   }
 
+  const allowUnsigned = props.getProperty('WHATSAPP_ALLOW_UNSIGNED') === 'SIM';
+  if (!signature && allowUnsigned) {
+    return true;
+  }
+
   const raw = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
   const bytes = Utilities.computeHmacSha256Signature(raw, secret);
   const digest = Utilities.base64Encode(bytes);
   if (String(signature || '') !== String(digest)) {
     throw new Error('Assinatura inválida do webhook.');
   }
+}
+
+function simularMensagemBotWhatsapp(telefone, texto) {
+  const payload = {
+    clienteTelefone: String(telefone || '').replace(/\D/g, ''),
+    texto: String(texto || '')
+  };
+
+  const resposta = gerarRespostaBotWhatsapp_(payload.texto);
+  let idPedido = '';
+
+  if (resposta.criarPrePedido) {
+    idPedido = criarPrePedidoWhatsapp_(payload.clienteTelefone, payload.texto).idPedido;
+  }
+
+  registrarEventoWhatsapp_(idPedido || 'N/A', 'SIMULACAO_BOT', 'Mensagem simulada no painel interno.');
+  return {
+    ok: true,
+    msg: resposta.mensagem,
+    criarPrePedido: resposta.criarPrePedido,
+    idPedido: idPedido
+  };
 }
 
 function aplicarRateLimitWhatsapp_() {
@@ -294,5 +346,60 @@ function criarPrePedidoWhatsapp_(telefone, textoLivre) {
   const idPedido = 'WPP-BOT-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
   sh.appendRow([idPedido, telefone, textoLivre, 'AGUARDANDO_CONFERENCIA', new Date()]);
 
+  registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
+
   return { idPedido: idPedido };
+}
+
+function registrarPrePedidoNoDelivery_(idPrePedido, telefone, textoLivre) {
+  const ss = SpreadsheetApp.getActive();
+  const deliverySh = ss.getSheetByName('DELIVERY');
+
+  if (!deliverySh) {
+    registrarEventoWhatsapp_(idPrePedido, 'ERRO_PRE_PEDIDO', 'Aba DELIVERY não encontrada para registrar pré-pedido.');
+    return;
+  }
+
+  if (typeof garantirDeliveryItens === 'function') {
+    garantirDeliveryItens();
+  }
+
+  const pedidoNumero = (typeof gerarNumeroDelivery === 'function')
+    ? gerarNumeroDelivery()
+    : (deliverySh.getLastRow() - 1) + 1;
+
+  const clienteNome = 'WHATSAPP ' + telefone;
+  const produtoPlaceholder = 'PEDIDO VIA WHATSAPP - CONFERIR ITENS';
+  const observacao = String(textoLivre || '').slice(0, 500);
+
+  deliverySh.appendRow([
+    pedidoNumero,
+    new Date(),
+    clienteNome,
+    produtoPlaceholder,
+    1,
+    0,
+    '⚡ Pix',
+    'PEDIDO FEITO',
+    'BOT_WHATSAPP',
+    idPrePedido
+  ]);
+
+  const itensSh = ss.getSheetByName('DELIVERY_ITENS');
+  if (itensSh) {
+    itensSh.appendRow([
+      pedidoNumero,
+      produtoPlaceholder + ' | ' + observacao,
+      1,
+      0,
+      0,
+      'NAO'
+    ]);
+  }
+
+  registrarEventoWhatsapp_(
+    idPrePedido,
+    'PRE_PEDIDO_DELIVERY_CRIADO',
+    'Pré-pedido registrado no DELIVERY como PEDIDO FEITO. Pedido #' + pedidoNumero
+  );
 }
