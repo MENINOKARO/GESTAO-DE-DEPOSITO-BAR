@@ -3743,15 +3743,13 @@
           }
   
           const telDigits = tel.value.replace(/\D/g,'').slice(0,11);
-          if(telDigits.length < 10 || telDigits.length > 11){
-            alert('Informe um telefone válido no formato brasileiro: DDD + número.');
+          if(telDigits.length !== 11){
+            alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
             tel.focus();
             return;
           }
 
-          tel.value = telDigits.length === 11
-            ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-            : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+          tel.value = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 
           const nomeUpper = nome.value.trim().toUpperCase();
           const existe = ${JSON.stringify(clientes)}.includes(nomeUpper);
@@ -3798,6 +3796,10 @@
   
     const ss = SpreadsheetApp.getActive();
     const sh = ss.getSheetByName('CLIENTES');
+
+    if(!sh){
+      throw new Error('Aba CLIENTES não encontrada.');
+    }
   
     const nomeFinal = String(nome || '').trim().toUpperCase();
     const telDigits = String(tel || '').replace(/\D/g, '').slice(0, 11);
@@ -3806,13 +3808,11 @@
       throw new Error('Nome do cliente é obrigatório.');
     }
 
-    if(telDigits.length < 10 || telDigits.length > 11){
-      throw new Error('Telefone inválido. Use DDD + número (10 ou 11 dígitos).');
+    if(telDigits.length !== 11){
+      throw new Error('Telefone inválido. Use DDD + 9 dígitos (11 números).');
     }
 
-    const telFormatado = telDigits.length === 11
-      ? telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-      : telDigits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    const telFormatado = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
   
     // ============================
     // 1️⃣ SALVA CLIENTE (INALTERADO)
@@ -3828,36 +3828,46 @@
     // ============================
     // 2️⃣ GARANTE CONTA FIADO
     // ============================
-    garantirContasAReceber();
+    // Obs.: não bloqueia o cadastro do cliente se houver falha apenas na rotina financeira/log.
+    try {
+      garantirContasAReceber();
   
-    const cr = ss.getSheetByName('CONTAS_A_RECEBER');
-    const dados = cr.getDataRange().getValues();
+      const cr = ss.getSheetByName('CONTAS_A_RECEBER');
+      const dados = cr.getDataRange().getValues();
   
-    const jaExiste = dados.some((l,i) =>
-      i > 0 &&
-      l[1] === 'CLIENTE' &&
-      l[3] === nomeFinal &&
-      l[7] === 'FIADO'
-    );
+      const jaExiste = dados.some((l,i) =>
+        i > 0 &&
+        l[1] === 'CLIENTE' &&
+        l[3] === nomeFinal &&
+        l[7] === 'FIADO'
+      );
   
-    if(!jaExiste){
+      if(!jaExiste){
   
-      // ✅ CRIA CONTA FIADO FIXA PELO PADRÃO OFICIAL
-      criarContaAReceber(
-        'CLIENTE',        // Origem
-        'FIADO_FIXO',     // Referência
-        nomeFinal,        // Cliente
-        0,                // Valor
-        'FIADO'           // Forma
+        // ✅ CRIA CONTA FIADO FIXA PELO PADRÃO OFICIAL
+        criarContaAReceber(
+          'CLIENTE',        // Origem
+          'FIADO_FIXO',     // Referência
+          nomeFinal,        // Cliente
+          0,                // Valor
+          'FIADO'           // Forma
+        );
+      }
+
+      registrarLog(
+        'CLIENTE_CADASTRADO',
+        nomeFinal,
+        '',
+        'CONTA_FIADO_OK'
+      );
+    } catch (e) {
+      registrarLog(
+        'CLIENTE_CADASTRADO',
+        nomeFinal,
+        '',
+        'CONTA_FIADO_FALHA: ' + (e && e.message ? e.message : e)
       );
     }
-
-    registrarLog(
-      'CLIENTE_CADASTRADO',
-      nomeFinal,
-      '',
-      'CONTA_FIADO_OK'
-    );
 
     return true;
   }
