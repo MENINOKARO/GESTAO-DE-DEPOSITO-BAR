@@ -3619,7 +3619,7 @@
           </div>
 
           <div class="actions">
-            <button id="btnSalvar" class="btn-save" onclick="salvarClientePopup(this)">💾 Salvar Cliente</button>
+            <button id="btnSalvar" class="btn-save">💾 Salvar Cliente</button>
             <button class="btn-cancel" onclick="cancelar()">Cancelar</button>
           </div>
         </div>
@@ -3704,8 +3704,13 @@
         const end  = document.getElementById('end');
         const ref  = document.getElementById('ref');
         const obs  = document.getElementById('obs');
+        const btnSalvar = document.getElementById('btnSalvar');
 
         nome.focus();
+
+        if(btnSalvar){
+          btnSalvar.addEventListener('click', () => salvarClientePopup());
+        }
 
         tel.addEventListener('input', () => {
           let n = tel.value.replace(/\\D/g,'').slice(0,11);
@@ -3744,7 +3749,9 @@
           fecharEVoltarTelaCliente();
         }
 
-        function salvarClientePopup(btn){
+        function salvarClientePopup(){
+          const btn = btnSalvar;
+
           try {
             if(!nome.value.trim()){
               alert('Informe o nome do cliente 👤');
@@ -3763,7 +3770,6 @@
             : telDigits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
 
             const nomeUpper = nome.value.trim().toUpperCase();
-            const listaClientes = ${JSON.stringify(clientes)};
             const existe = listaClientes.includes(nomeUpper);
 
             if(existe){
@@ -3804,8 +3810,8 @@
           }
         }
 
-        function salvar(btn){
-          salvarClientePopup(btn);
+        function salvar(){
+          salvarClientePopup();
         }
 
       </script>
