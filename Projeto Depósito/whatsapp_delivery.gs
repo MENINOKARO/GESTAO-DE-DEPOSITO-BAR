@@ -520,7 +520,14 @@ function salvarEstadoAtendimentoWhatsapp_(telefone, estado) {
   return true;
 }
 
-  registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
+function limparEstadoAtendimentoWhatsapp_(telefone, idPedido, textoLivre) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = obterOuCriarAbaAtendimentoWhatsapp_(ss);
+  const dados = sh.getDataRange().getValues();
+
+  if (idPedido) {
+    registrarPrePedidoNoDelivery_(idPedido, telefone, textoLivre);
+  }
 
   for (let i = dados.length - 1; i >= 1; i--) {
     if (String(dados[i][0] || '') === String(telefone || '')) {
