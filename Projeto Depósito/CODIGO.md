@@ -3585,34 +3585,35 @@
             <h3>👤 Cadastro de Cliente</h3>
             <p>Preencha as informações relevantes para atendimento, delivery e fiado.</p>
           </div>
-  
+
           <div class="cli-grid">
             <div class="field field-2">
               <label>👤 Nome do Cliente <span>*</span></label>
               <input id="nome" placeholder="Ex.: João da Silva" maxlength="80">
             </div>
-  
+
             <div class="field">
               <label>📞 Telefone (WhatsApp) <span>*</span></label>
               <input id="tel" placeholder="(11) 91234-5678" inputmode="numeric" maxlength="15">
               <small>Formato brasileiro (DDD + número).</small>
             </div>
-  
+
             <div class="field">
               <label>📍 Referência</label>
               <input id="ref" placeholder="Ex.: Próximo ao mercado / portão azul" maxlength="120">
             </div>
-  
+
             <div class="field field-2">
               <label>🏠 Endereço</label>
               <input id="end" placeholder="Rua, número, bairro, complemento" maxlength="140">
             </div>
-  
+
             <div class="field field-2">
               <label>📝 Observações</label>
               <textarea id="obs" rows="3" placeholder="Ex.: Preferência de contato, horário de entrega, restrições..."></textarea>
             </div>
           </div>
+
           <div class="info-box">
             <strong>Informações relevantes:</strong>
             <ul>
@@ -3621,14 +3622,14 @@
               <li>Observações ajudam no histórico do cliente.</li>
             </ul>
           </div>
-  
+
           <div class="actions">
             <button id="btnSalvar" class="btn-save" onclick="salvarClientePopup(this)">💾 Salvar Cliente</button>
             <button class="btn-cancel" onclick="cancelar()">Cancelar</button>
           </div>
         </div>
       </div>
-  
+
       <style>
         .cli-wrap { font-family: Arial, sans-serif; }
         .cli-card {
@@ -3651,6 +3652,7 @@
         .field-2 { grid-column: span 2; }
         label { font-weight: 700; font-size: 12px; color: #0f172a; }
         label span { color: #dc2626; }
+
         input, textarea {
           border: 1px solid #cbd5e1;
           border-radius: 10px;
@@ -3658,10 +3660,12 @@
           font-size: 13px;
           outline: none;
         }
+
         input:focus, textarea:focus {
           border-color: #2563eb;
           box-shadow: 0 0 0 2px rgba(37,99,235,.15);
         }
+
         small { color: #64748b; font-size: 11px; }
 
         .info-box {
@@ -3673,7 +3677,6 @@
           font-size: 12px;
           color: #1e3a8a;
         }
-        .info-box ul { margin: 6px 0 0 18px; padding: 0; }
 
         .actions {
           margin-top: 14px;
@@ -3681,6 +3684,7 @@
           gap: 8px;
           justify-content: flex-end;
         }
+
         .btn-save, .btn-cancel {
           border: none;
           border-radius: 10px;
@@ -3688,43 +3692,52 @@
           font-weight: 700;
           cursor: pointer;
         }
+
         .btn-save { background: #16a34a; color: #fff; }
         .btn-save:hover { background: #15803d; }
+
         .btn-cancel { background: #e2e8f0; color: #0f172a; }
         .btn-cancel:hover { background: #cbd5e1; }
       </style>
-  
+
       <script>
+
+        const listaClientes = ${JSON.stringify(clientes)};
+
         const nome = document.getElementById('nome');
         const tel  = document.getElementById('tel');
         const end  = document.getElementById('end');
         const ref  = document.getElementById('ref');
         const obs  = document.getElementById('obs');
-  
+
         nome.focus();
-  
-        // 📞 máscara telefone pt-BR: (11) 91234-5678
+
         tel.addEventListener('input', () => {
-          let n = tel.value.replace(/\D/g,'').slice(0,11);
+          let n = tel.value.replace(/\\D/g,'').slice(0,11);
+
           if (n.length <= 10) {
-            n = n.replace(/(\d{2})(\d)/, '($1) $2');
-            n = n.replace(/(\d{4})(\d)/, '$1-$2');
+            n = n.replace(/(\\d{2})(\\d)/, '($1) $2');
+            n = n.replace(/(\\d{4})(\\d)/, '$1-$2');
           } else {
-            n = n.replace(/(\d{2})(\d)/, '($1) $2');
-            n = n.replace(/(\d{5})(\d)/, '$1-$2');
+            n = n.replace(/(\\d{2})(\\d)/, '($1) $2');
+            n = n.replace(/(\\d{5})(\\d)/, '$1-$2');
           }
+
           tel.value = n;
         });
 
         tel.addEventListener('blur', () => {
-          const digits = tel.value.replace(/\D/g,'').slice(0,11);
+
+          const digits = tel.value.replace(/\\D/g,'').slice(0,11);
+
           if(digits.length === 11){
-            tel.value = digits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            tel.value = digits.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
           } else if(digits.length === 10){
-            tel.value = digits.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+            tel.value = digits.replace(/(\\d{2})(\\d{4})(\\d{4})/, '($1) $2-$3');
           }
+
         });
-  
+
         function fecharEVoltarTelaCliente(){
           google.script.run
             .withSuccessHandler(() => google.script.host.close())
@@ -3735,13 +3748,13 @@
         function cancelar(){
           fecharEVoltarTelaCliente();
         }
-  
+
         function salvarClientePopup(btn){
           if(!nome.value.trim()){
             alert('Informe o nome do cliente 👤');
             return;
           }
-  
+
           const telDigits = tel.value.replace(/\D/g,'').slice(0,11);
           if(telDigits.length !== 11){
             alert('Informe um WhatsApp válido com DDD + 9 dígitos (11 números).');
@@ -3752,8 +3765,9 @@
           tel.value = telDigits.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 
           const nomeUpper = nome.value.trim().toUpperCase();
-          const existe = ${JSON.stringify(clientes)}.includes(nomeUpper);
-  
+          const listaClientes = ${JSON.stringify(clientes)};
+          const existe = listaClientes.includes(nomeUpper);
+
           if(existe){
             const ok = confirm('⚠️ Cliente já cadastrado com este nome.\n\nDeseja salvar mesmo assim?');
             if(!ok) return;
@@ -3785,11 +3799,12 @@
             );
         }
 
-        // Compatibilidade com versões antigas do popup
         function salvar(btn){
           salvarClientePopup(btn);
         }
+
       </script>
+
     `, 640, 700);
   }
   function salvarCliente(nome, tel, end, ref, obs){
@@ -12010,7 +12025,6 @@
       try{ sh.getDataRange().setFontFamily('Arial').setFontSize(11); }catch(e){};
     });
 
-    SpreadsheetApp.getUi().alert('✅ Tema padrão aplicado a todas as abas.');
   }
   function garantirSenhaResetObrigatoria(){
     const props = PropertiesService.getScriptProperties();
