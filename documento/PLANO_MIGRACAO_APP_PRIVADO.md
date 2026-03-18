@@ -77,22 +77,33 @@ Ou seja: o app deve copiar **a experiência funcional e as regras do sistema**, 
 
 ### Opção recomendada
 
-**Flutter + backend próprio + banco relacional**.
+**TypeScript end-to-end: Expo + React Native + backend Node.js estruturado + PostgreSQL gerenciado**.
 
 ### Justificativa
 
-- entrega app Android e iOS a partir de uma base única;
-- facilita manter interface consistente com o sistema atual;
-- suporta operação com múltiplas telas, formulários, dashboards e fluxos offline/online;
+- usa uma linguagem mais simples e única no app e no backend;
+- acelera onboarding, manutenção e evolução do sistema;
+- entrega Android e iOS a partir de uma base única;
+- suporta múltiplas telas, formulários, dashboards e fluxos online/offline;
 - permite escalar sem ficar preso às limitações do Apps Script para app mobile.
 
 ### Backend recomendado
 
 - **API própria** para regras de negócio;
-- **PostgreSQL** como banco principal;
-- autenticação com controle de sessão;
-- storage para backups, comprovantes e anexos;
-- webhooks para integrações.
+- **PostgreSQL gerenciado** como banco principal;
+- autenticação com controle de sessão, refresh token e perfis;
+- storage privado para backups, comprovantes e anexos;
+- webhooks para integrações;
+- trilha de auditoria para ações sensíveis.
+
+### Requisitos mínimos de segurança do banco
+
+- criptografia em repouso e em trânsito;
+- backup automático diário;
+- segregação entre dev, homologação e produção;
+- secrets fora do código-fonte;
+- hash forte de senhas (`bcrypt` ou `argon2`);
+- política de privilégio mínimo para usuários técnicos.
 
 ### Observação
 
