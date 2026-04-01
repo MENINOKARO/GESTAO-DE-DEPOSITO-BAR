@@ -219,9 +219,34 @@
       ? shUsuarios.getRange(1, 1, lastRow, lastCol).getValues()
       : [];
 
-    const headerAtual = raw.length ? raw[0].map(v => String(v || '').trim().toUpperCase()) : [];
+    const headerAtual = raw.length ? raw[0].map(v => normalizarCabecalho_(v)) : [];
     const idx = {};
     headerAtual.forEach((h, i) => { if (h) idx[h] = i; });
+
+    function obterPrimeiroIndice_(aliases, fallback) {
+      for (let i = 0; i < aliases.length; i++) {
+        const k = normalizarCabecalho_(aliases[i]);
+        if (idx[k] != null) return idx[k];
+      }
+      return fallback;
+    }
+
+    function pareceHashBase64_(valor) {
+      const v = String(valor || '').trim();
+      if (!v) return false;
+      return /^[A-Za-z0-9+/=]+$/.test(v) && v.length >= 8;
+    }
+
+    const idxId = obterPrimeiroIndice_(['ID_USER', 'ID', 'USUARIO_ID'], 0);
+    const idxNome = obterPrimeiroIndice_(['NOME', 'USUARIO', 'NOME_USUARIO'], 1);
+    const idxEmail = obterPrimeiroIndice_(['EMAIL', 'E_MAIL'], 2);
+    const idxTelefone = obterPrimeiroIndice_(['TELEFONE', 'CELULAR', 'FONE'], 3);
+    const idxSenha = obterPrimeiroIndice_(['SENHA_HASH', 'HASH_SENHA', 'SENHA'], 4);
+    const idxPerfil = obterPrimeiroIndice_(['PERFIL', 'NIVEL'], 5);
+    const idxAtivo = obterPrimeiroIndice_(['ATIVO', 'STATUS'], 6);
+    const idxDataCriacao = obterPrimeiroIndice_(['DATA_CRIACAO', 'CRIADO_EM', 'DATA'], 7);
+    const idxUltimoAcesso = obterPrimeiroIndice_(['ULTIMO_ACESSO', 'ULTIMO_LOGIN'], 8);
+    const idxTrocaSenha = obterPrimeiroIndice_(['TROCA_SENHA_OBRIGATORIA', 'TROCA_SENHA', 'FORCAR_TROCA'], 9);
 
     const linhasNormalizadas = [];
 
@@ -229,16 +254,23 @@
       const row = raw[r];
       if (row.every(v => String(v || '').trim() === '')) continue;
 
-      let idUser = (idx.ID_USER != null ? row[idx.ID_USER] : row[0]) || '';
-      let nome = (idx.NOME != null ? row[idx.NOME] : row[1]) || '';
-      let email = (idx.EMAIL != null ? row[idx.EMAIL] : row[2]) || '';
-      let telefone = idx.TELEFONE != null ? row[idx.TELEFONE] : '';
-      let senhaHash = (idx.SENHA_HASH != null ? row[idx.SENHA_HASH] : row[3]) || '';
-      let perfil = (idx.PERFIL != null ? row[idx.PERFIL] : row[4]) || 'OPERACIONAL';
-      let ativo = (idx.ATIVO != null ? row[idx.ATIVO] : row[5]) || 'SIM';
-      let dataCriacao = (idx.DATA_CRIACAO != null ? row[idx.DATA_CRIACAO] : row[6]) || '';
-      let ultimoAcesso = (idx.ULTIMO_ACESSO != null ? row[idx.ULTIMO_ACESSO] : row[7]) || '';
-      let trocaSenhaObrigatoria = (idx.TROCA_SENHA_OBRIGATORIA != null ? row[idx.TROCA_SENHA_OBRIGATORIA] : row[9]) || 'NAO';
+      let idUser = row[idxId] || '';
+      let nome = row[idxNome] || '';
+      let email = row[idxEmail] || '';
+      let telefone = row[idxTelefone] || '';
+      let senhaHash = row[idxSenha] || '';
+      let perfil = row[idxPerfil] || 'OPERACIONAL';
+      let ativo = row[idxAtivo] || 'SIM';
+      let dataCriacao = row[idxDataCriacao] || '';
+      let ultimoAcesso = row[idxUltimoAcesso] || '';
+      let trocaSenhaObrigatoria = row[idxTrocaSenha] || 'NAO';
+
+      // fallback legado: quando senha foi lida da coluna errada
+      if (!pareceHashBase64_(senhaHash)) {
+        const candidatosSenha = [row[4], row[3], row[5]].filter(v => String(v || '').trim() !== '');
+        const hashValido = candidatosSenha.find(v => pareceHashBase64_(v));
+        if (hashValido) senhaHash = hashValido;
+      }
 
       const ativoTxt = String(ativo || '').toUpperCase();
       const dataCriacaoTxt = String(dataCriacao || '').toUpperCase();
@@ -248,7 +280,7 @@
         perfil = ativo;
         ativo = dataCriacao;
         dataCriacao = ultimoAcesso;
-        ultimoAcesso = row[(idx.ULTIMO_ACESSO != null ? idx.ULTIMO_ACESSO : 7) + 1] || '';
+        ultimoAcesso = row[idxUltimoAcesso + 1] || '';
       }
 
       linhasNormalizadas.push([
@@ -610,16 +642,23 @@
         console.log('[SERVER] Total de linhas encontradas: ' + dados.length);
         console.log('[SERVER] Buscando por: ' + usuario);
 
-        // aceita login por ID (U-...), nome ou email
+        // aceita login por ID (U-...), nome, email ou telefone
         for (let i = 1; i < dados.length; i++) {
           const id = String(dados[i][0] || '');
           const nome = String(dados[i][1] || '').toLowerCase().trim();
           const emailCell = String(dados[i][2] || '').toLowerCase().trim();
+          const telefone = String(dados[i][3] || '').replace(/\D/g, '');
           const uLower = usuario.toLowerCase().trim();
+          const uDigits = usuario.replace(/\D/g, '');
 
           console.log('[SERVER] Linha ' + i + ': ID=' + id + ', NOME=' + nome + ', EMAIL=' + emailCell);
 
-          if (id === usuario || nome === uLower || (emailCell && emailCell === uLower)) {
+          if (
+            id === usuario ||
+            nome === uLower ||
+            (emailCell && emailCell === uLower) ||
+            (uDigits && telefone && telefone === uDigits)
+          ) {
             console.log('[SERVER] ✅ Usuário encontrado na linha ' + i);
             usuarioValido = dados[i];
             break;
@@ -643,7 +682,7 @@
         const senhaHash = String(usuarioValido[4]);
         if(!verificarSenha(senha, senhaHash)){
           registrarAuditoria(usuarioValido[0], 'LOGIN_FALHA', 'Senha incorreta');
-          return { ok: false, msg: 'Usuário ou senha incorretos.' };
+          return { ok: false, msg: 'Senha incorreta.' };
         }
         
         // ✅ Cria sessão
@@ -679,9 +718,17 @@
    */
     function verificarSenha(senhaDigitada, senhaHash){
       // Em produção, usar bcrypt ou similar
-      // Hasheia a senha digitada e compara com o hash armazenado
-      const senhaDigitadaHash = Utilities.base64Encode(String(senhaDigitada).trim());
-      return senhaDigitadaHash === String(senhaHash).trim();
+      const senhaTexto = String(senhaDigitada || '').trim();
+      const hashArmazenado = String(senhaHash || '').trim();
+
+      // compatibilidade com bases legadas que salvaram senha em texto puro
+      if (senhaTexto && hashArmazenado && senhaTexto === hashArmazenado) {
+        return true;
+      }
+
+      // padrão atual
+      const senhaDigitadaHash = Utilities.base64Encode(senhaTexto);
+      return senhaDigitadaHash === hashArmazenado;
     }
 
   /**
