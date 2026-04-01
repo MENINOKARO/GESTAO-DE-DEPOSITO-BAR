@@ -133,6 +133,7 @@
     };
   }
 
+<<<<<<< codex/verify-login-and-tab-blocking-functionality-gqzui8
   function corrigirSenhasLegadasUsuarios_() {
     try {
       const ss = SpreadsheetApp.getActive();
@@ -163,6 +164,8 @@
     }
   }
 
+=======
+>>>>>>> main
   /**
    * Executar uma única vez por usuário para antecipar permissões sensíveis
    * e reduzir solicitações fragmentadas ao longo do uso.
@@ -236,11 +239,14 @@
       if (!validacao.ok) {
         console.warn('⚠️ Estrutura de autenticação ajustada com observações:', validacao.problemas.join(' | '));
       }
+<<<<<<< codex/verify-login-and-tab-blocking-functionality-gqzui8
 
       const ajusteSenhas = corrigirSenhasLegadasUsuarios_();
       if (ajusteSenhas.ok && ajusteSenhas.corrigidos > 0) {
         console.warn(`⚠️ Senhas legadas ajustadas automaticamente: ${ajusteSenhas.corrigidos}`);
       }
+=======
+>>>>>>> main
 
     } catch(e) {
       console.warn('Erro ao garantir estrutura de usuários:', e.message);
