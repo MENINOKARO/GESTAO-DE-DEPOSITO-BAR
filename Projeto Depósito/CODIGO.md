@@ -411,6 +411,49 @@
 
       return null;
     }
+    function setConfig(chave, valor, descricao){
+
+      const ss = SpreadsheetApp.getActive();
+      let sh = ss.getSheetByName('CONFIG');
+
+      if(!sh){
+        organizarConfig(true);
+        sh = ss.getSheetByName('CONFIG');
+      }
+
+      if(!sh){
+        throw new Error('Aba CONFIG não encontrada.');
+      }
+
+      const chaveNorm = String(chave || '').toUpperCase().trim();
+      if(!chaveNorm){
+        throw new Error('Chave de configuração inválida.');
+      }
+
+      const dados = sh.getDataRange().getValues();
+      let linha = -1;
+
+      for(let i = 1; i < dados.length; i++){
+        if(String(dados[i][0] || '').toUpperCase().trim() === chaveNorm){
+          linha = i + 1;
+          break;
+        }
+      }
+
+      const valorFinal = valor == null ? '' : valor;
+      const descFinal = descricao == null ? '' : descricao;
+
+      if(linha > 0){
+        sh.getRange(linha, 2).setValue(valorFinal);
+        if(descFinal !== ''){
+          sh.getRange(linha, 3).setValue(descFinal);
+        }
+      } else {
+        sh.appendRow([chaveNorm, valorFinal, descFinal]);
+      }
+
+      return true;
+    }
     function atualizarHome(){
       // preferencialmente monta dashboard completo
       if(typeof criarHomeDashboard === 'function'){
@@ -1616,19 +1659,21 @@
       // =========================
       if(typeof organizarConfig === 'function'){
         organizarConfig(true);
-      
-        // =========================
-        // 7️⃣ RENOVA SENHA DE RESET
-        // =========================
-        const props = PropertiesService.getScriptProperties();
+      }
 
-        // 🔄 limpa senha atual e força padrão + troca obrigatória
-        props.deleteProperty('SENHA_RESET');
-        props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+      // =========================
+      // 7️⃣ RENOVA SENHA DE RESET (sempre)
+      // =========================
+      const props = PropertiesService.getScriptProperties();
 
-        if(typeof garantirSenhaResetObrigatoria === 'function'){
-          garantirSenhaResetObrigatoria();
-        }
+      // 🔄 limpa senha atual e força padrão + troca obrigatória
+      props.deleteProperty('SENHA_RESET');
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
+      if(typeof garantirSenhaResetObrigatoria === 'function'){
+        garantirSenhaResetObrigatoria();
+      } else {
+        props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       }
 
       // =========================
@@ -9523,7 +9568,6 @@ function getClienteTempDelivery(){
           <p class="hint">${nome}</p>
 
           <button class="card" onclick="google.script.run.abrirWhatsappPedidosChegados()">📥 Verificar Pedidos que Chegaram</button>
-          <button class="card" onclick="google.script.run.popupSimuladorBotWhatsapp()">🤖 Conversar com Bot (Teste)</button>
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
@@ -11790,22 +11834,8 @@ function getClienteTempDelivery(){
 
     if(resp !== ui.Button.YES) return;
 
-    // Encerra sessão
-    encerrarSessao();
-
-    // Limpa cache e propriedades
-    CacheService.getUserCache().removeAll([
-      'SESSAO_ATIVA',
-      'ID_USER',
-      'USUARIO_ATUAL'
-    ]);
-
-    ui.alert('✅ Logout realizado com sucesso.');
-
-    // Recarrega página
-    setTimeout(() => {
-      popupLogin();
-    }, 500);
+    // delega para fluxo assíncrono seguro
+    popupLogout();
   }
   function aplicarTemaCompleto(){
     const ss = SpreadsheetApp.getActive();
