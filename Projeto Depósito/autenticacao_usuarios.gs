@@ -19,72 +19,193 @@
  * 🔧 INICIALIZAÇÃO DO SISTEMA DE AUTENTICAÇÃO
  */
 
+  const AUTH_SCHEMAS_ = {
+    USUARIOS: [
+      'ID_USER',
+      'NOME',
+      'EMAIL',
+      'TELEFONE',
+      'SENHA_HASH',
+      'PERFIL',
+      'ATIVO',
+      'DATA_CRIACAO',
+      'ULTIMO_ACESSO',
+      'TROCA_SENHA_OBRIGATORIA'
+    ],
+    SESSOES: [
+      'ID_SESSAO',
+      'ID_USER',
+      'DATA_LOGIN',
+      'DATA_LOGOUT',
+      'ATIVO'
+    ],
+    AUDITORIA_USUARIOS: [
+      'TIMESTAMP',
+      'ID_USER',
+      'ACAO',
+      'DETALHE',
+      'IP',
+      'STATUS'
+    ]
+  };
+
+  function normalizarCabecalho_(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
+      .trim()
+      .toUpperCase();
+  }
+
+  function garantirAbaComCabecalho_(ss, nomeAba, headers) {
+    let sh = ss.getSheetByName(nomeAba);
+    if (!sh) {
+      sh = ss.insertSheet(nomeAba);
+    }
+
+    normalizarEstruturaTabela_(sh, headers);
+    return sh;
+  }
+
+  function normalizarEstruturaTabela_(sheet, headersEsperados) {
+    const ultimaLinha = sheet.getLastRow();
+    const ultimaColuna = Math.max(sheet.getLastColumn(), headersEsperados.length);
+    const dadosBrutos = ultimaLinha > 0
+      ? sheet.getRange(1, 1, ultimaLinha, ultimaColuna).getValues()
+      : [];
+
+    const mapaAtual = {};
+    if (dadosBrutos.length) {
+      dadosBrutos[0].forEach((h, idx) => {
+        const chave = normalizarCabecalho_(h);
+        if (chave) mapaAtual[chave] = idx;
+      });
+    }
+
+    const linhasNormalizadas = [];
+    for (let i = 1; i < dadosBrutos.length; i++) {
+      const row = dadosBrutos[i];
+      if (!row || row.every(v => String(v || '').trim() === '')) continue;
+
+      const novaLinha = headersEsperados.map(header => {
+        const idx = mapaAtual[normalizarCabecalho_(header)];
+        return idx != null ? row[idx] : '';
+      });
+      linhasNormalizadas.push(novaLinha);
+    }
+
+    sheet.clear();
+    sheet.getRange(1, 1, 1, headersEsperados.length).setValues([headersEsperados]);
+    if (linhasNormalizadas.length) {
+      sheet.getRange(2, 1, linhasNormalizadas.length, headersEsperados.length).setValues(linhasNormalizadas);
+    }
+    sheet.setFrozenRows(1);
+  }
+
+  function validarEstruturasAutenticacao_() {
+    const ss = SpreadsheetApp.getActive();
+    const problemas = [];
+
+    Object.keys(AUTH_SCHEMAS_).forEach(nomeAba => {
+      const sh = ss.getSheetByName(nomeAba);
+      if (!sh) {
+        problemas.push(`Aba ausente: ${nomeAba}`);
+        return;
+      }
+
+      const headersEsperados = AUTH_SCHEMAS_[nomeAba];
+      const cabecalhos = sh
+        .getRange(1, 1, 1, headersEsperados.length)
+        .getValues()[0]
+        .map(normalizarCabecalho_);
+
+      headersEsperados.forEach((h, idx) => {
+        if (cabecalhos[idx] !== normalizarCabecalho_(h)) {
+          problemas.push(`${nomeAba}: coluna ${idx + 1} deveria ser "${h}"`);
+        }
+      });
+    });
+
+    return {
+      ok: problemas.length === 0,
+      problemas: problemas
+    };
+  }
+
+  /**
+   * Executar uma única vez por usuário para antecipar permissões sensíveis
+   * e reduzir solicitações fragmentadas ao longo do uso.
+   */
+  function ativarPermissoesSistemaUmaUnicaVez() {
+    try {
+      const ss = SpreadsheetApp.getActive();
+      ss.getSheets();
+
+      const propsUser = PropertiesService.getUserProperties();
+      propsUser.getKeys();
+      PropertiesService.getScriptProperties().getKeys();
+
+      ScriptApp.getProjectTriggers();
+      Session.getActiveUser().getEmail();
+
+      const sheets = ss.getSheets();
+      sheets.forEach(sh => {
+        const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)
+          .find(x => x.getDescription() === 'Warmup de permissões');
+        if (!p) {
+          const prot = sh.protect();
+          prot.setDescription('Warmup de permissões');
+          prot.setWarningOnly(true);
+          prot.remove();
+        }
+      });
+
+      try {
+        UrlFetchApp.fetch('https://www.google.com/generate_204', {
+          method: 'get',
+          muteHttpExceptions: true
+        });
+      } catch (e) {
+        console.warn('Warmup UrlFetch não concluído:', e.message);
+      }
+
+      return { ok: true, msg: 'Permissões ativadas. Execute novamente somente se necessário.' };
+    } catch (e) {
+      console.error('Erro em ativarPermissoesSistemaUmaUnicaVez:', e);
+      return { ok: false, msg: 'Falha ao ativar permissões: ' + e.message };
+    }
+  }
+
   function garantirEstruturausuarios() {
     try {
       const ss = SpreadsheetApp.getActive();
 
-      const headersUsuarios = [
-        'ID_USER',
-        'NOME',
-        'EMAIL',
-        'TELEFONE',
-        'SENHA_HASH',
-        'PERFIL',
-        'ATIVO',
-        'DATA_CRIACAO',
-        'ULTIMO_ACESSO',
-        'TROCA_SENHA_OBRIGATORIA'
-      ];
+      const headersUsuarios = AUTH_SCHEMAS_.USUARIOS;
 
       // ========== ABA USUÁRIOS ==========
-      let shUsuarios = ss.getSheetByName('USUARIOS');
-      if (!shUsuarios) {
-        shUsuarios = ss.insertSheet('USUARIOS');
-        shUsuarios.getRange('A1:J1').setValues([[
-          'ID_USER',
-          'NOME',
-          'EMAIL',
-          'TELEFONE',
-          'SENHA_HASH',
-          'PERFIL',
-          'ATIVO',
-          'DATA_CRIACAO',
-          'ULTIMO_ACESSO',
-          'TROCA_SENHA_OBRIGATORIA'
-        ]]);
-        shUsuarios.setFrozenRows(1);
-      }
+      let shUsuarios = garantirAbaComCabecalho_(ss, 'USUARIOS', AUTH_SCHEMAS_.USUARIOS);
 
       normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios);
 
       // ========== ABA SESSÕES ==========
-      let shSessoes = ss.getSheetByName('SESSOES');
-      if (!shSessoes) {
-        shSessoes = ss.insertSheet('SESSOES');
-        shSessoes.getRange('A1:E1').setValues([[
-          'ID_SESSAO',
-          'ID_USER',
-          'DATA_LOGIN',
-          'DATA_LOGOUT',
-          'ATIVO'
-        ]]);
-      }
+      let shSessoes = garantirAbaComCabecalho_(ss, 'SESSOES', AUTH_SCHEMAS_.SESSOES);
       shSessoes.setFrozenRows(1);
+      if (shSessoes.getLastRow() > 1) {
+        shSessoes.getRange(2, 3, shSessoes.getLastRow() - 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      }
 
       // ========== ABA AUDITORIA ==========
-      let shAuditoria = ss.getSheetByName('AUDITORIA_USUARIOS');
-      if (!shAuditoria) {
-        shAuditoria = ss.insertSheet('AUDITORIA_USUARIOS');
-        shAuditoria.getRange('A1:F1').setValues([[
-          'TIMESTAMP',
-          'ID_USER',
-          'ACAO',
-          'DETALHE',
-          'IP',
-          'STATUS'
-        ]]);
-      }
+      let shAuditoria = garantirAbaComCabecalho_(ss, 'AUDITORIA_USUARIOS', AUTH_SCHEMAS_.AUDITORIA_USUARIOS);
       shAuditoria.setFrozenRows(1);
+      if (shAuditoria.getLastRow() > 1) {
+        shAuditoria.getRange(2, 1, shAuditoria.getLastRow() - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      }
+
+      const validacao = validarEstruturasAutenticacao_();
+      if (!validacao.ok) {
+        console.warn('⚠️ Estrutura de autenticação ajustada com observações:', validacao.problemas.join(' | '));
+      }
 
     } catch(e) {
       console.warn('Erro ao garantir estrutura de usuários:', e.message);
@@ -1594,6 +1715,7 @@
     
     const ss = SpreadsheetApp.getActive();
     const shUsuarios = ss.getSheetByName('USUARIOS');
+    if(!shUsuarios) return null;
     const dados = shUsuarios.getDataRange().getValues();
     
     for(let i = 1; i < dados.length; i++){
@@ -1789,8 +1911,17 @@ function temPermissao(perfilRequerido){
       // aba de bloqueio não deve ficar visível após autenticação
       try{
         const shBloq = ss.getSheetByName('BLOQUEIO_LOGIN');
-        if(shBloq) shBloq.hideSheet();
-      }catch(e){}
+        if(shBloq){
+          const ativa = ss.getActiveSheet();
+          if(ativa && ativa.getName() === 'BLOQUEIO_LOGIN'){
+            const destino = ss.getSheets().find(s => s.getName() !== 'BLOQUEIO_LOGIN');
+            if(destino) ss.setActiveSheet(destino);
+          }
+          shBloq.hideSheet();
+        }
+      }catch(e){
+        console.warn('Falha ao ocultar aba BLOQUEIO_LOGIN após login:', e.message);
+      }
     }
 
   /**
