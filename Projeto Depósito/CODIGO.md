@@ -411,6 +411,49 @@
 
       return null;
     }
+    function setConfig(chave, valor, descricao){
+
+      const ss = SpreadsheetApp.getActive();
+      let sh = ss.getSheetByName('CONFIG');
+
+      if(!sh){
+        organizarConfig(true);
+        sh = ss.getSheetByName('CONFIG');
+      }
+
+      if(!sh){
+        throw new Error('Aba CONFIG não encontrada.');
+      }
+
+      const chaveNorm = String(chave || '').toUpperCase().trim();
+      if(!chaveNorm){
+        throw new Error('Chave de configuração inválida.');
+      }
+
+      const dados = sh.getDataRange().getValues();
+      let linha = -1;
+
+      for(let i = 1; i < dados.length; i++){
+        if(String(dados[i][0] || '').toUpperCase().trim() === chaveNorm){
+          linha = i + 1;
+          break;
+        }
+      }
+
+      const valorFinal = valor == null ? '' : valor;
+      const descFinal = descricao == null ? '' : descricao;
+
+      if(linha > 0){
+        sh.getRange(linha, 2).setValue(valorFinal);
+        if(descFinal !== ''){
+          sh.getRange(linha, 3).setValue(descFinal);
+        }
+      } else {
+        sh.appendRow([chaveNorm, valorFinal, descFinal]);
+      }
+
+      return true;
+    }
     function atualizarHome(){
       // preferencialmente monta dashboard completo
       if(typeof criarHomeDashboard === 'function'){
