@@ -163,6 +163,7 @@
     }
   }
 
+
   /**
    * Executar uma única vez por usuário para antecipar permissões sensíveis
    * e reduzir solicitações fragmentadas ao longo do uso.
@@ -241,6 +242,7 @@
       if (ajusteSenhas.ok && ajusteSenhas.corrigidos > 0) {
         console.warn(`⚠️ Senhas legadas ajustadas automaticamente: ${ajusteSenhas.corrigidos}`);
       }
+
 
     } catch(e) {
       console.warn('Erro ao garantir estrutura de usuários:', e.message);
