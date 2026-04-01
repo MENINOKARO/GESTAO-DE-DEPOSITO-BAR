@@ -133,36 +133,6 @@
     };
   }
 
-  function corrigirSenhasLegadasUsuarios_() {
-    try {
-      const ss = SpreadsheetApp.getActive();
-      const sh = ss.getSheetByName('USUARIOS');
-      if (!sh || sh.getLastRow() < 2) return { ok: true, corrigidos: 0 };
-
-      const dados = sh.getDataRange().getValues();
-      let corrigidos = 0;
-
-      const pareceHashBase64 = valor => /^[A-Za-z0-9+/=]+$/.test(String(valor || '').trim()) && String(valor || '').trim().length >= 8;
-
-      for (let i = 1; i < dados.length; i++) {
-        const atual = String(dados[i][4] || '').trim(); // SENHA_HASH
-        if (pareceHashBase64(atual)) continue;
-
-        const cands = [dados[i][3], dados[i][5], dados[i][2]].map(v => String(v || '').trim()); // legados possíveis
-        const hash = cands.find(v => pareceHashBase64(v));
-        if (hash) {
-          sh.getRange(i + 1, 5).setValue(hash);
-          corrigidos++;
-        }
-      }
-
-      return { ok: true, corrigidos: corrigidos };
-    } catch (e) {
-      console.error('Erro em corrigirSenhasLegadasUsuarios_:', e);
-      return { ok: false, corrigidos: 0, msg: e.message };
-    }
-  }
-
   /**
    * Executar uma única vez por usuário para antecipar permissões sensíveis
    * e reduzir solicitações fragmentadas ao longo do uso.
@@ -235,11 +205,6 @@
       const validacao = validarEstruturasAutenticacao_();
       if (!validacao.ok) {
         console.warn('⚠️ Estrutura de autenticação ajustada com observações:', validacao.problemas.join(' | '));
-      }
-
-      const ajusteSenhas = corrigirSenhasLegadasUsuarios_();
-      if (ajusteSenhas.ok && ajusteSenhas.corrigidos > 0) {
-        console.warn(`⚠️ Senhas legadas ajustadas automaticamente: ${ajusteSenhas.corrigidos}`);
       }
 
     } catch(e) {
