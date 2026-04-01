@@ -250,14 +250,10 @@
         if(btnCancelar){ btnCancelar.style.display = 'none'; }
       }
 
-<<<<<<< codex/validate-password-module-functions-0e95t9
       const telInput = document.getElementById('telefone');
       const cnpjInput = document.getElementById('cnpj');
 
       telInput.addEventListener('input', e => {
-=======
-      document.getElementById('telefone').addEventListener('blur', e => {
->>>>>>> main
         e.target.value = formatPhone(e.target.value);
       });
       telInput.addEventListener('blur', e => {
@@ -322,6 +318,18 @@
         tema: document.getElementById('tema').value.trim() || 'DARK',
         backup: document.getElementById('backup').value.trim() || 'SIM'
       };
+
+      const cnpjDigits = dados.cnpj.replace(/\D/g, '');
+      if(dados.cnpj && cnpjDigits.length !== 14){
+        abrirPopupPadrao('⚠️ Atenção', 'CNPJ inválido. Use o formato 00.000.000/0000-00.', 'aviso');
+        return;
+      }
+
+      const telDigits = dados.telefone.replace(/\D/g, '');
+      if(dados.telefone && telDigits.length < 10){
+        abrirPopupPadrao('⚠️ Atenção', 'Telefone inválido. Use DDD + número.', 'aviso');
+        return;
+      }
       
       google.script.run
         .withSuccessHandler(res => {
