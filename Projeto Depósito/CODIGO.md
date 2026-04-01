@@ -11790,22 +11790,8 @@ function getClienteTempDelivery(){
 
     if(resp !== ui.Button.YES) return;
 
-    // Encerra sessão
-    encerrarSessao();
-
-    // Limpa cache e propriedades
-    CacheService.getUserCache().removeAll([
-      'SESSAO_ATIVA',
-      'ID_USER',
-      'USUARIO_ATUAL'
-    ]);
-
-    ui.alert('✅ Logout realizado com sucesso.');
-
-    // Recarrega página
-    setTimeout(() => {
-      popupLogin();
-    }, 500);
+    // delega para fluxo assíncrono seguro
+    popupLogout();
   }
   function aplicarTemaCompleto(){
     const ss = SpreadsheetApp.getActive();
