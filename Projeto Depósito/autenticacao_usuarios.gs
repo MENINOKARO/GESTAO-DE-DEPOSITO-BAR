@@ -1712,7 +1712,20 @@
       console.warn('Erro ao abrir tela inicial após logout:', e);
     }
 
+    try{
+      SpreadsheetApp.getUi()
+        .createMenu('📦 GESTÃO DE DEPÓSITO')
+        .addItem('🔐 Fazer Login / Criar Conta', 'popupTelaInicial')
+        .addToUi();
+    }catch(e){
+      console.warn('Erro ao restaurar menu mínimo de login:', e);
+    }
+
     return { ok: true };
+  }
+
+  function fazerLogout(){
+    popupLogout();
   }
   function popupLogout(){
     const html = `<!DOCTYPE html>
@@ -1832,8 +1845,19 @@ function temPermissao(perfilRequerido){
    */
     function aplicarProtecoesPlanilhas(){
       const ss = SpreadsheetApp.getActive();
+      const abasSemProtecao = ['USUARIOS', 'SESSOES', 'AUDITORIA_USUARIOS', 'BLOQUEIO_LOGIN'];
       ss.getSheets().forEach(sh=>{
         try{
+          if (abasSemProtecao.indexOf(sh.getName()) !== -1) {
+            const protsAuth = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+            protsAuth.forEach(p => {
+              if (p.getDescription() === 'Protegido pelo sistema' || p.getDescription() === 'Warmup de permissões') {
+                p.remove();
+              }
+            });
+            return;
+          }
+
           // se já existe proteção e possui descrição do sistema ignorar
           let prot = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)
                       .find(p=>p.getDescription() === 'Protegido pelo sistema');
