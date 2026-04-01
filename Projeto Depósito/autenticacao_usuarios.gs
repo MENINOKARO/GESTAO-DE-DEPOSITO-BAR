@@ -19,72 +19,228 @@
  * 🔧 INICIALIZAÇÃO DO SISTEMA DE AUTENTICAÇÃO
  */
 
+  const AUTH_SCHEMAS_ = {
+    USUARIOS: [
+      'ID_USER',
+      'NOME',
+      'EMAIL',
+      'TELEFONE',
+      'SENHA_HASH',
+      'PERFIL',
+      'ATIVO',
+      'DATA_CRIACAO',
+      'ULTIMO_ACESSO',
+      'TROCA_SENHA_OBRIGATORIA'
+    ],
+    SESSOES: [
+      'ID_SESSAO',
+      'ID_USER',
+      'DATA_LOGIN',
+      'DATA_LOGOUT',
+      'ATIVO'
+    ],
+    AUDITORIA_USUARIOS: [
+      'TIMESTAMP',
+      'ID_USER',
+      'ACAO',
+      'DETALHE',
+      'IP',
+      'STATUS'
+    ]
+  };
+
+  function normalizarCabecalho_(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
+      .trim()
+      .toUpperCase();
+  }
+
+  function garantirAbaComCabecalho_(ss, nomeAba, headers) {
+    let sh = ss.getSheetByName(nomeAba);
+    if (!sh) {
+      sh = ss.insertSheet(nomeAba);
+    }
+
+    normalizarEstruturaTabela_(sh, headers);
+    return sh;
+  }
+
+  function normalizarEstruturaTabela_(sheet, headersEsperados) {
+    const ultimaLinha = sheet.getLastRow();
+    const ultimaColuna = Math.max(sheet.getLastColumn(), headersEsperados.length);
+    const dadosBrutos = ultimaLinha > 0
+      ? sheet.getRange(1, 1, ultimaLinha, ultimaColuna).getValues()
+      : [];
+
+    const mapaAtual = {};
+    if (dadosBrutos.length) {
+      dadosBrutos[0].forEach((h, idx) => {
+        const chave = normalizarCabecalho_(h);
+        if (chave) mapaAtual[chave] = idx;
+      });
+    }
+
+    const linhasNormalizadas = [];
+    for (let i = 1; i < dadosBrutos.length; i++) {
+      const row = dadosBrutos[i];
+      if (!row || row.every(v => String(v || '').trim() === '')) continue;
+
+      const novaLinha = headersEsperados.map(header => {
+        const idx = mapaAtual[normalizarCabecalho_(header)];
+        return idx != null ? row[idx] : '';
+      });
+      linhasNormalizadas.push(novaLinha);
+    }
+
+    sheet.clear();
+    sheet.getRange(1, 1, 1, headersEsperados.length).setValues([headersEsperados]);
+    if (linhasNormalizadas.length) {
+      sheet.getRange(2, 1, linhasNormalizadas.length, headersEsperados.length).setValues(linhasNormalizadas);
+    }
+    sheet.setFrozenRows(1);
+  }
+
+  function validarEstruturasAutenticacao_() {
+    const ss = SpreadsheetApp.getActive();
+    const problemas = [];
+
+    Object.keys(AUTH_SCHEMAS_).forEach(nomeAba => {
+      const sh = ss.getSheetByName(nomeAba);
+      if (!sh) {
+        problemas.push(`Aba ausente: ${nomeAba}`);
+        return;
+      }
+
+      const headersEsperados = AUTH_SCHEMAS_[nomeAba];
+      const cabecalhos = sh
+        .getRange(1, 1, 1, headersEsperados.length)
+        .getValues()[0]
+        .map(normalizarCabecalho_);
+
+      headersEsperados.forEach((h, idx) => {
+        if (cabecalhos[idx] !== normalizarCabecalho_(h)) {
+          problemas.push(`${nomeAba}: coluna ${idx + 1} deveria ser "${h}"`);
+        }
+      });
+    });
+
+    return {
+      ok: problemas.length === 0,
+      problemas: problemas
+    };
+  }
+
+  function corrigirSenhasLegadasUsuarios_() {
+    try {
+      const ss = SpreadsheetApp.getActive();
+      const sh = ss.getSheetByName('USUARIOS');
+      if (!sh || sh.getLastRow() < 2) return { ok: true, corrigidos: 0 };
+
+      const dados = sh.getDataRange().getValues();
+      let corrigidos = 0;
+
+      const pareceHashBase64 = valor => /^[A-Za-z0-9+/=]+$/.test(String(valor || '').trim()) && String(valor || '').trim().length >= 8;
+
+      for (let i = 1; i < dados.length; i++) {
+        const atual = String(dados[i][4] || '').trim(); // SENHA_HASH
+        if (pareceHashBase64(atual)) continue;
+
+        const cands = [dados[i][3], dados[i][5], dados[i][2]].map(v => String(v || '').trim()); // legados possíveis
+        const hash = cands.find(v => pareceHashBase64(v));
+        if (hash) {
+          sh.getRange(i + 1, 5).setValue(hash);
+          corrigidos++;
+        }
+      }
+
+      return { ok: true, corrigidos: corrigidos };
+    } catch (e) {
+      console.error('Erro em corrigirSenhasLegadasUsuarios_:', e);
+      return { ok: false, corrigidos: 0, msg: e.message };
+    }
+  }
+
+  /**
+   * Executar uma única vez por usuário para antecipar permissões sensíveis
+   * e reduzir solicitações fragmentadas ao longo do uso.
+   */
+  function ativarPermissoesSistemaUmaUnicaVez() {
+    try {
+      const ss = SpreadsheetApp.getActive();
+      ss.getSheets();
+
+      const propsUser = PropertiesService.getUserProperties();
+      propsUser.getKeys();
+      PropertiesService.getScriptProperties().getKeys();
+
+      ScriptApp.getProjectTriggers();
+      Session.getActiveUser().getEmail();
+
+      const sheets = ss.getSheets();
+      sheets.forEach(sh => {
+        const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)
+          .find(x => x.getDescription() === 'Warmup de permissões');
+        if (!p) {
+          const prot = sh.protect();
+          prot.setDescription('Warmup de permissões');
+          prot.setWarningOnly(true);
+          prot.remove();
+        }
+      });
+
+      try {
+        UrlFetchApp.fetch('https://www.google.com/generate_204', {
+          method: 'get',
+          muteHttpExceptions: true
+        });
+      } catch (e) {
+        console.warn('Warmup UrlFetch não concluído:', e.message);
+      }
+
+      return { ok: true, msg: 'Permissões ativadas. Execute novamente somente se necessário.' };
+    } catch (e) {
+      console.error('Erro em ativarPermissoesSistemaUmaUnicaVez:', e);
+      return { ok: false, msg: 'Falha ao ativar permissões: ' + e.message };
+    }
+  }
+
   function garantirEstruturausuarios() {
     try {
       const ss = SpreadsheetApp.getActive();
 
-      const headersUsuarios = [
-        'ID_USER',
-        'NOME',
-        'EMAIL',
-        'TELEFONE',
-        'SENHA_HASH',
-        'PERFIL',
-        'ATIVO',
-        'DATA_CRIACAO',
-        'ULTIMO_ACESSO',
-        'TROCA_SENHA_OBRIGATORIA'
-      ];
+      const headersUsuarios = AUTH_SCHEMAS_.USUARIOS;
 
       // ========== ABA USUÁRIOS ==========
-      let shUsuarios = ss.getSheetByName('USUARIOS');
-      if (!shUsuarios) {
-        shUsuarios = ss.insertSheet('USUARIOS');
-        shUsuarios.getRange('A1:J1').setValues([[
-          'ID_USER',
-          'NOME',
-          'EMAIL',
-          'TELEFONE',
-          'SENHA_HASH',
-          'PERFIL',
-          'ATIVO',
-          'DATA_CRIACAO',
-          'ULTIMO_ACESSO',
-          'TROCA_SENHA_OBRIGATORIA'
-        ]]);
-        shUsuarios.setFrozenRows(1);
-      }
+      let shUsuarios = garantirAbaComCabecalho_(ss, 'USUARIOS', AUTH_SCHEMAS_.USUARIOS);
 
       normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios);
 
       // ========== ABA SESSÕES ==========
-      let shSessoes = ss.getSheetByName('SESSOES');
-      if (!shSessoes) {
-        shSessoes = ss.insertSheet('SESSOES');
-        shSessoes.getRange('A1:E1').setValues([[
-          'ID_SESSAO',
-          'ID_USER',
-          'DATA_LOGIN',
-          'DATA_LOGOUT',
-          'ATIVO'
-        ]]);
-      }
+      let shSessoes = garantirAbaComCabecalho_(ss, 'SESSOES', AUTH_SCHEMAS_.SESSOES);
       shSessoes.setFrozenRows(1);
+      if (shSessoes.getLastRow() > 1) {
+        shSessoes.getRange(2, 3, shSessoes.getLastRow() - 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      }
 
       // ========== ABA AUDITORIA ==========
-      let shAuditoria = ss.getSheetByName('AUDITORIA_USUARIOS');
-      if (!shAuditoria) {
-        shAuditoria = ss.insertSheet('AUDITORIA_USUARIOS');
-        shAuditoria.getRange('A1:F1').setValues([[
-          'TIMESTAMP',
-          'ID_USER',
-          'ACAO',
-          'DETALHE',
-          'IP',
-          'STATUS'
-        ]]);
-      }
+      let shAuditoria = garantirAbaComCabecalho_(ss, 'AUDITORIA_USUARIOS', AUTH_SCHEMAS_.AUDITORIA_USUARIOS);
       shAuditoria.setFrozenRows(1);
+      if (shAuditoria.getLastRow() > 1) {
+        shAuditoria.getRange(2, 1, shAuditoria.getLastRow() - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      }
+
+      const validacao = validarEstruturasAutenticacao_();
+      if (!validacao.ok) {
+        console.warn('⚠️ Estrutura de autenticação ajustada com observações:', validacao.problemas.join(' | '));
+      }
+
+      const ajusteSenhas = corrigirSenhasLegadasUsuarios_();
+      if (ajusteSenhas.ok && ajusteSenhas.corrigidos > 0) {
+        console.warn(`⚠️ Senhas legadas ajustadas automaticamente: ${ajusteSenhas.corrigidos}`);
+      }
 
     } catch(e) {
       console.warn('Erro ao garantir estrutura de usuários:', e.message);
@@ -98,9 +254,34 @@
       ? shUsuarios.getRange(1, 1, lastRow, lastCol).getValues()
       : [];
 
-    const headerAtual = raw.length ? raw[0].map(v => String(v || '').trim().toUpperCase()) : [];
+    const headerAtual = raw.length ? raw[0].map(v => normalizarCabecalho_(v)) : [];
     const idx = {};
     headerAtual.forEach((h, i) => { if (h) idx[h] = i; });
+
+    function obterPrimeiroIndice_(aliases, fallback) {
+      for (let i = 0; i < aliases.length; i++) {
+        const k = normalizarCabecalho_(aliases[i]);
+        if (idx[k] != null) return idx[k];
+      }
+      return fallback;
+    }
+
+    function pareceHashBase64_(valor) {
+      const v = String(valor || '').trim();
+      if (!v) return false;
+      return /^[A-Za-z0-9+/=]+$/.test(v) && v.length >= 8;
+    }
+
+    const idxId = obterPrimeiroIndice_(['ID_USER', 'ID', 'USUARIO_ID'], 0);
+    const idxNome = obterPrimeiroIndice_(['NOME', 'USUARIO', 'NOME_USUARIO'], 1);
+    const idxEmail = obterPrimeiroIndice_(['EMAIL', 'E_MAIL'], 2);
+    const idxTelefone = obterPrimeiroIndice_(['TELEFONE', 'CELULAR', 'FONE'], 3);
+    const idxSenha = obterPrimeiroIndice_(['SENHA_HASH', 'HASH_SENHA', 'SENHA'], 4);
+    const idxPerfil = obterPrimeiroIndice_(['PERFIL', 'NIVEL'], 5);
+    const idxAtivo = obterPrimeiroIndice_(['ATIVO', 'STATUS'], 6);
+    const idxDataCriacao = obterPrimeiroIndice_(['DATA_CRIACAO', 'CRIADO_EM', 'DATA'], 7);
+    const idxUltimoAcesso = obterPrimeiroIndice_(['ULTIMO_ACESSO', 'ULTIMO_LOGIN'], 8);
+    const idxTrocaSenha = obterPrimeiroIndice_(['TROCA_SENHA_OBRIGATORIA', 'TROCA_SENHA', 'FORCAR_TROCA'], 9);
 
     const linhasNormalizadas = [];
 
@@ -108,16 +289,23 @@
       const row = raw[r];
       if (row.every(v => String(v || '').trim() === '')) continue;
 
-      let idUser = (idx.ID_USER != null ? row[idx.ID_USER] : row[0]) || '';
-      let nome = (idx.NOME != null ? row[idx.NOME] : row[1]) || '';
-      let email = (idx.EMAIL != null ? row[idx.EMAIL] : row[2]) || '';
-      let telefone = idx.TELEFONE != null ? row[idx.TELEFONE] : '';
-      let senhaHash = (idx.SENHA_HASH != null ? row[idx.SENHA_HASH] : row[3]) || '';
-      let perfil = (idx.PERFIL != null ? row[idx.PERFIL] : row[4]) || 'OPERACIONAL';
-      let ativo = (idx.ATIVO != null ? row[idx.ATIVO] : row[5]) || 'SIM';
-      let dataCriacao = (idx.DATA_CRIACAO != null ? row[idx.DATA_CRIACAO] : row[6]) || '';
-      let ultimoAcesso = (idx.ULTIMO_ACESSO != null ? row[idx.ULTIMO_ACESSO] : row[7]) || '';
-      let trocaSenhaObrigatoria = (idx.TROCA_SENHA_OBRIGATORIA != null ? row[idx.TROCA_SENHA_OBRIGATORIA] : row[9]) || 'NAO';
+      let idUser = row[idxId] || '';
+      let nome = row[idxNome] || '';
+      let email = row[idxEmail] || '';
+      let telefone = row[idxTelefone] || '';
+      let senhaHash = row[idxSenha] || '';
+      let perfil = row[idxPerfil] || 'OPERACIONAL';
+      let ativo = row[idxAtivo] || 'SIM';
+      let dataCriacao = row[idxDataCriacao] || '';
+      let ultimoAcesso = row[idxUltimoAcesso] || '';
+      let trocaSenhaObrigatoria = row[idxTrocaSenha] || 'NAO';
+
+      // fallback legado: quando senha foi lida da coluna errada
+      if (!pareceHashBase64_(senhaHash)) {
+        const candidatosSenha = [row[4], row[3], row[5]].filter(v => String(v || '').trim() !== '');
+        const hashValido = candidatosSenha.find(v => pareceHashBase64_(v));
+        if (hashValido) senhaHash = hashValido;
+      }
 
       const ativoTxt = String(ativo || '').toUpperCase();
       const dataCriacaoTxt = String(dataCriacao || '').toUpperCase();
@@ -127,7 +315,7 @@
         perfil = ativo;
         ativo = dataCriacao;
         dataCriacao = ultimoAcesso;
-        ultimoAcesso = row[(idx.ULTIMO_ACESSO != null ? idx.ULTIMO_ACESSO : 7) + 1] || '';
+        ultimoAcesso = row[idxUltimoAcesso + 1] || '';
       }
 
       linhasNormalizadas.push([
@@ -489,16 +677,23 @@
         console.log('[SERVER] Total de linhas encontradas: ' + dados.length);
         console.log('[SERVER] Buscando por: ' + usuario);
 
-        // aceita login por ID (U-...), nome ou email
+        // aceita login por ID (U-...), nome, email ou telefone
         for (let i = 1; i < dados.length; i++) {
           const id = String(dados[i][0] || '');
           const nome = String(dados[i][1] || '').toLowerCase().trim();
           const emailCell = String(dados[i][2] || '').toLowerCase().trim();
+          const telefone = String(dados[i][3] || '').replace(/\D/g, '');
           const uLower = usuario.toLowerCase().trim();
+          const uDigits = usuario.replace(/\D/g, '');
 
           console.log('[SERVER] Linha ' + i + ': ID=' + id + ', NOME=' + nome + ', EMAIL=' + emailCell);
 
-          if (id === usuario || nome === uLower || (emailCell && emailCell === uLower)) {
+          if (
+            id === usuario ||
+            nome === uLower ||
+            (emailCell && emailCell === uLower) ||
+            (uDigits && telefone && telefone === uDigits)
+          ) {
             console.log('[SERVER] ✅ Usuário encontrado na linha ' + i);
             usuarioValido = dados[i];
             break;
@@ -522,7 +717,7 @@
         const senhaHash = String(usuarioValido[4]);
         if(!verificarSenha(senha, senhaHash)){
           registrarAuditoria(usuarioValido[0], 'LOGIN_FALHA', 'Senha incorreta');
-          return { ok: false, msg: 'Usuário ou senha incorretos.' };
+          return { ok: false, msg: 'Senha incorreta.' };
         }
         
         // ✅ Cria sessão
@@ -558,9 +753,17 @@
    */
     function verificarSenha(senhaDigitada, senhaHash){
       // Em produção, usar bcrypt ou similar
-      // Hasheia a senha digitada e compara com o hash armazenado
-      const senhaDigitadaHash = Utilities.base64Encode(String(senhaDigitada).trim());
-      return senhaDigitadaHash === String(senhaHash).trim();
+      const senhaTexto = String(senhaDigitada || '').trim();
+      const hashArmazenado = String(senhaHash || '').trim();
+
+      // compatibilidade com bases legadas que salvaram senha em texto puro
+      if (senhaTexto && hashArmazenado && senhaTexto === hashArmazenado) {
+        return true;
+      }
+
+      // padrão atual
+      const senhaDigitadaHash = Utilities.base64Encode(senhaTexto);
+      return senhaDigitadaHash === hashArmazenado;
     }
 
   /**
@@ -1544,7 +1747,20 @@
       console.warn('Erro ao abrir tela inicial após logout:', e);
     }
 
+    try{
+      SpreadsheetApp.getUi()
+        .createMenu('📦 GESTÃO DE DEPÓSITO')
+        .addItem('🔐 Fazer Login / Criar Conta', 'popupTelaInicial')
+        .addToUi();
+    }catch(e){
+      console.warn('Erro ao restaurar menu mínimo de login:', e);
+    }
+
     return { ok: true };
+  }
+
+  function fazerLogout(){
+    popupLogout();
   }
   function popupLogout(){
     const html = `<!DOCTYPE html>
@@ -1594,6 +1810,7 @@
     
     const ss = SpreadsheetApp.getActive();
     const shUsuarios = ss.getSheetByName('USUARIOS');
+    if(!shUsuarios) return null;
     const dados = shUsuarios.getDataRange().getValues();
     
     for(let i = 1; i < dados.length; i++){
@@ -1663,8 +1880,19 @@ function temPermissao(perfilRequerido){
    */
     function aplicarProtecoesPlanilhas(){
       const ss = SpreadsheetApp.getActive();
+      const abasSemProtecao = ['USUARIOS', 'SESSOES', 'AUDITORIA_USUARIOS', 'BLOQUEIO_LOGIN'];
       ss.getSheets().forEach(sh=>{
         try{
+          if (abasSemProtecao.indexOf(sh.getName()) !== -1) {
+            const protsAuth = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+            protsAuth.forEach(p => {
+              if (p.getDescription() === 'Protegido pelo sistema' || p.getDescription() === 'Warmup de permissões') {
+                p.remove();
+              }
+            });
+            return;
+          }
+
           // se já existe proteção e possui descrição do sistema ignorar
           let prot = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)
                       .find(p=>p.getDescription() === 'Protegido pelo sistema');
@@ -1789,8 +2017,17 @@ function temPermissao(perfilRequerido){
       // aba de bloqueio não deve ficar visível após autenticação
       try{
         const shBloq = ss.getSheetByName('BLOQUEIO_LOGIN');
-        if(shBloq) shBloq.hideSheet();
-      }catch(e){}
+        if(shBloq){
+          const ativa = ss.getActiveSheet();
+          if(ativa && ativa.getName() === 'BLOQUEIO_LOGIN'){
+            const destino = ss.getSheets().find(s => s.getName() !== 'BLOQUEIO_LOGIN');
+            if(destino) ss.setActiveSheet(destino);
+          }
+          shBloq.hideSheet();
+        }
+      }catch(e){
+        console.warn('Falha ao ocultar aba BLOQUEIO_LOGIN após login:', e.message);
+      }
     }
 
   /**
