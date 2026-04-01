@@ -1616,19 +1616,21 @@
       // =========================
       if(typeof organizarConfig === 'function'){
         organizarConfig(true);
-      
-        // =========================
-        // 7️⃣ RENOVA SENHA DE RESET
-        // =========================
-        const props = PropertiesService.getScriptProperties();
+      }
 
-        // 🔄 limpa senha atual e força padrão + troca obrigatória
-        props.deleteProperty('SENHA_RESET');
-        props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+      // =========================
+      // 7️⃣ RENOVA SENHA DE RESET (sempre)
+      // =========================
+      const props = PropertiesService.getScriptProperties();
 
-        if(typeof garantirSenhaResetObrigatoria === 'function'){
-          garantirSenhaResetObrigatoria();
-        }
+      // 🔄 limpa senha atual e força padrão + troca obrigatória
+      props.deleteProperty('SENHA_RESET');
+      props.setProperty('RESET_SENHA_OBRIGATORIA', 'SIM');
+
+      if(typeof garantirSenhaResetObrigatoria === 'function'){
+        garantirSenhaResetObrigatoria();
+      } else {
+        props.setProperty('SENHA_RESET', SENHA_RESET_PADRAO);
       }
 
       // =========================
@@ -9523,7 +9525,6 @@ function getClienteTempDelivery(){
           <p class="hint">${nome}</p>
 
           <button class="card" onclick="google.script.run.abrirWhatsappPedidosChegados()">📥 Verificar Pedidos que Chegaram</button>
-          <button class="card" onclick="google.script.run.popupSimuladorBotWhatsapp()">🤖 Conversar com Bot (Teste)</button>
           <button class="card secondary" onclick="google.script.run.popupListarUsuarios()">👥 Ajustar Cadastro de Usuário</button>
           <button class="card" onclick="google.script.run.abrirConversaDiretaDonoWhatsapp()">👑 Conversa Direta com Dono</button>
           <button class="card secondary" onclick="google.script.run.abrirPopupConsultaFiadoWhatsapp()">💳 Consultar Fiado</button>
