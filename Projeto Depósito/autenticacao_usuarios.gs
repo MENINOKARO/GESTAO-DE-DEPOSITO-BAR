@@ -179,6 +179,9 @@
       ScriptApp.getProjectTriggers();
       Session.getActiveUser().getEmail();
 
+      // força solicitação das permissões de Drive usadas para liberar acesso da planilha
+      DriveApp.getFileById(ss.getId()).getEditors();
+
       const sheets = ss.getSheets();
       sheets.forEach(sh => {
         const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)
@@ -190,6 +193,12 @@
           prot.remove();
         }
       });
+
+      try {
+        garantirAcessoArquivoParaUsuariosAtivos_();
+      } catch (e) {
+        console.warn('Warmup de acesso de arquivo não concluído:', e.message);
+      }
 
       try {
         UrlFetchApp.fetch('https://www.google.com/generate_204', {
@@ -204,6 +213,45 @@
     } catch (e) {
       console.error('Erro em ativarPermissoesSistemaUmaUnicaVez:', e);
       return { ok: false, msg: 'Falha ao ativar permissões: ' + e.message };
+    }
+  }
+
+
+  function garantirAcessoArquivoParaUsuariosAtivos_() {
+    try {
+      const ss = SpreadsheetApp.getActive();
+      const sh = ss.getSheetByName('USUARIOS');
+      if (!sh || sh.getLastRow() < 2) {
+        return { ok: true, adicionados: 0, ignorados: 0 };
+      }
+
+      const file = DriveApp.getFileById(ss.getId());
+      const dados = sh.getDataRange().getValues();
+      let adicionados = 0;
+      let ignorados = 0;
+
+      for (let i = 1; i < dados.length; i++) {
+        const email = String(dados[i][2] || '').trim().toLowerCase();
+        const ativo = String(dados[i][6] || 'SIM').trim().toUpperCase();
+
+        if (!email || ativo !== 'SIM') {
+          ignorados++;
+          continue;
+        }
+
+        try {
+          file.addEditor(email);
+          adicionados++;
+        } catch (e) {
+          ignorados++;
+          console.warn('Não foi possível conceder acesso para', email, e.message);
+        }
+      }
+
+      return { ok: true, adicionados: adicionados, ignorados: ignorados };
+    } catch (e) {
+      console.error('Erro em garantirAcessoArquivoParaUsuariosAtivos_:', e);
+      return { ok: false, msg: e.message, adicionados: 0, ignorados: 0 };
     }
   }
 
@@ -730,6 +778,11 @@
         registrarAuditoria(usuarioValido[0], 'LOGIN_SUCESSO', 'Login realizado');
         if(typeof registrarLog === 'function'){
           registrarLog('LOGIN', usuarioValido[0], usuarioValido[1], new Date());
+        }
+
+        // garante que usuários ativos com e-mail cadastrado tenham acesso ao arquivo
+        try { garantirAcessoArquivoParaUsuariosAtivos_(); } catch (e) {
+          console.warn('Falha ao sincronizar acesso da planilha após login:', e.message);
         }
         
         return { 
