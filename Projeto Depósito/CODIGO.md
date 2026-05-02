@@ -11236,7 +11236,13 @@ function getClienteTempDelivery(){
           if(processando) return;
           processando = true;
 
-          const valor = parseMoedaBR(inputValor.value);
+          let valor = inputValor.value
+            .replace('R$','')
+            .replace(/\./g,'')
+            .replace(',','.')
+            .trim();
+
+          valor = Number(valor);
 
           if(!valor || valor <= 0){
             alert('Informe um valor válido.');
@@ -11507,7 +11513,13 @@ function getClienteTempDelivery(){
           if(processando) return;
           processando = true;
 
-          const valor = parseMoedaBR(inputValor.value);
+          let valor = inputValor.value
+            .replace('R$','')
+            .replace(/\./g,'')
+            .replace(',','.')
+            .trim();
+
+          valor = Number(valor);
 
           if(!valor || valor <= 0){
             alert('Informe um valor válido.');
