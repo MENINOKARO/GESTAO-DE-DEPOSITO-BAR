@@ -5259,7 +5259,7 @@ function getClienteTempDelivery(){
               btnFechar.innerText = '💳 Finalizar Comanda';
             })
             .withSuccessHandler(()=>{
-              google.script.host.close();
+              // Mantém esta janela aberta: o backend abre o popup de finalização.
             })
             .salvarComandaBalcaoComPagamento(
               cliente.value,
