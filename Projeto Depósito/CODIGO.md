@@ -4284,7 +4284,9 @@ function getClienteTempDelivery(){
             pagamento: pagEl.value || '',
             carrinho
           };
-          google.script.run.popupMenuClienteComEstado('DELIVERY', estado);
+          google.script.run
+            .withSuccessHandler(() => google.script.run.popupMenuCliente('DELIVERY'))
+            .setEstadoTempDelivery(estado);
         }
 
         produtoEl.onchange = () => {
@@ -5225,7 +5227,9 @@ function getClienteTempDelivery(){
             qtd: qtd.value || '',
             carrinho
           };
-          google.script.run.popupMenuClienteComEstado('BALCAO', estado);
+          google.script.run
+            .withSuccessHandler(() => google.script.run.popupMenuCliente('BALCAO'))
+            .setEstadoTempBalcao(estado);
         }
         
         function pausar(){
