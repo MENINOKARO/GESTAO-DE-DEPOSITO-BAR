@@ -5258,8 +5258,22 @@ function getClienteTempDelivery(){
               btnFechar.disabled = false;
               btnFechar.innerText = '💳 Finalizar Comanda';
             })
-            .withSuccessHandler(()=>{
-              google.script.host.close();
+            .withSuccessHandler((res)=>{
+              if(!res || !res.ok || !res.pedido){
+                alert((res && res.msg) ? res.msg : 'Não foi possível iniciar a finalização da comanda.');
+                btnFechar.disabled = false;
+                btnFechar.innerText = '💳 Finalizar Comanda';
+                return;
+              }
+
+              google.script.run
+                .withSuccessHandler(()=>google.script.host.close())
+                .withFailureHandler(err=>{
+                  alert(err && err.message ? err.message : err);
+                  btnFechar.disabled = false;
+                  btnFechar.innerText = '💳 Finalizar Comanda';
+                })
+                .popupFecharComanda(res.pedido);
             })
             .salvarComandaBalcaoComPagamento(
               cliente.value,
@@ -5271,11 +5285,7 @@ function getClienteTempDelivery(){
     `, 520, 720);
   }
   function salvarComandaBalcaoComPagamento(cliente, itens){
-    const res = salvarComandaBalcao(cliente, itens, 'AGUARDANDO_PGTO');
-    if(res && res.ok){
-      popupFecharComanda(res.pedido);
-    }
-    return res;
+    return salvarComandaBalcao(cliente, itens, 'AGUARDANDO_PGTO');
   }
 
   function salvarComandaBalcao(cliente, itens, status){
