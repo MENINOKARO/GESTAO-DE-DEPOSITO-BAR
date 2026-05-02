@@ -3608,6 +3608,22 @@
 // ===============================
 // CLIENTES
 // ===============================
+function popupMenuCliente(origem){
+  const origemNorm = String(origem || '').trim().toUpperCase();
+
+  CacheService.getScriptCache().put('ORIGEM_CLIENTE', origemNorm, 300);
+
+  if(origemNorm === 'DELIVERY'){
+    try{
+      const nomeAtual = CacheService.getScriptCache().get('CLIENTE_TEMP_DELIVERY') || '';
+      if(nomeAtual){
+        CacheService.getScriptCache().put('CLIENTE_TEMP_DELIVERY', nomeAtual, 300);
+      }
+    }catch(e){}
+  }
+
+  popupCliente();
+}
 function popupCliente(){
 
   const ss = SpreadsheetApp.getActive();
@@ -4954,11 +4970,14 @@ function getClienteTempDelivery(){
       .map(c => c[0])
       .filter(Boolean);
 
-    const produtos = getProdutosComEstoque();
+    const produtos = ss.getSheetByName('PRODUTOS')
+      .getDataRange().getValues()
+      .slice(1)
+      .filter(p => p[0]);
 
     const optProd = `
       <option value="">Selecione o produto</option>
-      ${produtos.map(p => `<option value="${p}">${p}</option>`).join('')}
+      ${produtos.map(p => `<option value="${p[0]}" data-preco="${p[4] || 0}">${p[0]}</option>`).join('')}
     `;
 
     abrirPopup(getNomeDeposito(), `
@@ -5062,16 +5081,10 @@ function getClienteTempDelivery(){
         }
 
         produto.onchange = () => {
-          if(!produto.value){
-            valor.value = '';
-            return;
-          }
-
-          google.script.run
-            .withSuccessHandler(preco => {
-              valor.value = 'R$ ' + Number(preco).toFixed(2).replace('.',',');
-            })
-            .getPrecoProduto(produto.value);
+          const opt = produto.options[produto.selectedIndex];
+          valor.value = opt && opt.dataset.preco
+            ? 'R$ ' + Number(opt.dataset.preco).toFixed(2).replace('.',',')
+            : '';
         };
 
         function alterarTemp(delta){
