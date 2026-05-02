@@ -11225,6 +11225,7 @@ function getClienteTempDelivery(){
 
           let valor = inputValor.value
             .replace('R$','')
+            .replace(/\./g,'')
             .replace(',','.')
             .trim();
 
@@ -11488,6 +11489,7 @@ function getClienteTempDelivery(){
 
           let valor = inputValor.value
             .replace('R$','')
+            .replace(/\./g,'')
             .replace(',','.')
             .trim();
 
