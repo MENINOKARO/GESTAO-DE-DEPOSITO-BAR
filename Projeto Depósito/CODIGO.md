@@ -3624,6 +3624,16 @@ function popupMenuCliente(origem){
 
   popupCliente();
 }
+function popupMenuClienteComEstado(origem, estado){
+  const origemNorm = String(origem || '').trim().toUpperCase();
+  if(origemNorm === 'BALCAO'){
+    setEstadoTempBalcao(estado || {});
+  }
+  if(origemNorm === 'DELIVERY'){
+    setEstadoTempDelivery(estado || {});
+  }
+  popupMenuCliente(origemNorm);
+}
 function popupCliente(){
 
   const ss = SpreadsheetApp.getActive();
