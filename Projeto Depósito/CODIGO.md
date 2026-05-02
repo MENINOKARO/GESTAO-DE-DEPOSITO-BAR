@@ -3761,6 +3761,34 @@ function setClienteTempDelivery(nome){
   CacheService.getScriptCache()
     .put('CLIENTE_TEMP_DELIVERY', nome, 300);
 }
+function setEstadoTempBalcao(payload){
+  CacheService.getScriptCache()
+    .put('ESTADO_TEMP_BALCAO', JSON.stringify(payload || {}), 300);
+}
+function getEstadoTempBalcao(){
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get('ESTADO_TEMP_BALCAO');
+  if(raw) cache.remove('ESTADO_TEMP_BALCAO');
+  try{
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){
+    return null;
+  }
+}
+function setEstadoTempDelivery(payload){
+  CacheService.getScriptCache()
+    .put('ESTADO_TEMP_DELIVERY', JSON.stringify(payload || {}), 300);
+}
+function getEstadoTempDelivery(){
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get('ESTADO_TEMP_DELIVERY');
+  if(raw) cache.remove('ESTADO_TEMP_DELIVERY');
+  try{
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){
+    return null;
+  }
+}
 function getClienteTempDelivery(){
   const cache = CacheService.getScriptCache();
   const nome = cache.get('CLIENTE_TEMP_DELIVERY');
@@ -4217,9 +4245,38 @@ function getClienteTempDelivery(){
             clienteTravado = true;
           }
         }).getClienteTempDelivery();
+        google.script.run.withSuccessHandler((estado) => {
+          if(!estado) return;
+          if(estado.cliente) clienteEl.value = estado.cliente;
+          if(estado.produto){
+            produtoEl.value = estado.produto;
+            produtoEl.onchange();
+          }
+          if(estado.qtd) qtdEl.value = estado.qtd;
+          if(estado.entregador) entregadorEl.value = estado.entregador;
+          if(estado.pagamento) pagEl.value = estado.pagamento;
+          if(estado.carrinho && Array.isArray(estado.carrinho)){
+            carrinho = estado.carrinho;
+            if(carrinho.length){
+              clienteEl.disabled = true;
+              clienteTravado = true;
+            }
+            render();
+          }
+        }).getEstadoTempDelivery();
 
         function novoCliente(){
-          google.script.run.popupMenuCliente('DELIVERY');
+          const estado = {
+            cliente: clienteEl.value || '',
+            produto: produtoEl.value || '',
+            qtd: qtdEl.value || '',
+            entregador: entregadorEl.value || '',
+            pagamento: pagEl.value || '',
+            carrinho
+          };
+          google.script.run
+            .withSuccessHandler(() => google.script.run.popupMenuCliente('DELIVERY'))
+            .setEstadoTempDelivery(estado);
         }
 
         produtoEl.onchange = () => {
@@ -5011,7 +5068,7 @@ function getClienteTempDelivery(){
             border-radius:10px;
             font-size:20px"
           title="Adicionar novo cliente"
-          onclick="google.script.run.popupMenuCliente('BALCAO')">
+          onclick="novoCliente()">
           👤
         </button>
 
@@ -5079,6 +5136,23 @@ function getClienteTempDelivery(){
           }
           return true;
         }
+        google.script.run.withSuccessHandler((estado) => {
+          if(!estado) return;
+          if(estado.cliente) cliente.value = estado.cliente;
+          if(estado.produto){
+            produto.value = estado.produto;
+            produto.onchange();
+          }
+          if(estado.qtd) qtd.value = estado.qtd;
+          if(estado.carrinho && Array.isArray(estado.carrinho)){
+            carrinho = estado.carrinho;
+            if(carrinho.length){
+              cliente.disabled = true;
+              clienteTravado = true;
+            }
+            render();
+          }
+        }).getEstadoTempBalcao();
 
         produto.onchange = () => {
           const opt = produto.options[produto.selectedIndex];
@@ -5135,6 +5209,17 @@ function getClienteTempDelivery(){
           });
 
           total.innerText = t.toFixed(2).replace('.',',');
+        }
+        function novoCliente(){
+          const estado = {
+            cliente: cliente.value || '',
+            produto: produto.value || '',
+            qtd: qtd.value || '',
+            carrinho
+          };
+          google.script.run
+            .withSuccessHandler(() => google.script.run.popupMenuCliente('BALCAO'))
+            .setEstadoTempBalcao(estado);
         }
         
         function pausar(){
