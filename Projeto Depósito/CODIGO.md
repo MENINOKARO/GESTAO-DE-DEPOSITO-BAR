@@ -5647,8 +5647,9 @@ function getClienteTempDelivery(){
               .withSuccessHandler(()=>{
 
                 // depois de salvar, abre fechamento
-                google.script.run.popupFecharComanda(${pedido});
-                google.script.host.close();
+                google.script.run
+                  .withSuccessHandler(()=>{ google.script.host.close(); })
+                  .popupFecharComanda(${pedido});
 
               })
               .salvarContinuarVendendo(
@@ -5659,8 +5660,9 @@ function getClienteTempDelivery(){
           } else {
 
             // nenhum item novo → pode fechar direto
-            google.script.run.popupFecharComanda(${pedido});
-            google.script.host.close();
+            google.script.run
+              .withSuccessHandler(()=>{ google.script.host.close(); })
+              .popupFecharComanda(${pedido});
 
           }
         }
