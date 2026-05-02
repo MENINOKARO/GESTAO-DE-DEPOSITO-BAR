@@ -11585,7 +11585,9 @@ function getClienteTempDelivery(){
 
       sh.getRange(o.linha, 6).setValue(novoRecebido);
       sh.getRange(o.linha, 7).setValue(novoSaldo);
-      sh.getRange(o.linha, 9).setValue(novoSaldo === 0 ? 'QUITADO' : 'PARCIAL');
+      const statusAtualizado = novoSaldo === 0 ? 'QUITADO' : 'PARCIAL';
+      sh.getRange(o.linha, 9).setValue(statusAtualizado);
+      sh.getRange(o.linha, 12).setValue(statusAtualizado === 'QUITADO' ? agoraBrasil() : '');
 
       resumo.push(`${id}: +${abatimento.toFixed(2)}`);
       restante -= abatimento;
@@ -11865,7 +11867,7 @@ function getClienteTempDelivery(){
 
     if(!sh){
       sh = ss.insertSheet('CONTAS_A_RECEBER');
-      sh.getRange('A1:K1').setValues([[
+      sh.getRange('A1:L1').setValues([[
         'ID',
         'Origem',
         'Referencia',
@@ -11876,8 +11878,15 @@ function getClienteTempDelivery(){
         'Forma_Original',
         'Status',
         'Data',
-        'Obs'
+        'Obs',
+        'Data_Quitacao'
       ]]);
+    }
+
+    const ultimaColuna = sh.getLastColumn();
+    if(ultimaColuna < 12){
+      sh.insertColumnAfter(ultimaColuna);
+      sh.getRange(1, 12).setValue('Data_Quitacao');
     }
   }
 
@@ -12091,8 +12100,13 @@ function getClienteTempDelivery(){
     sh.getRange(linha+1,6).setValue(novoRecebido);
     sh.getRange(linha+1,7).setValue(novoSaldo);
 
+    const statusAtualizado = novoSaldo === 0 ? 'QUITADO' : 'PARCIAL';
+
     sh.getRange(linha+1,9)
-      .setValue(novoSaldo === 0 ? 'QUITADO' : 'PARCIAL');
+      .setValue(statusAtualizado);
+
+    sh.getRange(linha+1,12)
+      .setValue(statusAtualizado === 'QUITADO' ? agoraBrasil() : '');
 
     // 🔥 REGISTRA CAIXA (SEM AMARRAR A FISCAL AINDA)
     registrarCaixa(
