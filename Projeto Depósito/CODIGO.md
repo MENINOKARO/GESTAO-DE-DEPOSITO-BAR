@@ -5258,22 +5258,8 @@ function getClienteTempDelivery(){
               btnFechar.disabled = false;
               btnFechar.innerText = '💳 Finalizar Comanda';
             })
-            .withSuccessHandler((res)=>{
-              if(!res || !res.ok || !res.pedido){
-                alert((res && res.msg) ? res.msg : 'Não foi possível iniciar a finalização da comanda.');
-                btnFechar.disabled = false;
-                btnFechar.innerText = '💳 Finalizar Comanda';
-                return;
-              }
-
-              google.script.run
-                .withSuccessHandler(()=>google.script.host.close())
-                .withFailureHandler(err=>{
-                  alert(err && err.message ? err.message : err);
-                  btnFechar.disabled = false;
-                  btnFechar.innerText = '💳 Finalizar Comanda';
-                })
-                .popupFecharComanda(res.pedido);
+            .withSuccessHandler(()=>{
+              // Mantém esta janela aberta: o backend abre o popup de finalização.
             })
             .salvarComandaBalcaoComPagamento(
               cliente.value,
