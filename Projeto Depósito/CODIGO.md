@@ -11208,26 +11208,15 @@ function getClienteTempDelivery(){
         const btn = document.getElementById('btn');
         let processando = false;
 
-        function parseMoedaBR(valorBruto){
-          const valorLimpo = String(valorBruto || '')
-            .replace(/[^\d,.-]/g, '')
-            .replace(/\.(?=.*\.)/g, '')
-            .replace(',', '.');
-          return Number(valorLimpo);
-        }
-
         inputValor.addEventListener('input', ()=>{
-          const somenteDigitos = String(inputValor.value || '').replace(/\D/g,'');
-          if(!somenteDigitos){
+          let v = inputValor.value.replace(/\D/g,'');
+          if(!v){
             inputValor.value = '';
             return;
           }
-          const numero = Number(somenteDigitos) / 100;
-          if(!Number.isFinite(numero)){
-            inputValor.value = '';
-            return;
-          }
-          inputValor.value = 'R$ ' + numero.toFixed(2).replace('.',',');
+
+          v = (Number(v) / 100).toFixed(2);
+          inputValor.value = 'R$ ' + v.replace('.',',');
         });
 
         function confirmar(){
@@ -11235,7 +11224,12 @@ function getClienteTempDelivery(){
           if(processando) return;
           processando = true;
 
-          const valor = parseMoedaBR(inputValor.value);
+          const valor = Number(
+            inputValor.value
+              .replace('R$','')
+              .replace(',', '.')
+              .trim()
+          );
 
           if(!Number.isFinite(valor) || valor <= 0){
             alert('Informe um valor válido.');
@@ -11479,33 +11473,27 @@ function getClienteTempDelivery(){
         const btn = document.getElementById('btn');
         let processando = false;
 
-        function parseMoedaBR(valorBruto){
-          const valorLimpo = String(valorBruto || '')
-            .replace(/[^\d,.-]/g, '')
-            .replace(/\.(?=.*\.)/g, '')
-            .replace(',', '.');
-          return Number(valorLimpo);
-        }
-
         inputValor.addEventListener('input', ()=>{
-          const somenteDigitos = String(inputValor.value || '').replace(/\D/g,'');
-          if(!somenteDigitos){
+          let v = inputValor.value.replace(/\D/g,'');
+          if(!v){
             inputValor.value = '';
             return;
           }
-          const numero = Number(somenteDigitos) / 100;
-          if(!Number.isFinite(numero)){
-            inputValor.value = '';
-            return;
-          }
-          inputValor.value = 'R$ ' + numero.toFixed(2).replace('.',',');
+
+          v = (Number(v) / 100).toFixed(2);
+          inputValor.value = 'R$ ' + v.replace('.',',');
         });
 
         function confirmar(){
           if(processando) return;
           processando = true;
 
-          const valor = parseMoedaBR(inputValor.value);
+          const valor = Number(
+            inputValor.value
+              .replace('R$','')
+              .replace(',', '.')
+              .trim()
+          );
 
           if(!Number.isFinite(valor) || valor <= 0){
             alert('Informe um valor válido.');
