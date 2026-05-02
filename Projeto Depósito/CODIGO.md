@@ -5271,11 +5271,7 @@ function getClienteTempDelivery(){
     `, 520, 720);
   }
   function salvarComandaBalcaoComPagamento(cliente, itens){
-    const res = salvarComandaBalcao(cliente, itens, 'AGUARDANDO_PGTO');
-    if(res && res.ok){
-      popupFecharComanda(res.pedido);
-    }
-    return res;
+    return salvarComandaBalcao(cliente, itens, 'AGUARDANDO_PGTO');
   }
 
   function salvarComandaBalcao(cliente, itens, status){
