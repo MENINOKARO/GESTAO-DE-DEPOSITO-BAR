@@ -11211,24 +11211,23 @@ function getClienteTempDelivery(){
         function parseMoedaBR(valorBruto){
           const valorLimpo = String(valorBruto || '')
             .replace(/[^\d,.-]/g, '')
-            .replace(/\./g, '')
+            .replace(/\.(?=.*\.)/g, '')
             .replace(',', '.');
           return Number(valorLimpo);
         }
 
         inputValor.addEventListener('input', ()=>{
-          const somenteDigitos = inputValor.value.replace(/\D/g,'');
+          const somenteDigitos = String(inputValor.value || '').replace(/\D/g,'');
           if(!somenteDigitos){
             inputValor.value = '';
             return;
           }
-          const numero = Number(somenteDigitos);
-          if(Number.isNaN(numero)){
+          const numero = Number(somenteDigitos) / 100;
+          if(!Number.isFinite(numero)){
             inputValor.value = '';
             return;
           }
-          const formatado = (numero/100).toFixed(2);
-          inputValor.value = 'R$ ' + formatado.replace('.',',');
+          inputValor.value = 'R$ ' + numero.toFixed(2).replace('.',',');
         });
 
         function confirmar(){
@@ -11238,7 +11237,7 @@ function getClienteTempDelivery(){
 
           const valor = parseMoedaBR(inputValor.value);
 
-          if(!valor || valor <= 0){
+          if(!Number.isFinite(valor) || valor <= 0){
             alert('Informe um valor válido.');
             processando = false;
             return;
@@ -11483,24 +11482,23 @@ function getClienteTempDelivery(){
         function parseMoedaBR(valorBruto){
           const valorLimpo = String(valorBruto || '')
             .replace(/[^\d,.-]/g, '')
-            .replace(/\./g, '')
+            .replace(/\.(?=.*\.)/g, '')
             .replace(',', '.');
           return Number(valorLimpo);
         }
 
         inputValor.addEventListener('input', ()=>{
-          const somenteDigitos = inputValor.value.replace(/\D/g,'');
+          const somenteDigitos = String(inputValor.value || '').replace(/\D/g,'');
           if(!somenteDigitos){
             inputValor.value = '';
             return;
           }
-          const numero = Number(somenteDigitos);
-          if(Number.isNaN(numero)){
+          const numero = Number(somenteDigitos) / 100;
+          if(!Number.isFinite(numero)){
             inputValor.value = '';
             return;
           }
-          const formatado = (numero/100).toFixed(2);
-          inputValor.value = 'R$ ' + formatado.replace('.',',');
+          inputValor.value = 'R$ ' + numero.toFixed(2).replace('.',',');
         });
 
         function confirmar(){
@@ -11509,7 +11507,7 @@ function getClienteTempDelivery(){
 
           const valor = parseMoedaBR(inputValor.value);
 
-          if(!valor || valor <= 0){
+          if(!Number.isFinite(valor) || valor <= 0){
             alert('Informe um valor válido.');
             processando = false;
             return;
