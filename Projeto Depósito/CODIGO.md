@@ -11209,7 +11209,7 @@ function getClienteTempDelivery(){
         let processando = false;
 
         inputValor.addEventListener('input', ()=>{
-          let v = inputValor.value.replace(/\D/g,'');
+          let v = inputValor.value.replace(/\\D/g,'');
           if(!v){
             inputValor.value = '';
             return;
@@ -11474,7 +11474,7 @@ function getClienteTempDelivery(){
         let processando = false;
 
         inputValor.addEventListener('input', ()=>{
-          let v = inputValor.value.replace(/\D/g,'');
+          let v = inputValor.value.replace(/\\D/g,'');
           if(!v){
             inputValor.value = '';
             return;
