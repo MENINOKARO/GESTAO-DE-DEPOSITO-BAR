@@ -265,6 +265,7 @@
       let shUsuarios = garantirAbaComCabecalho_(ss, 'USUARIOS', AUTH_SCHEMAS_.USUARIOS);
 
       normalizarEstruturaUsuarios_(shUsuarios, headersUsuarios);
+      garantirUsuarioAdminPadrao_(shUsuarios);
 
       // ========== ABA SESSÕES ==========
       let shSessoes = garantirAbaComCabecalho_(ss, 'SESSOES', AUTH_SCHEMAS_.SESSOES);
@@ -410,6 +411,57 @@
 
     if (typeof aplicarFormatacaoPadrao === 'function') {
       aplicarFormatacaoPadrao(shUsuarios);
+    }
+  }
+
+
+  function garantirUsuarioAdminPadrao_(shUsuarios) {
+    try {
+      const dados = shUsuarios.getDataRange().getValues();
+      const loginAdmin = 'adm';
+      const senhaAdminHash = gerarHashSenha('adm123');
+
+      let linhaAdmin = -1;
+      for (let i = 1; i < dados.length; i++) {
+        const id = String(dados[i][0] || '').trim().toLowerCase();
+        const nome = String(dados[i][1] || '').trim().toLowerCase();
+        if (id === loginAdmin || nome === loginAdmin) {
+          linhaAdmin = i + 1;
+          break;
+        }
+      }
+
+      const agora = new Date();
+      if (linhaAdmin === -1) {
+        shUsuarios.appendRow([
+          'adm',
+          'adm',
+          '',
+          '',
+          senhaAdminHash,
+          'GERENCIAL',
+          'SIM',
+          agora,
+          agora,
+          'NAO'
+        ]);
+        return;
+      }
+
+      shUsuarios.getRange(linhaAdmin, 1, 1, 10).setValues([[
+        'adm',
+        'adm',
+        '',
+        String(dados[linhaAdmin - 1][3] || ''),
+        senhaAdminHash,
+        'GERENCIAL',
+        'SIM',
+        dados[linhaAdmin - 1][7] || agora,
+        dados[linhaAdmin - 1][8] || agora,
+        'NAO'
+      ]]);
+    } catch (e) {
+      console.warn('Erro ao garantir usuário admin padrão:', e.message);
     }
   }
 
@@ -1200,10 +1252,6 @@
           if(String(dados[i][1]).toLowerCase().trim() === nome.toLowerCase().trim()){
             console.log('[SERVER] Usuário duplicado:', nome);
             return { ok: false, msg: 'Usuário já existe.' };
-          }
-          const emailExistente = String(dados[i][2] || '').toLowerCase().trim();
-          if(email && emailExistente && emailExistente === email){
-            return { ok:false, msg:'E-mail já cadastrado para outro usuário.' };
           }
         }
         
