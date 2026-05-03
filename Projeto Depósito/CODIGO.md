@@ -1457,14 +1457,38 @@
     }
   // MODULO DRIVE
     function abrirDriveLink(){
-      const url = getConfig('DRIVE_URL');
+      const urlConfig = getConfig('DRIVE_URL');
+      const estrutura = garantirEstruturaDriveSistema();
+      const url = normalizarDriveUrl(urlConfig, estrutura && estrutura.rootId ? estrutura.rootId : '');
+
       if(url){
+        const urlSegura = String(url).replace(/'/g, "%27");
         const html = HtmlService
-          .createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`);
+          .createHtmlOutput(`<script>window.open('${urlSegura}','_blank');google.script.host.close();</script>`);
         SpreadsheetApp.getUi().showModalDialog(html,'Abrindo Drive...');
       }else{
         SpreadsheetApp.getUi().alert('🔗 Link do Drive não configurado em CONFIG.');
       }
+    }
+
+    function normalizarDriveUrl(url, pastaPadraoId){
+      const raw = String(url || '').trim();
+      if(raw){
+        if(/^https?:\/\//i.test(raw)) return raw;
+        const id = (raw.match(/[-\w]{25,}/) || [])[0];
+        if(id){
+          if(/\/file\//i.test(raw) || /\/d\//i.test(raw)){
+            return `https://drive.google.com/file/d/${id}/view`;
+          }
+          return `https://drive.google.com/drive/folders/${id}`;
+        }
+      }
+
+      if(pastaPadraoId){
+        return `https://drive.google.com/drive/folders/${pastaPadraoId}`;
+      }
+
+      return '';
     }
     function carregarDadosConfiguracao(){
       return {
