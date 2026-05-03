@@ -56,6 +56,7 @@
           .setWidth(400);
 
         SpreadsheetApp.getUi().showSidebar(output);
+        _ievGerarPdfGerencialNoDrive_('Painel_Gestao_Estoque', { relatorio: relatorio, criticos: criticos });
       } catch (e) {
         console.error('Erro em abrirPainelGestaoEstoque:', e);
         uiNotificar('Erro ao abrir painel de gestão: ' + e.message,'erro','Painel Gestão');
@@ -132,6 +133,7 @@
         });
         
         sh.setColumnWidths(1, 8, 150);
+        _ievGerarPdfGerencialNoDrive_('Analise_Rentabilidade', { analise: analise });
         uiNotificar('Análise de rentabilidade atualizada!','sucesso','Rentabilidade');
         
       } catch (e) {
@@ -224,6 +226,14 @@
         }
         
         sh.setColumnWidths(1, headers.length, 150);
+        ss.setActiveSheet(sh);
+        _ievGerarPdfGerencialNoDrive_('Estoque_Categorias', {
+          porCategoria: porCategoria,
+          totalQuantidade: totalQtd,
+          totalValor: totalValor,
+          totalCusto: totalCusto,
+          lucroTotal: totalValor - totalCusto
+        });
         uiNotificar('Tabela de categorias atualizada!','sucesso','Categorias');
         
       } catch (e) {
@@ -457,6 +467,7 @@
           ).join('\n');
         
         console.log(texto);
+        _ievGerarPdfGerencialNoDrive_('Relatorio_Executivo_Estoque', { relatorio: relatorio, analise: analise, texto: texto });
         uiNotificar(texto,'info','Relatório Executivo');
         
       } catch (e) {
@@ -672,4 +683,89 @@
     analise.maisRentaveis.sort((a, b) => (Number(b.lucro) || 0) - (Number(a.lucro) || 0));
     analise.altaRotacao.sort((a, b) => (Number(b.taxaRotacao) || 0) - (Number(a.taxaRotacao) || 0));
     return analise;
+  }
+
+  function _ievGerarPdfGerencialNoDrive_(nomeRelatorio, payload) {
+    try {
+      const relatorio = (payload && payload.relatorio) ? payload.relatorio : _ievGerarRelatorioEstoqueComValoresSafe();
+      if (!relatorio) return null;
+
+      const nomeArquivo = `${nomeRelatorio}_${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm')}.pdf`;
+      const doc = DocumentApp.create(nomeArquivo.replace(/\.pdf$/i, ''));
+      const body = doc.getBody();
+      const deposito = _ievObterDadosDeposito_();
+      const resumo = relatorio.resumo || {};
+
+      body.appendParagraph(`Relatório Gerencial: ${nomeRelatorio}`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+      body.appendParagraph(`Gerado em: ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')}`);
+      body.appendParagraph('Dados do Depósito').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+      body.appendParagraph(`Nome: ${deposito.nome}`);
+      body.appendParagraph(`CNPJ: ${deposito.cnpj}`);
+      body.appendParagraph(`Endereço: ${deposito.endereco}`);
+      body.appendParagraph(`Celular: ${deposito.celular}`);
+      body.appendParagraph(`Email: ${deposito.email}`);
+      body.appendParagraph('Relatório de Estoque').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+      body.appendParagraph(`Valor total em estoque: R$ ${Number(resumo.totalValorEstoque || 0).toFixed(2)}`);
+      body.appendParagraph(`Custo total em estoque: R$ ${Number(resumo.totalCustoEstoque || 0).toFixed(2)}`);
+      body.appendParagraph(`Lucro potencial: R$ ${Number(resumo.lucroEstoque || 0).toFixed(2)}`);
+      body.appendParagraph(`Total vendido: R$ ${Number(resumo.totalVendido || 0).toFixed(2)}`);
+      body.appendParagraph(`Lucro vendido: R$ ${Number(resumo.lucroVendido || 0).toFixed(2)}`);
+      body.appendParagraph(`Margem média: ${Number(resumo.margemMedia || 0).toFixed(2)}%`);
+      body.appendParagraph('Estoque Completo').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+
+      const itens = Array.isArray(relatorio.itens) ? relatorio.itens : [];
+      if (itens.length) {
+        const tableData = [['Produto', 'Categoria', 'Qtd', 'Preço', 'Custo', 'Valor Estoque', 'Status']];
+        itens.forEach(item => {
+          tableData.push([
+            String(item.produto || ''),
+            String(item.categoria || ''),
+            String(item.qtdAtual || 0),
+            `R$ ${Number(item.precoVenda || 0).toFixed(2)}`,
+            `R$ ${Number(item.custMedio || 0).toFixed(2)}`,
+            `R$ ${Number(item.valorTotalEstoque || 0).toFixed(2)}`,
+            String(item.status || 'Normal')
+          ]);
+        });
+        body.appendTable(tableData);
+      } else {
+        body.appendParagraph('Nenhum item encontrado no estoque.');
+      }
+
+      doc.saveAndClose();
+      const arquivoDoc = DriveApp.getFileById(doc.getId());
+      const blobPdf = arquivoDoc.getAs('application/pdf').setName(nomeArquivo);
+      const pastaDestino = _ievObterPastaDriveRelatorios_();
+      const arquivoPdf = pastaDestino.createFile(blobPdf);
+      arquivoDoc.setTrashed(true);
+      return arquivoPdf.getId();
+    } catch (e) {
+      console.warn('Falha ao gerar PDF gerencial:', e.message);
+      return null;
+    }
+  }
+
+  function _ievObterDadosDeposito_() {
+    const cfg = (typeof carregarConfiguracoes === 'function') ? (carregarConfiguracoes() || {}) : {};
+    return {
+      nome: cfg.nomeDeposito || cfg.nome || (typeof getNomeDeposito === 'function' ? getNomeDeposito() : 'Depósito não informado'),
+      cnpj: cfg.cnpj || '',
+      endereco: cfg.endereco || '',
+      celular: cfg.celular || cfg.telefone || '',
+      email: cfg.email || ''
+    };
+  }
+
+  function _ievObterPastaDriveRelatorios_() {
+    const cfg = (typeof carregarConfiguracoes === 'function') ? (carregarConfiguracoes() || {}) : {};
+    const driveUrl = cfg.drive || cfg.driveUrl || (typeof getConfig === 'function' ? getConfig('DRIVE_URL') : '');
+    const match = String(driveUrl || '').match(/[-\w]{25,}/);
+    if (match) {
+      try {
+        return DriveApp.getFolderById(match[0]);
+      } catch (e) {
+        console.warn('Pasta do Drive configurada inválida, usando raiz.', e.message);
+      }
+    }
+    return DriveApp.getRootFolder();
   }
