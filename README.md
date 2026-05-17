@@ -34,3 +34,6 @@ Status: Produção assistida
 - Plano inicial documentado em `documento/PLANO_MIGRACAO_APP_PRIVADO.md`.
 - Este repositório permanece como base de produção assistida.
 - O app deve ser desenvolvido em novo repositório privado, com paridade funcional completa.
+
+## Reestruturação modular (proposta)
+- Diagnóstico e plano de reorganização sem refatorar regras em `documento/PLANO_REESTRUTURACAO_MODULAR_SEM_REFATORACAO.md`.
