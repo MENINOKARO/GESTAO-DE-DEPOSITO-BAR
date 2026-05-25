@@ -2085,6 +2085,10 @@ function temPermissao(perfilRequerido){
 
         // garante que as operações anteriores foram aplicadas antes de criar a HOME
         SpreadsheetApp.flush();
+        Utilities.sleep(250);
+        // reforça exibição automática das abas sem exigir atualização manual da planilha
+        try{ aplicarVisibilidadeAbasPorPerfil(); }catch(e){ console.warn('Falha no reforço de visibilidade pós-login:', e); }
+        SpreadsheetApp.flush();
 
         executarSeFuncao_('criarHomeDashboard');
         executarSeFuncao_('abrirPainelFlutuante');
@@ -2157,7 +2161,7 @@ function temPermissao(perfilRequerido){
         try{
           shBloq = ss.insertSheet('BLOQUEIO_LOGIN');
           shBloq.clear();
-          shBloq.getRange('A1').setValue('Sistema bloqueado. Faça login pelo menu.');
+          shBloq.getRange('A1').setValue('Sistema bloqueado. Faça login para acessar as abas.');
           shBloq.setTabColor('#ffcccc');
         }catch(e){
           console.warn('Não foi possível criar aba BLOQUEIO_LOGIN:', e);
