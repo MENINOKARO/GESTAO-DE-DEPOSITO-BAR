@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestão de Depósito Web</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --ok: #0f766e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        background: var(--card);
+        border-bottom: 1px solid #e5e7eb;
+        padding: 16px 20px;
+        position: sticky;
+        top: 0;
+      }
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+      }
+      h1 { margin: 0; font-size: 1.4rem; }
+      .sub { color: var(--muted); margin-top: 4px; }
+      main { padding: 22px 20px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        background: #eff6ff;
+        color: var(--accent);
+      }
+      .actions { margin-top: 16px; display: flex; gap: 10px; }
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      .primary { background: var(--accent); color: white; }
+      .ghost { background: #eef2ff; color: #1e3a8a; }
+      #status { margin-top: 12px; color: var(--ok); }
+      footer { color: var(--muted); font-size: 0.85rem; margin-top: 24px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <h1>Gestão de Depósito (Web)</h1>
+        <div class="sub">Versão <span id="appVersion"><?= appVersion ?></span></div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2 style="margin-top:0">Módulos do sistema</h2>
+        <div id="modules" class="grid"></div>
+        <div class="actions">
+          <button class="primary" onclick="carregarResumo()">Atualizar resumo</button>
+          <button class="ghost" onclick="pingServidor()">Testar conexão</button>
+        </div>
+        <div id="status"></div>
+      </section>
+
+      <footer>
+        MVP web inicial. Próximos passos: autenticação, navegação por módulo e telas operacionais.
+      </footer>
+    </main>
+
+    <script>
+      function setStatus(msg, isError) {
+        var el = document.getElementById('status');
+        el.style.color = isError ? '#b91c1c' : '#0f766e';
+        el.textContent = msg || '';
+      }
+
+      function renderModules(mods) {
+        var root = document.getElementById('modules');
+        root.innerHTML = '';
+        (mods || []).forEach(function(name) {
+          var card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<strong>' + name + '</strong><div class="badge">Disponível</div>';
+          root.appendChild(card);
+        });
+      }
+
+      function carregarResumo() {
+        setStatus('Carregando resumo...');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) {
+              setStatus((res && res.error) || 'Falha ao carregar resumo.', true);
+              return;
+            }
+            renderModules(res.modulos);
+            setStatus('Resumo atualizado em ' + new Date().toLocaleString('pt-BR'));
+          })
+          .withFailureHandler(function(err) {
+            setStatus('Erro no servidor: ' + (err && err.message ? err.message : err), true);
+          })
+          .webApi('resumoInicial', {});
+      }
+
+      function pingServidor() {
+        setStatus('Testando conexão...');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok) {
+              setStatus('Conexão OK (' + res.message + ')');
+            } else {
+              setStatus('Sem resposta válida.', true);
+            }
+          })
+          .withFailureHandler(function(err) {
+            setStatus('Falha de conexão: ' + (err && err.message ? err.message : err), true);
+          })
+          .webApi('ping', {});
+      }
+
+      carregarResumo();
+    </script>
+  </body>
+</html>
