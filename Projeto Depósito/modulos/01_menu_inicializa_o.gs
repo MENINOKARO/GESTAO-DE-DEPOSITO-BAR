@@ -14,11 +14,10 @@
 
       const ui = SpreadsheetApp.getUi();
 
-      // 🔹 Se não autenticado, mostrar apenas menu de login
+      // 🔹 Se não autenticado, abre automaticamente a tela de login
       if (!usuarioAtual) {
-        ui.createMenu('📦 GESTÃO DE DEPÓSITO')
-          .addItem('🔐 Fazer Login / Criar Conta', 'telaLoginOuCriar')
-          .addToUi();
+        try { bloquearVisualizacaoSemLogin(); } catch(e) { console.warn('Falha ao bloquear abas sem login:', e); }
+        try { popupTelaInicial(); } catch(e) { console.warn('Falha ao abrir tela inicial de login:', e); }
         return;
       }
 
