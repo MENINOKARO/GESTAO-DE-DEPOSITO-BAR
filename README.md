@@ -40,7 +40,5 @@ Status: Produção assistida
 
 ## WebApp (MVP inicial)
 - Novo frontend web em `Projeto Depósito/webapp/index.html`.
-- Entrypoint do WebApp em `Projeto Depósito/modulos/80_webapp_entrypoint.gs` com `doGet`.
+- Entrypoint do WebApp em `Projeto Depósito/webapp/80_webapp_entrypoint.gs` com `doGet`.
 - Publicação: Apps Script > Implantar > Novo app da Web.
-
-- No Apps Script, o HTML deve estar como `index.html` na raiz do projeto.
