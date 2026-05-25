@@ -2085,6 +2085,10 @@ function temPermissao(perfilRequerido){
 
         // garante que as operações anteriores foram aplicadas antes de criar a HOME
         SpreadsheetApp.flush();
+        Utilities.sleep(250);
+        // reforça exibição automática das abas sem exigir atualização manual da planilha
+        try{ aplicarVisibilidadeAbasPorPerfil(); }catch(e){ console.warn('Falha no reforço de visibilidade pós-login:', e); }
+        SpreadsheetApp.flush();
 
         executarSeFuncao_('criarHomeDashboard');
         executarSeFuncao_('abrirPainelFlutuante');
