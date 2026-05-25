@@ -2157,7 +2157,7 @@ function temPermissao(perfilRequerido){
         try{
           shBloq = ss.insertSheet('BLOQUEIO_LOGIN');
           shBloq.clear();
-          shBloq.getRange('A1').setValue('Sistema bloqueado. Faça login pelo menu.');
+          shBloq.getRange('A1').setValue('Sistema bloqueado. Faça login para acessar as abas.');
           shBloq.setTabColor('#ffcccc');
         }catch(e){
           console.warn('Não foi possível criar aba BLOQUEIO_LOGIN:', e);
