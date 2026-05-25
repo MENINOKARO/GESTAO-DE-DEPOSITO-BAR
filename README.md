@@ -37,3 +37,8 @@ Status: Produção assistida
 
 ## Reestruturação modular (proposta)
 - Diagnóstico e plano de reorganização sem refatorar regras em `documento/PLANO_REESTRUTURACAO_MODULAR_SEM_REFATORACAO.md`.
+
+## WebApp (MVP inicial)
+- Novo frontend web em `Projeto Depósito/webapp/index.html`.
+- Entrypoint do WebApp em `Projeto Depósito/webapp/80_webapp_entrypoint.gs` com `doGet`.
+- Publicação: Apps Script > Implantar > Novo app da Web.
