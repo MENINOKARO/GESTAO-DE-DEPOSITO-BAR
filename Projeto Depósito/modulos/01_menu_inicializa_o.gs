@@ -17,7 +17,7 @@
       // 🔹 Se não autenticado, abre automaticamente a tela de login
       if (!usuarioAtual) {
         try { bloquearVisualizacaoSemLogin(); } catch(e) { console.warn('Falha ao bloquear abas sem login:', e); }
-        try { popupLogin(); } catch(e) { console.warn('Falha ao abrir popup de login automático:', e); }
+        try { popupTelaInicial(); } catch(e) { console.warn('Falha ao abrir tela inicial de login:', e); }
         return;
       }
 
