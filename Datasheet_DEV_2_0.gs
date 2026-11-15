@@ -6685,10 +6685,20 @@
       .getValues()
       .filter((l,i)=> i > 0 && (String(l[0]).trim().toUpperCase() === String(pedido).trim().toUpperCase() || (typeof pedidosCorrespondem === 'function' && pedidosCorrespondem(l[0], pedido)) || Number(l[0]) === Number(pedido)));
 
+    // Se não houver itens discriminados (comanda zerada/vazia), fecha diretamente na aba COMANDAS
     if(itens.length === 0){
-      throw new Error(
-        `Nenhum item encontrado para a comanda ${pedido}`
-      );
+      const sh = ss.getSheetByName('COMANDAS');
+      if (sh) {
+        const dados = sh.getDataRange().getValues();
+        dados.forEach((l,i)=>{
+          if(i > 0 && (String(l[0]).trim().toUpperCase() === String(pedido).trim().toUpperCase() || 
+                       (typeof pedidosCorrespondem === 'function' && pedidosCorrespondem(l[0], pedido)) || 
+                       (Number(l[0]) == Number(pedido) && !isNaN(Number(pedido))))){
+            sh.getRange(i+1,5).setValue('FECHADA');
+          }
+        });
+      }
+      return { ok: true, msg: `Comanda #${pedido} vazia fechada e arquivada com sucesso.` };
     }
 
     let totalItens = 0;

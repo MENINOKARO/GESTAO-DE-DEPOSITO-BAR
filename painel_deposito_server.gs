@@ -298,7 +298,7 @@ function obterDadosPainel360() {
       }
     }
 
-    // 7. COMANDAS BALCÃO EM ABERTO (CARDS COMPLETOS COM ITENS & TOTAL)
+    // 7. COMANDAS BALCÃO EM ABERTO (CARDS COMPLETOS COM ITENS, TOTAL, PAGAMENTOS E SALDO REAL)
     const comandasAbertas = [];
     const mapaItensComandas = {};
 
@@ -322,6 +322,29 @@ function obterDadosPainel360() {
       });
     }
 
+    // Mapeia amortizações/pagamentos parciais já lançados na aba CAIXA
+    const mapaPagosComandas = {};
+    const shCaixaCom = ss.getSheetByName('CAIXA');
+    if (shCaixaCom && shCaixaCom.getLastRow() > 1) {
+      const dCaixa = shCaixaCom.getRange(2, 1, shCaixaCom.getLastRow() - 1, Math.min(shCaixaCom.getLastColumn(), 5)).getValues();
+      dCaixa.forEach(r => {
+        const tipo = String(r[1] || '').trim().toUpperCase();
+        if (tipo === 'ENTRADA') {
+          const val = Number(r[2]) || 0;
+          const desc = String(r[4] || '').toUpperCase();
+          if (desc.includes('COMANDA')) {
+            const matches = desc.match(/#?(\d+)/g);
+            if (matches) {
+              matches.forEach(m => {
+                const num = m.replace('#', '');
+                mapaPagosComandas[num] = (mapaPagosComandas[num] || 0) + val;
+              });
+            }
+          }
+        }
+      });
+    }
+
     const shCom = ss.getSheetByName('COMANDAS');
     if (shCom && shCom.getLastRow() > 1) {
       const dCom = shCom.getRange(2, 1, shCom.getLastRow() - 1, Math.min(shCom.getLastColumn(), 5)).getValues();
@@ -337,6 +360,12 @@ function obterDadosPainel360() {
           let totalComanda = 0;
           itens.forEach(it => { totalComanda += it.total; });
 
+          const idNum = ped.replace(/[^0-9]/g, '');
+          const totalPago = mapaPagosComandas[idNum] || (typeof calcularPagamentosComanda === 'function' ? Number(calcularPagamentosComanda(ped)) : 0) || 0;
+          const saldoRestante = Math.max(0, totalComanda - totalPago);
+          const quitada = (totalComanda > 0 && saldoRestante <= 0.001);
+          const vazia = (itens.length === 0 && totalComanda === 0);
+
           comandasAbertas.push({
             pedido: ped,
             cliente: cli,
@@ -344,7 +373,11 @@ function obterDadosPainel360() {
             status: st,
             dataHora: dataCom ? Utilities.formatDate(dataCom, 'America/Bahia', 'dd/MM/yyyy HH:mm') : '',
             itens: itens,
-            total: totalComanda
+            total: totalComanda,
+            pagos: totalPago,
+            saldo: saldoRestante,
+            quitada: quitada,
+            vazia: vazia
           });
         }
       });
@@ -746,36 +779,132 @@ function removerItemComandaBalcao360(token, pedido, produto, qtd) {
 
 /**
  * Fecha uma Comanda Balcão existente com baixa de pagamento no caixa.
+ * Suporta comandas com saldo devedor restante, comandas já quitadas (R$ 0,00) e comandas sem itens.
  */
 function fecharComandaBalcao360(pedido, formaPgto) {
   try {
     if (!pedido) throw new Error('Número da comanda não informado.');
     formaPgto = String(formaPgto || 'Dinheiro').trim();
 
-    if (typeof fecharComandaBalcaoFinal === 'function') {
-      fecharComandaBalcaoFinal(pedido, formaPgto);
-      return { sucesso: true, msg: 'Comanda #' + pedido + ' finalizada com sucesso!' };
-    }
-
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const shCom = ss.getSheetByName('COMANDAS');
     if (!shCom) throw new Error('Aba COMANDAS não encontrada.');
 
+    // 1. Tenta fechar usando o motor nativo da planilha (baixa no caixa se houver saldo restante e vendas)
+    let fechouNativo = false;
+    try {
+      if (typeof fecharComandaBalcaoFinal === 'function') {
+        const res = fecharComandaBalcaoFinal(pedido, formaPgto);
+        if (res && res.ok) fechouNativo = true;
+      }
+    } catch (eNativo) {
+      console.warn('Aviso em fecharComandaBalcaoFinal:', eNativo.message);
+    }
+
+    // 2. Garante que o status na aba COMANDAS seja atualizado para FECHADA
     const dados = shCom.getDataRange().getValues();
-    let rowIndex = -1;
+    let encontrou = false;
     for (let i = 1; i < dados.length; i++) {
-      if (String(dados[i][0]) === String(pedido)) {
-        rowIndex = i + 1;
-        break;
+      const pedRow = String(dados[i][0] || '').trim();
+      if (pedRow === String(pedido).trim() || (Number(pedRow) === Number(pedido) && !isNaN(Number(pedido)))) {
+        shCom.getRange(i + 1, 5).setValue('FECHADA');
+        encontrou = true;
       }
     }
 
-    if (rowIndex === -1) throw new Error('Comanda #' + pedido + ' não encontrada.');
-    shCom.getRange(rowIndex, 5).setValue('FECHADA');
+    if (!encontrou && !fechouNativo) {
+      throw new Error('Comanda #' + pedido + ' não encontrada.');
+    }
 
-    return { sucesso: true, msg: 'Comanda #' + pedido + ' finalizada!' };
+    return { sucesso: true, msg: 'Comanda #' + pedido + ' finalizada e arquivada com sucesso!' };
   } catch (err) {
     console.error('Erro em fecharComandaBalcao360:', err);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * 🧹 Varre a aba COMANDAS e arquiva (status = FECHADA) todas as comandas
+ * que já estiverem com saldo devedor R$ 0,00 ou sem itens discriminados.
+ */
+function arquivarComandasQuitadas360(token) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { sucesso: false, erro: 'Sessão expirada. Faça login novamente.' };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const shCom = ss.getSheetByName('COMANDAS');
+    if (!shCom || shCom.getLastRow() < 2) {
+      return { sucesso: true, msg: 'Nenhuma comanda para arquivar.', arquivadas: 0 };
+    }
+
+    // 1. Mapeia itens de cada comanda
+    const mapaItens = {};
+    const shItens = ss.getSheetByName('COMANDA_ITENS');
+    if (shItens && shItens.getLastRow() > 1) {
+      const dItens = shItens.getRange(2, 1, shItens.getLastRow() - 1, Math.min(shItens.getLastColumn(), 5)).getValues();
+      dItens.forEach(r => {
+        const ped = String(r[0] || '').trim();
+        if (!ped) return;
+        const tot = Number(r[4]) || ((Number(r[2]) || 0) * (Number(r[3]) || 0));
+        mapaItens[ped] = (mapaItens[ped] || 0) + tot;
+      });
+    }
+
+    // 2. Mapeia pagamentos da aba CAIXA
+    const mapaPagos = {};
+    const shCaixa = ss.getSheetByName('CAIXA');
+    if (shCaixa && shCaixa.getLastRow() > 1) {
+      const dCaixa = shCaixa.getRange(2, 1, shCaixa.getLastRow() - 1, Math.min(shCaixa.getLastColumn(), 5)).getValues();
+      dCaixa.forEach(r => {
+        const tipo = String(r[1] || '').trim().toUpperCase();
+        if (tipo === 'ENTRADA') {
+          const val = Number(r[2]) || 0;
+          const desc = String(r[4] || '').toUpperCase();
+          if (desc.includes('COMANDA')) {
+            const matches = desc.match(/#?(\d+)/g);
+            if (matches) {
+              matches.forEach(m => {
+                const num = m.replace('#', '');
+                mapaPagos[num] = (mapaPagos[num] || 0) + val;
+              });
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Varre as comandas com status ABERTA
+    const dCom = shCom.getDataRange().getValues();
+    let arquivadas = 0;
+
+    for (let i = 1; i < dCom.length; i++) {
+      const ped = String(dCom[i][0] || '').trim();
+      const st = String(dCom[i][4] || '').toUpperCase().trim();
+
+      if (st === 'ABERTA' || st === 'EM ABERTO' || st === 'AGUARDANDO_PGTO') {
+        const totalConsumido = mapaItens[ped] || 0;
+        const idNum = ped.replace(/[^0-9]/g, '');
+        const totalPago = mapaPagos[idNum] || (typeof calcularPagamentosComanda === 'function' ? Number(calcularPagamentosComanda(ped)) : 0) || 0;
+        const saldoRestante = Math.max(0, totalConsumido - totalPago);
+
+        // Se o saldo restante for zero ou a comanda não tiver itens discriminados
+        if (saldoRestante <= 0.001 || totalConsumido === 0) {
+          shCom.getRange(i + 1, 5).setValue('FECHADA');
+          arquivadas++;
+        }
+      }
+    }
+
+    return {
+      sucesso: true,
+      msg: arquivadas > 0 
+        ? `${arquivadas} comanda(s) quitada(s) ou zerada(s) foram arquivadas com sucesso!` 
+        : 'Nenhuma comanda quitada pendente de arquivamento.',
+      arquivadas: arquivadas
+    };
+  } catch (err) {
+    console.error('Erro em arquivarComandasQuitadas360:', err);
     return { sucesso: false, erro: err.message };
   }
 }
