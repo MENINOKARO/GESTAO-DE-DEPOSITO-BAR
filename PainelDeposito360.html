@@ -1849,7 +1849,7 @@
           <span>🧾</span> Comandas Balcão em Aberto (<span id="comandasCountTitulo">0</span>)
         </h3>
         <div style="display:flex; gap:8px;">
-          <button type="button" class="btn-action" style="background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #fbbf24; font-size:12px; padding:6px 12px;" onclick="executarArquivarComandasQuitadas()" title="Arquiva todas as comandas com saldo zerado ou sem itens">
+          <button type="button" id="btnArquivarQuitadasLote" class="btn-action" style="display: none; background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #fbbf24; font-size:12px; padding:6px 12px;" onclick="executarArquivarComandasQuitadas()" title="Arquiva todas as comandas com saldo zerado ou sem itens">
             <span>🧹</span> Arquivar Quitadas / Vazias
           </button>
           <button class="btn-action btn-sync" onclick="sincronizarPainel()">
@@ -4568,12 +4568,34 @@
         return;
       }
 
+      // Atualiza visibilidade do botão de arquivamento em lote
+      let qtdQuitadasOuVazias = 0;
+      comandas.forEach(c => {
+        const totalConsumido = Number(c.total) || 0;
+        const totalPago = Number(c.pagos) || 0;
+        const saldoDevedor = (c.saldo !== undefined) ? Number(c.saldo) : Math.max(0, totalConsumido - totalPago);
+        if (saldoDevedor <= 0.001 || totalConsumido === 0 || c.quitada || c.vazia) {
+          qtdQuitadasOuVazias++;
+        }
+      });
+
+      const btnArquivarLote = document.getElementById('btnArquivarQuitadasLote');
+      if (btnArquivarLote) {
+        if (qtdQuitadasOuVazias > 0) {
+          btnArquivarLote.style.display = 'inline-flex';
+          btnArquivarLote.innerHTML = `<span>🧹</span> Arquivar Quitadas / Vazias (${qtdQuitadasOuVazias})`;
+        } else {
+          btnArquivarLote.style.display = 'none';
+        }
+      }
+
       container.innerHTML = comandas.map(c => {
         const totalConsumido = Number(c.total) || 0;
         const totalPago = Number(c.pagos) || 0;
         const saldoDevedor = (c.saldo !== undefined) ? Number(c.saldo) : Math.max(0, totalConsumido - totalPago);
         const isQuitada = !!c.quitada || (totalConsumido > 0 && saldoDevedor <= 0.001);
         const isVazia = !!c.vazia || (totalConsumido === 0 && (!c.itens || c.itens.length === 0));
+        const isZerada = (saldoDevedor <= 0.001 || isVazia || isQuitada);
 
         const itensHtml = c.itens && c.itens.length > 0 
           ? c.itens.map(i => `
@@ -4598,15 +4620,15 @@
             </div>
           `;
           btnFecharHtml = `
-            <button class="btn-fechar-comanda" style="background: linear-gradient(135deg, #10b981, #059669);" type="button" onclick="event.stopPropagation(); fecharComandaBalcaoDireta('${c.pedido}')" title="Arquivar comanda totalmente quitada">
-              <span>✅</span> Arquivar
+            <button class="btn-fechar-comanda" style="background: linear-gradient(135deg, #10b981, #059669);" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', true)" title="Encerrar e arquivar comanda quitada">
+              <span>✅</span> Encerrar
             </button>
           `;
         } else if (isVazia) {
           statusBadge = `<span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">SEM ITENS</span>`;
           rodapeValorHtml = `<span class="comanda-total" style="color:var(--text-muted); font-size:13px;">R$ 0,00</span>`;
           btnFecharHtml = `
-            <button class="btn-fechar-comanda" style="background: #475569;" type="button" onclick="event.stopPropagation(); fecharComandaBalcaoDireta('${c.pedido}')" title="Encerrar comanda vazia">
+            <button class="btn-fechar-comanda" style="background: #475569;" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', true)" title="Encerrar comanda vazia">
               <span>✕</span> Encerrar
             </button>
           `;
@@ -4618,14 +4640,14 @@
             </div>
           `;
           btnFecharHtml = `
-            <button class="btn-fechar-comanda" type="button" onclick="event.stopPropagation(); fecharComandaBalcaoDireta('${c.pedido}')" title="Receber restante da comanda">
+            <button class="btn-fechar-comanda" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', false)" title="Receber restante da comanda">
               <span>💳</span> Fechar
             </button>
           `;
         } else {
           rodapeValorHtml = `<span class="comanda-total">${formatMoeda(saldoDevedor)}</span>`;
           btnFecharHtml = `
-            <button class="btn-fechar-comanda" type="button" onclick="event.stopPropagation(); fecharComandaBalcaoDireta('${c.pedido}')" title="Encerrar e receber comanda">
+            <button class="btn-fechar-comanda" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', false)" title="Encerrar e receber comanda">
               <span>💳</span> Fechar
             </button>
           `;
@@ -4786,8 +4808,56 @@
     function fecharComandaModalAtual() {
       if (!COMANDA_ATUAL_ADD_MODAL) return;
       const ped = COMANDA_ATUAL_ADD_MODAL;
+      const comanda = DADOS_SISTEMA && DADOS_SISTEMA.comandasAbertas 
+        ? DADOS_SISTEMA.comandasAbertas.find(c => String(c.pedido) === String(ped)) 
+        : null;
+      const saldo = comanda ? ((comanda.saldo !== undefined) ? Number(comanda.saldo) : (Number(comanda.total) || 0)) : 0;
+      const isZerada = (saldo <= 0.001 || (comanda && comanda.total === 0));
+
       fecharModalDetalhesComanda();
-      fecharComandaBalcaoDireta(ped);
+      acionarEncerramentoComandaCard(ped, isZerada);
+    }
+
+    /**
+     * 🚪 Roteia o encerramento da comanda: se estiver zerada/quitada, encerra diretamente; se tiver saldo, abre modal de pgto
+     */
+    function acionarEncerramentoComandaCard(pedido, isZerada) {
+      if (isZerada) {
+        abrirDialogHarmonizado({
+          icone: '✅',
+          titulo: 'Encerrar Comanda #' + pedido,
+          mensagem: `Esta comanda está com <strong>saldo R$ 0,00 (quitada/sem débitos)</strong>.<br><br>Deseja encerrar e arquivar agora na planilha?`,
+          textoConfirmar: 'Sim, Encerrar Comanda',
+          textoCancelar: 'Cancelar',
+          onConfirm: () => {
+            encerrarComandaZeradaDireto(pedido);
+          }
+        });
+      } else {
+        fecharComandaBalcaoDireta(pedido);
+      }
+    }
+
+    /**
+     * ⚡ Encerra comanda zerada ou quitada imediatamente sem abrir fluxo de recebimento
+     */
+    function encerrarComandaZeradaDireto(pedido) {
+      mostrarLoader('Encerrando Comanda #' + pedido + '...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast(res.msg || 'Comanda #' + pedido + ' encerrada com sucesso!', 'success');
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao encerrar comanda', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .fecharComandaBalcao360(pedido, 'Quitada');
     }
 
     function toggleSecaoAddProdutoComanda() {
@@ -5270,7 +5340,7 @@
 
       // Trava anti-duplo clique
       const btnAlvo = isQuitacaoTotal 
-        ? document.getElementById('btnEncerrarComandaQuitacao') 
+        ? (document.getElementById('btnQuitarIntegralComanda') || document.getElementById('btnEncerrarComandaQuitacao'))
         : document.getElementById('btnPagamentoParcialComanda');
       if (btnAlvo) {
         btnAlvo.disabled = true;
