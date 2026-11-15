@@ -266,6 +266,25 @@ function supabaseObterUsuarioPorTelegramChatId(chatId) {
 // ====================================================================
 
 /**
+ * Sanitiza valores numéricos de células da planilha com segurança
+ */
+function limparNumero(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') {
+    return (isNaN(val) || !isFinite(val)) ? 0 : val;
+  }
+  let str = String(val).trim();
+  str = str.replace(/[R$\s%]/g, '');
+  if (str.includes(',') && str.includes('.')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    str = str.replace(',', '.');
+  }
+  const n = parseFloat(str);
+  return (isNaN(n) || !isFinite(n)) ? 0 : n;
+}
+
+/**
  * Executa a migração em lote de todos os dados atuais da Planilha para o Supabase
  */
 function migrarTudoPlanilhaParaSupabase() {
@@ -322,13 +341,13 @@ function migrarTudoPlanilhaParaSupabase() {
             categoria: String(dadosProd[i][1] || 'Geral').trim(),
             marca: String(dadosProd[i][2] || '').trim(),
             volume: String(dadosProd[i][3] || '').trim(),
-            preco_venda: Number(dadosProd[i][4]) || 0,
-            estoque_minimo: Number(dadosProd[i][5]) || 0,
-            custo_medio: Number(dadosProd[i][6]) || 0,
-            margem_pct: Number(dadosProd[i][7]) || 0,
-            preco_sugerido: Number(dadosProd[i][8]) || 0,
+            preco_venda: limparNumero(dadosProd[i][4]),
+            estoque_minimo: limparNumero(dadosProd[i][5]),
+            custo_medio: limparNumero(dadosProd[i][6]),
+            margem_pct: limparNumero(dadosProd[i][7]),
+            preco_sugerido: limparNumero(dadosProd[i][8]),
             status_margem: String(dadosProd[i][9] || '🟢 OK').trim(),
-            estoque_atual: Number(dadosProd[i][11]) || 0
+            estoque_atual: limparNumero(dadosProd[i][11])
           });
         }
       }
@@ -351,8 +370,8 @@ function migrarTudoPlanilhaParaSupabase() {
         const prodNome = String(dadosEst[i][0] || '').trim();
         if (prodNome) {
           const key = prodNome.toLowerCase();
-          const qtd = Number(dadosEst[i][1]) || 0;
-          const min = Number(dadosEst[i][2]) || 0;
+          const qtd = limparNumero(dadosEst[i][1]);
+          const min = limparNumero(dadosEst[i][2]);
           const status = String(dadosEst[i][3] || '🟢   OK   🔋').trim();
           const obs = String(dadosEst[i][4] || '').trim();
 
@@ -393,8 +412,8 @@ function migrarTudoPlanilhaParaSupabase() {
             nome: nomeCli,
             telefone: String(dadosCli[i][1] || '').trim(),
             endereco: String(dadosCli[i][2] || '').trim(),
-            limite_fiado: Number(dadosCli[i][3]) || 0,
-            saldo_devedor: Number(dadosCli[i][4]) || 0,
+            limite_fiado: limparNumero(dadosCli[i][3]),
+            saldo_devedor: limparNumero(dadosCli[i][4]),
             status: String(dadosCli[i][5] || 'ATIVO').trim()
           };
         }
