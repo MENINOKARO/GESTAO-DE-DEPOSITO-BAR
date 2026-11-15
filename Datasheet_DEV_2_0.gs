@@ -50,6 +50,17 @@
 // MENU / INICIALIZAÇÃO
 // ===============================
 
+  /**
+   * 🔔 Notificação segura da UI para evitar ReferenceError caso a interface não esteja disponível
+   */
+  function uiNotificar(msg, tipo, titulo) {
+    try {
+      SpreadsheetApp.getActive().toast(String(msg || ''), String(titulo || 'Sistema Depósito'), 5);
+    } catch(e) {
+      console.log('[' + String(tipo || 'INFO').toUpperCase() + '] ' + String(msg || ''));
+    }
+  }
+
   function onOpen() {
     const ss = SpreadsheetApp.getActive();
     try {
@@ -438,6 +449,71 @@
   }
 
 
+  /**
+   * 🎨 Padronização Executiva das Abas de Governança: CONFERENCIA_CAIXA e FECHAMENTO_FISCAL
+   */
+  function padronizarAbaConferenciaCaixa(ss) {
+    const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
+    let sh = planilha.getSheetByName('CONFERENCIA_CAIXA') || planilha.getSheetByName('CONFERÊNCIA_CAIXA') || planilha.getSheetByName('CAIXA_FECHAMENTO');
+    if (!sh) sh = planilha.insertSheet('CONFERENCIA_CAIXA');
+    if (sh.getName() !== 'CONFERENCIA_CAIXA') {
+      try { sh.setName('CONFERENCIA_CAIXA'); } catch(e) {}
+    }
+
+    const cabecalhos = [
+      'Protocolo', 'Data Registro', 'Entradas', 'Saídas', 'Saldo Sistema', 'Valor Gaveta', 'Diferença', 'Status', 'Operador', 'Gestor Aprovador', 'Data Aprovação', 'Observações'
+    ];
+    sh.getRange(1, 1, 1, cabecalhos.length).setValues([cabecalhos]);
+    const headerRange = sh.getRange(1, 1, 1, cabecalhos.length);
+    headerRange.setFontWeight('bold')
+               .setBackground('#0f172a')
+               .setFontColor('#ffffff')
+               .setHorizontalAlignment('center')
+               .setVerticalAlignment('middle');
+    try { sh.setRowHeight(1, 28); } catch(e) {}
+
+    const maxRows = Math.max(sh.getLastRow(), 2);
+    // Formata Moedas: Colunas C (3) a G (7)
+    sh.getRange(2, 3, maxRows - 1, 5).setNumberFormat('R$ #,##0.00');
+    // Formata Datas: Coluna B (2) e Coluna K (11)
+    sh.getRange(2, 2, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    sh.getRange(2, 11, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    // Alinha Protocolo, Status e Nomes no centro
+    sh.getRange(2, 1, maxRows - 1, 1).setHorizontalAlignment('center');
+    sh.getRange(2, 8, maxRows - 1, 3).setHorizontalAlignment('center');
+
+    return sh;
+  }
+
+  function padronizarAbaFechamentoFiscal(ss) {
+    const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
+    let sh = planilha.getSheetByName('FECHAMENTO_FISCAL') || planilha.getSheetByName('CAIXA_FISCAL');
+    if (!sh) sh = planilha.insertSheet('FECHAMENTO_FISCAL');
+    if (sh.getName() !== 'FECHAMENTO_FISCAL') {
+      try { sh.setName('FECHAMENTO_FISCAL'); } catch(e) {}
+    }
+
+    const cabecalhos = [
+      'Data Referência', 'Entradas', 'Saídas', 'Saldo Fiscal', 'Fechado em', 'Responsável', 'Observações'
+    ];
+    sh.getRange(1, 1, 1, cabecalhos.length).setValues([cabecalhos]);
+    const headerRange = sh.getRange(1, 1, 1, cabecalhos.length);
+    headerRange.setFontWeight('bold')
+               .setBackground('#0f172a')
+               .setFontColor('#ffffff')
+               .setHorizontalAlignment('center')
+               .setVerticalAlignment('middle');
+    try { sh.setRowHeight(1, 28); } catch(e) {}
+
+    const maxRows = Math.max(sh.getLastRow(), 2);
+    // Formata Moedas: Colunas B (2) a D (4)
+    sh.getRange(2, 2, maxRows - 1, 3).setNumberFormat('R$ #,##0.00');
+    // Formata Datas: Coluna E (5)
+    sh.getRange(2, 5, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+
+    return sh;
+  }
+
   function padronizarTodasAbasSistema(){
     const ss = SpreadsheetApp.getActive();
     const abas = ss.getSheets();
@@ -445,6 +521,9 @@
     abas.forEach(sh => {
       aplicarFormatacaoPadrao(sh);
     });
+
+    padronizarAbaConferenciaCaixa(ss);
+    padronizarAbaFechamentoFiscal(ss);
 
     uiNotificar('Formatação padrão aplicada em todas as abas.','sucesso','Padronização');
     return { ok:true, total: abas.length };
@@ -6871,6 +6950,52 @@
     }
 
     throw new Error(`Produto ${produto} não encontrado no estoque`);
+  }
+
+  /**
+   * 🔄 Devolve quantidade ao estoque físico quando um item de comanda é estornado pelo Dono
+   */
+  function devolverEstoquePorComanda(produto, quantidade){
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName('ESTOQUE');
+    if(!sh) throw new Error('Aba ESTOQUE não encontrada.');
+
+    const dados = sh.getDataRange().getValues();
+    const qtdNum = Number(quantidade) || 0;
+    if (qtdNum <= 0) return true;
+
+    const prodNorm = String(produto || '').trim().toLowerCase();
+
+    for(let i = 1; i < dados.length; i++){
+      const itemNome = String(dados[i][0] || '').trim().toLowerCase();
+      if(itemNome === prodNorm){
+        const atual = Number(dados[i][1]) || 0;
+        const novaQtd = atual + qtdNum;
+        sh.getRange(i+1, 2).setValue(novaQtd);
+
+        if (typeof atualizarEstoque === 'function') {
+          try { atualizarEstoque(); } catch(e) {}
+        }
+        return true;
+      }
+    }
+
+    // Busca alternativa por inclusão caso haja pequenas diferenças
+    for(let i = 1; i < dados.length; i++){
+      const itemNome = String(dados[i][0] || '').trim().toLowerCase();
+      if(itemNome && (itemNome.includes(prodNorm) || prodNorm.includes(itemNome))){
+        const atual = Number(dados[i][1]) || 0;
+        const novaQtd = atual + qtdNum;
+        sh.getRange(i+1, 2).setValue(novaQtd);
+
+        if (typeof atualizarEstoque === 'function') {
+          try { atualizarEstoque(); } catch(e) {}
+        }
+        return true;
+      }
+    }
+
+    throw new Error(`Produto "${produto}" não encontrado no estoque para devolução.`);
   }
 // ===============================
 // LISTAGEM / CONSULTA

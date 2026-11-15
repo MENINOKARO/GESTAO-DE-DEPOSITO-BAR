@@ -1695,15 +1695,15 @@
 
   <!-- TOP KPI RIBBON -->
   <section class="kpi-row">
-    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
+    <div class="kpi-card" id="cardKpiFatHoje" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
       <div class="kpi-lbl"><span>Faturamento Hoje</span><span>💰</span></div>
       <div class="kpi-val green" id="kpiFatHoje">R$ 0,00</div>
     </div>
-    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
+    <div class="kpi-card" id="cardKpiFatMes" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
       <div class="kpi-lbl"><span>Faturamento Mês</span><span>📅</span></div>
       <div class="kpi-val purple" id="kpiFatMes">R$ 0,00</div>
     </div>
-    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Saldo e Fluxo de Caixa">
+    <div class="kpi-card" id="cardKpiSaldoCaixa" onclick="trocarAba('tabVisao360')" title="Clique para ver o Saldo e Fluxo de Caixa">
       <div class="kpi-lbl"><span>Saldo Caixa</span><span>💵</span></div>
       <div class="kpi-val blue" id="kpiSaldoCaixa">R$ 0,00</div>
     </div>
@@ -1711,11 +1711,11 @@
       <div class="kpi-lbl"><span>Valor Estoque</span><span>📦</span></div>
       <div class="kpi-val" id="kpiValorEstoque">R$ 0,00</div>
     </div>
-    <div class="kpi-card" onclick="trocarAba('tabComandas')" title="Clique para ver Comandas Balcão">
+    <div class="kpi-card" id="cardKpiComandasAbertas" onclick="trocarAba('tabComandas')" title="Clique para ver Comandas Balcão">
       <div class="kpi-lbl"><span>Comandas Abertas</span><span>🧾</span></div>
       <div class="kpi-val yellow" id="kpiComandasAbertas">0</div>
     </div>
-    <div class="kpi-card" onclick="trocarAba('tabDelivery')" title="Clique para ver Módulo Delivery">
+    <div class="kpi-card" id="cardKpiDelPendentes" onclick="trocarAba('tabDelivery')" title="Clique para ver Módulo Delivery">
       <div class="kpi-lbl"><span>Deliverys Pendentes</span><span>🛵</span></div>
       <div class="kpi-val red" id="kpiDelPendentes">0</div>
     </div>
@@ -1723,19 +1723,19 @@
 
   <!-- NAVIGATION TABS -->
   <nav class="tabs-bar">
-    <button class="tab-btn active" onclick="trocarAba('tabPdv')">
+    <button class="tab-btn active" id="btnTabPdv" onclick="trocarAba('tabPdv')">
       <span>⚡</span> PDV Balcão (Caixa Rápido)
     </button>
-    <button class="tab-btn" onclick="trocarAba('tabComandas')">
+    <button class="tab-btn" id="btnTabComandas" onclick="trocarAba('tabComandas')">
       <span>🧾</span> Comandas Balcão <span class="tab-badge" id="tabComandasBadge" style="background:#f59e0b; color:#000;">0</span>
     </button>
-    <button class="tab-btn" onclick="trocarAba('tabDelivery')">
+    <button class="tab-btn" id="btnTabDelivery" onclick="trocarAba('tabDelivery')">
       <span>🛵</span> Módulo Delivery <span class="tab-badge" id="tabDelBadge">0</span>
     </button>
-    <button class="tab-btn" onclick="trocarAba('tabVisao360')">
+    <button class="tab-btn" id="btnTabVisao360" onclick="trocarAba('tabVisao360')">
       <span>📊</span> Panorama 360°
     </button>
-    <button class="tab-btn" onclick="trocarAba('tabEstoque')">
+    <button class="tab-btn" id="btnTabEstoque" onclick="trocarAba('tabEstoque')">
       <span>📦</span> Estoque & Preços
     </button>
     <!-- BOTÕES DE EQUIPE, PAINEL INTELIGENTE E CONFIGURAÇÃO -->
@@ -2284,38 +2284,38 @@
         </div>
 
         <!-- Grupo 2: Controle & Auditoria -->
-        <div class="pi-secao">
+        <div class="pi-secao" id="piSecaoControle">
           <div class="pi-secao-titulo">🛅 Controle & Auditoria</div>
           <div class="pi-grid">
-            <div class="pi-card" onclick="abrirModalPreviaConferenciaCaixa()">
+            <div class="pi-card" id="piCardConferenciaCaixa" onclick="abrirModalPreviaConferenciaCaixa()">
               <span class="pi-icon">🔒</span>
               <div class="pi-info">
                 <strong>Conferência de Caixa</strong>
                 <span>Conferência física do operador para bater o caixa do turno/gaveta</span>
               </div>
             </div>
-            <div class="pi-card" onclick="abrirModalPreviaFechamentoFiscal()">
+            <div class="pi-card" id="piCardFechamentoFiscal" onclick="abrirModalPreviaFechamentoFiscal()">
               <span class="pi-icon">📑</span>
               <div class="pi-info">
                 <strong>Fechamento Fiscal</strong>
                 <span>Exclusivo para Gerente e Dono: fechamento diário, semanal ou mensal consolidado</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabVisao360')">
+            <div class="pi-card" id="piCardPanoramaFinanceiro" onclick="acionarFuncaoInteligente('nav', 'tabVisao360')">
               <span class="pi-icon">📊</span>
               <div class="pi-info">
                 <strong>Panorama Financeiro</strong>
                 <span>Fluxo de caixa, vendas e saldos</span>
               </div>
             </div>
-            <div class="pi-card" onclick="abrirModalNovoCliente('pdv')">
+            <div class="pi-card" id="piCardNovoCliente" onclick="abrirModalNovoCliente('pdv')">
               <span class="pi-icon">👤</span>
               <div class="pi-info">
                 <strong>Novo Cliente</strong>
                 <span>Cadastrar cliente para balcão ou entrega</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEquipe')">
+            <div class="pi-card" id="piCardGestaoColaboradores" onclick="acionarFuncaoInteligente('nav', 'tabEquipe')">
               <span class="pi-icon">👥</span>
               <div class="pi-info">
                 <strong>Gestão de Colaboradores</strong>
@@ -2326,7 +2326,7 @@
         </div>
 
         <!-- Grupo 3: Estoque Financeiro & Produtos -->
-        <div class="pi-secao">
+        <div class="pi-secao" id="piSecaoEstoque">
           <div class="pi-secao-titulo">📦 Estoque Financeiro & Produtos</div>
           <div class="pi-grid">
             <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEstoque')">
@@ -2361,7 +2361,7 @@
         </div>
 
         <!-- Grupo 4: Relatórios Gerenciais -->
-        <div class="pi-secao">
+        <div class="pi-secao" id="piSecaoRelatorios">
           <div class="pi-secao-titulo">📚 Relatórios Gerenciais</div>
           <div class="pi-grid">
             <div class="pi-card" onclick="abrirRelatorioComResumo('valoresEstoque')">
@@ -2434,51 +2434,106 @@
 
   </main>
 
-  <!-- MODAL: ADICIONAR ITEM NA COMANDA ABERTA -->
-  <div id="modalAddItemComanda" class="modal-backdrop" style="display: none;">
-    <div class="modal-content-comanda">
+  <!-- MODAL: DETALHES COMPLETOS DA COMANDA BALCÃO (ITENS CONSUMIDOS, ADIÇÃO & EXCLUSÃO DONO) -->
+  <div id="modalDetalhesComanda" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda" style="max-width: 620px; width: 95%; max-height: 92vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-        <h3 style="font-size: 16px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
-          <span>➕</span> Adicionar Item na Comanda #<span id="modalAddComandaNum"></span>
+        <h3 style="margin: 0; font-size: 17px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+          <span>🧾</span> Comanda #<span id="detComandaNum"></span>
         </h3>
-        <button type="button" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer;" onclick="fecharModalAddItemComanda()">✕</button>
+        <button type="button" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;" onclick="fecharModalDetalhesComanda()">✕</button>
       </div>
 
-      <div style="font-size: 13px; color: #cbd5e1;">
-        Cliente: <strong id="modalAddComandaCliente"></strong>
+      <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); margin-top: 10px; font-size: 13px;">
+        <div>👤 Cliente: <strong id="detComandaCliente" style="color: #f8fafc;">Balcão</strong></div>
+        <div style="color: var(--text-muted);">🕒 <span id="detComandaData">--:--</span></div>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 6px;">
-        <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Selecione o Produto</label>
-        <select id="modalAddSelectProduto" class="cart-select" onchange="atualizarPrecoModalAdd()">
-          <option value="">Selecione um produto...</option>
-        </select>
+      <!-- LISTA DE PRODUTOS JÁ CONSUMIDOS -->
+      <div style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+            🛒 Itens Já Consumidos (<span id="detComandaItensCount">0</span>)
+          </label>
+          <span id="detComandaDonoBadge" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); display: none;">
+            👑 Modo Dono: Exclusão & Estorno Ativos
+          </span>
+        </div>
+
+        <div id="detComandaTabelaContainer" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-base);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="background: #0f172a; color: #94a3b8; border-bottom: 1px solid var(--border);">
+                <th style="padding: 8px 10px;">Produto</th>
+                <th style="padding: 8px 10px; text-align: center;">Qtd</th>
+                <th style="padding: 8px 10px; text-align: right;">Unitário</th>
+                <th style="padding: 8px 10px; text-align: right;">Total</th>
+                <th id="detComandaColAcaoHeader" style="padding: 8px 10px; text-align: center; width: 45px;">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="detComandaTabelaCorpo">
+              <!-- Inserido dinamicamente via JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Quantidade</label>
-          <div class="stepper-box" style="width: 100%; display: flex; justify-content: space-between;">
-            <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', -1, 1, null, atualizarPrecoModalAdd)">-</button>
-            <input type="number" id="modalAddQtd" class="stepper-input" value="1" min="1" style="flex: 1;" oninput="atualizarPrecoModalAdd()">
-            <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', 1, 1, null, atualizarPrecoModalAdd)">+</button>
+      <!-- BOX DE TOTAL ACUMULADO -->
+      <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(52, 211, 153, 0.1); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(52, 211, 153, 0.3); margin-top: 12px;">
+        <span style="font-size: 13px; font-weight: 700; color: #cbd5e1;">TOTAL DA COMANDA:</span>
+        <span style="font-size: 22px; font-weight: 800; color: #34d399;" id="detComandaTotal">R$ 0,00</span>
+      </div>
+
+      <!-- SEÇÃO EXPANSÍVEL: ADICIONAR MAIS PRODUTOS -->
+      <div style="margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; background: rgba(30, 41, 59, 0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleSecaoAddProdutoComanda()">
+          <span style="font-size: 13px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+            <span>➕</span> Lançar Mais Produtos nesta Comanda
+          </span>
+          <span id="setaSecaoAddComanda" style="font-size: 12px; color: #94a3b8;">▼</span>
+        </div>
+
+        <div id="secaoAddProdutoComandaCorpo" style="display: none; margin-top: 10px; flex-direction: column; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Selecione o Produto</label>
+            <select id="modalAddSelectProduto" class="cart-select" onchange="atualizarPrecoModalAdd()">
+              <option value="">Selecione um produto...</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Quantidade</label>
+              <div class="stepper-box" style="width: 100%; display: flex; justify-content: space-between;">
+                <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', -1, 1, null, atualizarPrecoModalAdd)">-</button>
+                <input type="number" id="modalAddQtd" class="stepper-input" value="1" min="1" style="flex: 1;" oninput="atualizarPrecoModalAdd()">
+                <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', 1, 1, null, atualizarPrecoModalAdd)">+</button>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Valor Unitário (R$)</label>
+              <input type="number" id="modalAddUnit" class="cart-input" value="0.00" step="0.50" oninput="atualizarPrecoModalAdd()">
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+            <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Subtotal do Lançamento:</span>
+            <span style="font-size: 16px; font-weight: 800; color: #34d399;" id="modalAddSubtotal">R$ 0,00</span>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+            <button type="button" id="btnConfirmarAddComanda" class="btn-action btn-sync" style="background: linear-gradient(135deg, #d97706, #b45309); border: none; padding: 8px 16px; font-size: 13px;" onclick="confirmarAddItemComanda()">
+              <span>➕</span> Confirmar Lançamento
+            </button>
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Valor Unitário (R$)</label>
-          <input type="number" id="modalAddUnit" class="cart-input" value="0.00" step="0.50" oninput="atualizarPrecoModalAdd()">
-        </div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 4px;">
-        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">SUBTOTAL:</span>
-        <span style="font-size: 20px; font-weight: 800; color: #34d399;" id="modalAddSubtotal">R$ 0,00</span>
-      </div>
-
-      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
-        <button type="button" class="btn-action" onclick="fecharModalAddItemComanda()">Cancelar</button>
-        <button type="button" class="btn-action btn-sync" style="background: linear-gradient(135deg, #d97706, #b45309); border: none;" onclick="confirmarAddItemComanda()">
-          <span>➕</span> Confirmar & Adicionar
+      <!-- BOTÕES DE RODAPÉ -->
+      <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;">
+        <button type="button" class="btn-action" onclick="fecharModalDetalhesComanda()">✕ Fechar Janela</button>
+        <button type="button" id="btnFecharComandaModal" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none;" onclick="fecharComandaModalAtual()">
+          <span>💳</span> Fechar & Receber Comanda
         </button>
       </div>
     </div>
@@ -3278,8 +3333,14 @@
             DADOS_PREVIA_CONFERENCIA = res;
             document.getElementById('prevConfEntradas').innerText = formatMoeda(res.entradas || 0);
             document.getElementById('prevConfSaidas').innerText = formatMoeda(res.saidas || 0);
-            document.getElementById('prevConfSaldoSistema').innerText = formatMoeda(res.saldo || 0);
-            document.getElementById('prevConfValorGaveta').value = (Number(res.saldo) || 0).toFixed(2);
+            
+            const saldoNum = Number(res.saldo) || 0;
+            const elSaldo = document.getElementById('prevConfSaldoSistema');
+            elSaldo.innerText = formatMoeda(saldoNum);
+            elSaldo.style.color = saldoNum < 0 ? '#ef4444' : '#38bdf8';
+
+            // Se o saldo contábil for negativo (excesso de saídas), a gaveta física começa zerada (0.00)
+            document.getElementById('prevConfValorGaveta').value = saldoNum < 0 ? '0.00' : saldoNum.toFixed(2);
             document.getElementById('prevConfObs').value = '';
 
             // Popula lista de gestores para aprovação
@@ -3346,8 +3407,16 @@
 
       const valorGaveta = Number(document.getElementById('prevConfValorGaveta').value);
       if (isNaN(valorGaveta) || valorGaveta < 0) {
-        showToast('Informe o valor físico contado na gaveta!', 'warning');
+        showToast('Informe o valor físico contado na gaveta (mínimo R$ 0,00)!', 'warning');
         return;
+      }
+
+      // Trava Anti-Duplo Clique
+      const btn = document.getElementById('btnConfirmarEnvioConferencia');
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.origText = btn.innerHTML;
+        btn.innerHTML = '⏳ Enviando...';
       }
 
       const selectGestor = document.getElementById('prevConfSelectGestor');
@@ -3374,6 +3443,10 @@
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '🔒 Enviar para Aprovação do Gestor';
+          }
           if (res && res.ok) {
             fecharModalPreviaConferencia();
             abrirDialogHarmonizado({
@@ -3392,6 +3465,10 @@
         })
         .withFailureHandler(err => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '🔒 Enviar para Aprovação do Gestor';
+          }
           showToast('Erro: ' + err.message, 'error');
         })
         .solicitarAprovacaoConferenciaCaixa(TOKEN_SESSAO, payload);
@@ -3437,12 +3514,23 @@
     }
 
     function confirmarExecucaoFechamentoFiscal() {
-      fecharModalPreviaFiscal();
+      const btn = document.getElementById('btnConfirmarFechamentoFiscal');
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.origText = btn.innerHTML;
+        btn.innerHTML = '⏳ Consolidando...';
+      }
+
       mostrarLoader('Consolidando fechamento fiscal...');
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '📑 Confirmar e Gravar Fechamento Fiscal';
+          }
           if (res && res.ok) {
+            fecharModalPreviaFiscal();
             abrirDialogHarmonizado({
               icone: '📑',
               titulo: 'Fechamento Fiscal Concluído',
@@ -3459,6 +3547,10 @@
         })
         .withFailureHandler(err => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '📑 Confirmar e Gravar Fechamento Fiscal';
+          }
           showToast('Erro: ' + err.message, 'error');
         })
         .executarFuncaoPainelInteligente(TOKEN_SESSAO, 'fecharFiscalDia');
@@ -3710,35 +3802,49 @@
     function aplicarPermissoesPerfil(user) {
       if (!user) return;
       const perfil = String(user.perfil || 'VENDEDOR').toUpperCase();
-      const btnPlanilha = document.getElementById('btnAbrirPlanilhaGoogle');
-      const btnTabConfig = document.getElementById('btnTabConfig');
-      const btnTabEquipe = document.getElementById('btnTabEquipe');
-      const btnHeaderEquipe = document.getElementById('btnHeaderEquipe');
-      const cardValorEstoque = document.getElementById('cardKpiValorEstoque');
-      const secaoDonoPi = document.getElementById('piSecaoDono');
+      const isOperador = (perfil === 'VENDEDOR' || perfil === 'OPERADOR');
+      const isGerente = (perfil === 'GERENTE');
+      const isDono = (perfil === 'DONO');
 
-      if (perfil === 'VENDEDOR') {
-        if (btnPlanilha) btnPlanilha.style.display = 'none';
-        if (btnTabConfig) btnTabConfig.style.display = 'none';
-        if (btnTabEquipe) btnTabEquipe.style.display = 'none';
-        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'none';
-        if (cardValorEstoque) cardValorEstoque.style.display = 'none';
-        if (secaoDonoPi) secaoDonoPi.style.display = 'none';
-      } else if (perfil === 'GERENTE') {
-        if (btnPlanilha) btnPlanilha.style.display = 'inline-flex';
-        if (btnTabConfig) btnTabConfig.style.display = 'none'; // Apenas Dono altera configs mestre
-        if (btnTabEquipe) btnTabEquipe.style.display = 'inline-flex';
-        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'inline-flex';
-        if (cardValorEstoque) cardValorEstoque.style.display = 'block';
-        if (secaoDonoPi) secaoDonoPi.style.display = 'none';
-      } else { // DONO
-        if (btnPlanilha) btnPlanilha.style.display = 'inline-flex';
-        if (btnTabConfig) btnTabConfig.style.display = 'inline-flex';
-        if (btnTabEquipe) btnTabEquipe.style.display = 'inline-flex';
-        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'inline-flex';
-        if (cardValorEstoque) cardValorEstoque.style.display = 'block';
-        if (secaoDonoPi) secaoDonoPi.style.display = 'block';
-      }
+      // 1. Botões do Header e Acesso à Planilha
+      const btnPlanilha = document.getElementById('btnAbrirPlanilhaGoogle');
+      const btnHeaderEquipe = document.getElementById('btnHeaderEquipe');
+      if (btnPlanilha) btnPlanilha.style.display = isOperador ? 'none' : 'inline-flex';
+      if (btnHeaderEquipe) btnHeaderEquipe.style.display = isOperador ? 'none' : 'inline-flex';
+
+      // 2. Indicadores do Topo (KPI Ribbon)
+      const cardFatMes = document.getElementById('cardKpiFatMes');
+      const cardSaldoCaixa = document.getElementById('cardKpiSaldoCaixa');
+      const cardValorEstoque = document.getElementById('cardKpiValorEstoque');
+      if (cardFatMes) cardFatMes.style.display = isOperador ? 'none' : 'block';
+      if (cardSaldoCaixa) cardSaldoCaixa.style.display = isOperador ? 'none' : 'block';
+      if (cardValorEstoque) cardValorEstoque.style.display = isOperador ? 'none' : 'block';
+
+      // 3. Abas de Navegação Principal
+      const btnTabVisao360 = document.getElementById('btnTabVisao360');
+      const btnTabEstoque = document.getElementById('btnTabEstoque');
+      const btnTabEquipe = document.getElementById('btnTabEquipe');
+      const btnTabConfig = document.getElementById('btnTabConfig');
+      if (btnTabVisao360) btnTabVisao360.style.display = isOperador ? 'none' : 'inline-flex';
+      if (btnTabEstoque) btnTabEstoque.style.display = isOperador ? 'none' : 'inline-flex';
+      if (btnTabEquipe) btnTabEquipe.style.display = isOperador ? 'none' : 'inline-flex';
+      if (btnTabConfig) btnTabConfig.style.display = isDono ? 'inline-flex' : 'none';
+
+      // 4. Cards do Painel Inteligente
+      const piCardFechamentoFiscal = document.getElementById('piCardFechamentoFiscal');
+      const piCardPanoramaFinanceiro = document.getElementById('piCardPanoramaFinanceiro');
+      const piCardGestaoColaboradores = document.getElementById('piCardGestaoColaboradores');
+      if (piCardFechamentoFiscal) piCardFechamentoFiscal.style.display = isOperador ? 'none' : 'flex';
+      if (piCardPanoramaFinanceiro) piCardPanoramaFinanceiro.style.display = isOperador ? 'none' : 'flex';
+      if (piCardGestaoColaboradores) piCardGestaoColaboradores.style.display = isOperador ? 'none' : 'flex';
+
+      // 5. Seções Inteiras do Painel Inteligente
+      const piSecaoEstoque = document.getElementById('piSecaoEstoque');
+      const piSecaoRelatorios = document.getElementById('piSecaoRelatorios');
+      const piSecaoDono = document.getElementById('piSecaoDono');
+      if (piSecaoEstoque) piSecaoEstoque.style.display = isOperador ? 'none' : 'block';
+      if (piSecaoRelatorios) piSecaoRelatorios.style.display = isOperador ? 'none' : 'block';
+      if (piSecaoDono) piSecaoDono.style.display = isDono ? 'block' : 'none';
     }
 
     function alternarVisibilidadeSenhaLogin() {
@@ -3856,17 +3962,29 @@
 
     // NAVEGAÇÃO DE ABAS
     function trocarAba(abaId) {
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      const isOperador = (perfil === 'VENDEDOR' || perfil === 'OPERADOR');
+
+      // Proteção de Rota RBAC para Operador
+      if (isOperador && (abaId === 'tabVisao360' || abaId === 'tabEstoque' || abaId === 'tabEquipe' || abaId === 'tabConfig')) {
+        showToast('Acesso restrito: Módulo exclusivo para Gerência e Dono.', 'warning');
+        abaId = 'tabPdv';
+      }
+
       document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
       const pane = document.getElementById(abaId);
       if (pane) pane.classList.add('active');
 
-      const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(abaId));
+      const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(abaId));
       if (btn) btn.classList.add('active');
 
       if (abaId === 'tabPdv') {
-        setTimeout(() => document.getElementById('buscaProdutoPdv').focus(), 150);
+        setTimeout(() => {
+          const el = document.getElementById('buscaProdutoPdv');
+          if (el) el.focus();
+        }, 150);
       }
       if (abaId === 'tabEquipe') {
         carregarListaUsuariosPainel();
@@ -4456,14 +4574,14 @@
           : '<div style="color:var(--text-muted); font-size:11px; padding:4px;">Nenhum item discriminado</div>';
 
         return `
-          <div class="comanda-card" onclick="abrirModalAddItemComanda('${c.pedido}', '${c.cliente.replace(/'/g, "\\'")}')" title="Clique para adicionar mais produtos à Comanda #${c.pedido}">
+          <div class="comanda-card" onclick="abrirModalDetalhesComanda('${c.pedido}')" title="Clique para ver os produtos consumidos e gerenciar a Comanda #${c.pedido}">
             <div>
               <div class="comanda-header">
                 <span class="comanda-num">🧾 Comanda #${c.pedido}</span>
                 <span style="font-size:11px; color:var(--text-muted);">${c.dataHora}</span>
               </div>
               <div class="comanda-card-hint" style="margin-top:4px;">
-                <span>➕ Toque no card para adicionar itens</span>
+                <span>📋 Toque no card para ver itens & gerenciar</span>
               </div>
               <div class="comanda-cliente" style="margin-top:8px;">
                 👤 ${c.cliente}
@@ -4486,12 +4604,65 @@
 
     let COMANDA_ATUAL_ADD_MODAL = null;
 
-    function abrirModalAddItemComanda(pedido, cliente) {
-      COMANDA_ATUAL_ADD_MODAL = pedido;
-      document.getElementById('modalAddComandaNum').innerText = pedido;
-      document.getElementById('modalAddComandaCliente').innerText = cliente || 'Balcão';
+    /**
+     * 🧾 Abre o Modal de Detalhes da Comanda Balcão
+     * Exibe todos os itens consumidos, subtotais e a opção de exclusão exclusiva para o DONO
+     */
+    function abrirModalDetalhesComanda(pedido) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.comandasAbertas) return;
+      const comanda = DADOS_SISTEMA.comandasAbertas.find(c => String(c.pedido) === String(pedido));
+      if (!comanda) {
+        showToast('Comanda #' + pedido + ' não encontrada.', 'error');
+        return;
+      }
 
-      // Popula select de produtos se necessário
+      COMANDA_ATUAL_ADD_MODAL = pedido;
+      document.getElementById('detComandaNum').innerText = comanda.pedido;
+      document.getElementById('detComandaCliente').innerText = comanda.cliente || 'Consumidor';
+      document.getElementById('detComandaData').innerText = comanda.dataHora || '--:--';
+      document.getElementById('detComandaTotal').innerText = formatMoeda(comanda.total || 0);
+
+      const itens = comanda.itens || [];
+      document.getElementById('detComandaItensCount').innerText = itens.length;
+
+      // Verificação RBAC: Apenas DONO pode excluir itens
+      const isDono = USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'DONO';
+      const badgeDono = document.getElementById('detComandaDonoBadge');
+      const headerAcao = document.getElementById('detComandaColAcaoHeader');
+      if (badgeDono) badgeDono.style.display = isDono ? 'inline-block' : 'none';
+      if (headerAcao) headerAcao.style.display = isDono ? 'table-cell' : 'none';
+
+      // Renderiza as linhas dos produtos consumidos
+      const tbody = document.getElementById('detComandaTabelaCorpo');
+      if (itens.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${isDono ? 5 : 4}" style="text-align: center; color: var(--text-muted); padding: 18px;">
+              Nenhum item discriminado nesta comanda.
+            </td>
+          </tr>
+        `;
+      } else {
+        tbody.innerHTML = itens.map((it, idx) => {
+          const colExcluir = isDono 
+            ? `<td style="padding: 6px 10px; text-align: center;">
+                 <button type="button" class="btn-remove-item" style="width: 28px; height: 28px; font-size: 13px; padding: 0;" onclick="confirmarExcluirItemComanda('${comanda.pedido}', '${it.produto.replace(/'/g, "\\'")}', ${it.qtd}, ${it.total})" title="Estornar ${it.qtd}x ${it.produto} e devolver ao estoque">🗑️</button>
+               </td>`
+            : '';
+
+          return `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${idx % 2 === 1 ? 'background: rgba(255,255,255,0.02);' : ''}">
+              <td style="padding: 8px 10px; color: #f8fafc; font-weight: 600;">${it.produto}</td>
+              <td style="padding: 8px 10px; text-align: center; color: #38bdf8; font-weight: 700;">${it.qtd}x</td>
+              <td style="padding: 8px 10px; text-align: right; color: var(--text-muted);">${formatMoeda(it.unit)}</td>
+              <td style="padding: 8px 10px; text-align: right; color: #34d399; font-weight: 700;">${formatMoeda(it.total)}</td>
+              ${colExcluir}
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Popula select de produtos para novos lançamentos
       const sel = document.getElementById('modalAddSelectProduto');
       if (DADOS_SISTEMA && DADOS_SISTEMA.produtos) {
         const prodsOrdenados = [...DADOS_SISTEMA.produtos].sort((a, b) => {
@@ -4510,15 +4681,105 @@
           }).join('');
       }
 
+      // Reseta inputs de adição rápida
       document.getElementById('modalAddQtd').value = 1;
       document.getElementById('modalAddUnit').value = '0.00';
       document.getElementById('modalAddSubtotal').innerText = 'R$ 0,00';
-      document.getElementById('modalAddItemComanda').style.display = 'flex';
+      document.getElementById('secaoAddProdutoComandaCorpo').style.display = 'none';
+      document.getElementById('setaSecaoAddComanda').innerText = '▼';
+
+      document.getElementById('modalDetalhesComanda').style.display = 'flex';
+    }
+
+    function fecharModalDetalhesComanda() {
+      document.getElementById('modalDetalhesComanda').style.display = 'none';
+      COMANDA_ATUAL_ADD_MODAL = null;
+    }
+
+    function fecharComandaModalAtual() {
+      if (!COMANDA_ATUAL_ADD_MODAL) return;
+      const ped = COMANDA_ATUAL_ADD_MODAL;
+      fecharModalDetalhesComanda();
+      fecharComandaBalcaoDireta(ped);
+    }
+
+    function toggleSecaoAddProdutoComanda() {
+      const corpo = document.getElementById('secaoAddProdutoComandaCorpo');
+      const seta = document.getElementById('setaSecaoAddComanda');
+      if (corpo.style.display === 'none' || !corpo.style.display) {
+        corpo.style.display = 'flex';
+        seta.innerText = '▲';
+      } else {
+        corpo.style.display = 'none';
+        seta.innerText = '▼';
+      }
+    }
+
+    /**
+     * 👑 Confirmação harmonizada para o DONO estornar produto e devolver ao estoque
+     */
+    function confirmarExcluirItemComanda(pedido, produto, qtd, subtotal) {
+      if (!USUARIO_LOGADO || USUARIO_LOGADO.perfil !== 'DONO') {
+        showToast('Apenas o perfil DONO pode excluir itens da comanda.', 'error');
+        return;
+      }
+
+      abrirDialogHarmonizado({
+        icone: '🗑️',
+        titulo: 'Estornar Item da Comanda #' + pedido,
+        mensagem: `Deseja realmente remover <strong>${qtd}x ${escapeHtml(produto)}</strong> (${formatMoeda(subtotal)})?<br><br>` +
+                  `<span style="color:#34d399;">📦 A quantidade de <strong>${qtd} un</strong> será devolvida ao estoque físico imediatamente.</span>`,
+        textoConfirmar: 'Sim, Estornar & Devolver Estoque',
+        textoCancelar: 'Cancelar',
+        onConfirm: () => {
+          mostrarLoader('Estornando item e atualizando estoque...');
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.sucesso) {
+                showToast(res.msg, 'success');
+
+                // Atualiza localmente os dados da comanda
+                if (DADOS_SISTEMA && DADOS_SISTEMA.comandasAbertas) {
+                  const com = DADOS_SISTEMA.comandasAbertas.find(c => String(c.pedido) === String(pedido));
+                  if (com) {
+                    com.itens = res.itensRestantes || [];
+                    com.total = Number(res.novoTotal) || 0;
+                  }
+                }
+
+                // Devolve estoque no catálogo local
+                if (DADOS_SISTEMA && DADOS_SISTEMA.produtos) {
+                  const prodLocal = DADOS_SISTEMA.produtos.find(p => p.nome.toLowerCase() === produto.toLowerCase());
+                  if (prodLocal) {
+                    prodLocal.estoque = (Number(prodLocal.estoque) || 0) + Number(qtd);
+                  }
+                }
+
+                // Atualiza visualização do modal de detalhes e cards
+                abrirModalDetalhesComanda(pedido);
+                renderizarComandasAbertas();
+                if (typeof renderizarCatalogoPdv === 'function') renderizarCatalogoPdv();
+              } else {
+                showToast(res ? res.erro : 'Erro ao estornar item.', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .removerItemComandaBalcao360(TOKEN_SESSAO, pedido, produto, qtd);
+        }
+      });
+    }
+
+    function abrirModalAddItemComanda(pedido, cliente) {
+      abrirModalDetalhesComanda(pedido);
+      toggleSecaoAddProdutoComanda();
     }
 
     function fecharModalAddItemComanda() {
-      document.getElementById('modalAddItemComanda').style.display = 'none';
-      COMANDA_ATUAL_ADD_MODAL = null;
+      fecharModalDetalhesComanda();
     }
 
     function atualizarPrecoModalAdd() {
@@ -4547,20 +4808,38 @@
       const qtd = Number(document.getElementById('modalAddQtd').value) || 1;
       const unit = Number(document.getElementById('modalAddUnit').value) || 0;
 
+      // Trava Anti-Duplo Clique
+      const btn = document.getElementById('btnConfirmarAddComanda');
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.origText = btn.innerHTML;
+        btn.innerHTML = '⏳ Lançando...';
+      }
+
       mostrarLoader('Adicionando ' + prodNome + ' à Comanda #' + COMANDA_ATUAL_ADD_MODAL + '...');
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '<span>➕</span> Confirmar Lançamento';
+          }
           if (res && res.sucesso) {
-            fecharModalAddItemComanda();
             showToast(res.msg, 'success');
             sincronizarPainel();
+            setTimeout(() => {
+              abrirModalDetalhesComanda(COMANDA_ATUAL_ADD_MODAL);
+            }, 600);
           } else {
             showToast(res ? res.erro : 'Erro ao adicionar item', 'error');
           }
         })
         .withFailureHandler(err => {
           esconderLoader();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.origText || '<span>➕</span> Confirmar Lançamento';
+          }
           showToast('Erro: ' + err.message, 'error');
         })
         .adicionarItemComandaBalcao360(COMANDA_ATUAL_ADD_MODAL, prodNome, qtd, unit);

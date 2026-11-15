@@ -627,6 +627,124 @@ function adicionarItemComandaBalcao360(pedido, produto, qtd, unit) {
 }
 
 /**
+ * 👑 Exclusivo do DONO: Remove item já registrado de uma comanda balcão aberta,
+ * devolve a quantidade ao estoque físico e atualiza a aba COMANDA_ITENS.
+ */
+function removerItemComandaBalcao360(token, pedido, produto, qtd) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { sucesso: false, erro: 'Sessão expirada. Faça login novamente.' };
+
+    // RBAC: Apenas DONO pode cancelar/remover item já inserido na comanda
+    if (caller.perfil !== 'DONO') {
+      return {
+        sucesso: false,
+        erro: 'Acesso negado: Apenas o perfil DONO possui autorização para estornar itens já lançados na comanda.'
+      };
+    }
+
+    if (!pedido) throw new Error('Número da comanda não informado.');
+    if (!produto) throw new Error('Produto não informado.');
+    qtd = Number(qtd) || 0;
+    if (qtd <= 0) throw new Error('Quantidade inválida para estorno.');
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const shItens = ss.getSheetByName('COMANDA_ITENS');
+    if (!shItens || shItens.getLastRow() < 2) {
+      throw new Error('Aba COMANDA_ITENS vazia ou não encontrada.');
+    }
+
+    // 1. Localiza e remove a linha correspondente em COMANDA_ITENS
+    const dadosItens = shItens.getDataRange().getValues();
+    let linhaRemovida = -1;
+    const prodBusca = String(produto).trim().toLowerCase();
+
+    for (let r = dadosItens.length - 1; r >= 1; r--) {
+      const pedRow = String(dadosItens[r][0] || '').trim();
+      const prodRow = String(dadosItens[r][1] || '').trim().toLowerCase();
+
+      if (pedRow === String(pedido).trim() && (prodRow === prodBusca || prodRow.includes(prodBusca) || prodBusca.includes(prodRow))) {
+        linhaRemovida = r + 1;
+        break;
+      }
+    }
+
+    if (linhaRemovida === -1) {
+      throw new Error(`Item "${produto}" não encontrado nos lançamentos da Comanda #${pedido}.`);
+    }
+
+    shItens.deleteRow(linhaRemovida);
+
+    // 2. Devolve ao estoque físico
+    try {
+      if (typeof devolverEstoquePorComanda === 'function') {
+        devolverEstoquePorComanda(produto, qtd);
+      } else {
+        const shEst = ss.getSheetByName('ESTOQUE');
+        if (shEst) {
+          const dEst = shEst.getDataRange().getValues();
+          for (let i = 1; i < dEst.length; i++) {
+            if (String(dEst[i][0] || '').trim().toLowerCase() === prodBusca) {
+              const novaQtd = (Number(dEst[i][1]) || 0) + qtd;
+              shEst.getRange(i + 1, 2).setValue(novaQtd);
+              break;
+            }
+          }
+        }
+      }
+    } catch (eEst) {
+      console.warn('Erro ao devolver estoque:', eEst.message);
+    }
+
+    // 3. Força atualização do estoque
+    try {
+      if (typeof atualizarEstoque === 'function') {
+        atualizarEstoque();
+      }
+    } catch(eSync) {}
+
+    // 4. Trilha de Auditoria
+    try {
+      const shAud = ss.getSheetByName('AUDITORIA_USUARIOS');
+      if (shAud) {
+        shAud.appendRow([
+          new Date(),
+          caller.nome,
+          caller.perfil,
+          'ESTORNO_ITEM_COMANDA',
+          `Cancelou e devolveu ao estoque ${qtd}x ${produto} da Comanda #${pedido}`
+        ]);
+      }
+    } catch(eAud) {}
+
+    // 5. Retorna itens atualizados da comanda
+    const itensRestantes = [];
+    let novoTotal = 0;
+    const novosDadosItens = shItens.getDataRange().getValues();
+    for (let r = 1; r < novosDadosItens.length; r++) {
+      if (String(novosDadosItens[r][0] || '').trim() === String(pedido).trim()) {
+        const p = String(novosDadosItens[r][1] || '').trim();
+        const q = Number(novosDadosItens[r][2]) || 0;
+        const u = Number(novosDadosItens[r][3]) || 0;
+        const tot = Number(novosDadosItens[r][4]) || (q * u);
+        itensRestantes.push({ produto: p, qtd: q, unit: u, total: tot });
+        novoTotal += tot;
+      }
+    }
+
+    return {
+      sucesso: true,
+      msg: `Item "${produto}" (${qtd} un) estornado com sucesso! Quantidade devolvida ao estoque.`,
+      itensRestantes: itensRestantes,
+      novoTotal: novoTotal
+    };
+  } catch (err) {
+    console.error('Erro em removerItemComandaBalcao360:', err);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
  * Fecha uma Comanda Balcão existente com baixa de pagamento no caixa.
  */
 function fecharComandaBalcao360(pedido, formaPgto) {
@@ -2623,39 +2741,83 @@ function sincronizarFusoHorarioPlanilha() {
 
 /**
  * 🔒 Obtém ou renomeia a aba de Conferência de Caixa para o padrão CONFERENCIA_CAIXA
+ * e assegura o cabeçalho oficial completo de 12 colunas com layout escuro executivo
  */
 function obterAbaConferenciaCaixa(ss) {
   const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
   let sh = planilha.getSheetByName('CONFERENCIA_CAIXA') || planilha.getSheetByName('CONFERÊNCIA_CAIXA') || planilha.getSheetByName('CAIXA_FECHAMENTO');
-  if (sh && sh.getName() === 'CAIXA_FECHAMENTO') {
+  if (!sh) sh = planilha.insertSheet('CONFERENCIA_CAIXA');
+  if (sh.getName() !== 'CONFERENCIA_CAIXA') {
     try { sh.setName('CONFERENCIA_CAIXA'); } catch(e) {}
   }
-  if (!sh) {
-    sh = planilha.insertSheet('CONFERENCIA_CAIXA');
-    sh.getRange('A1:L1').setValues([[
-      'ID Protocolo','Data Registro','Entradas','Saídas','Saldo Sistema','Valor Gaveta','Diferença','Status','Operador','Gestor Aprovador','Data Aprovação','Observações'
-    ]]);
-    sh.getRange('A1:L1').setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+
+  // Verifica se a aba precisa da padronização dos 12 cabeçalhos oficiais
+  const cabecalhos = [
+    'Protocolo', 'Data Registro', 'Entradas', 'Saídas', 'Saldo Sistema', 'Valor Gaveta', 'Diferença', 'Status', 'Operador', 'Gestor Aprovador', 'Data Aprovação', 'Observações'
+  ];
+
+  try {
+    const valL1 = sh.getRange(1, 12).getValue();
+    if (String(valL1).trim().toLowerCase() !== 'observações' && String(valL1).trim().toLowerCase() !== 'observacoes') {
+      sh.getRange(1, 1, 1, cabecalhos.length).setValues([cabecalhos]);
+      sh.getRange(1, 1, 1, cabecalhos.length)
+        .setFontWeight('bold')
+        .setBackground('#0f172a')
+        .setFontColor('#ffffff')
+        .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle');
+      try { sh.setRowHeight(1, 28); } catch(e) {}
+
+      const maxRows = Math.max(sh.getLastRow(), 2);
+      sh.getRange(2, 3, maxRows - 1, 5).setNumberFormat('R$ #,##0.00');
+      sh.getRange(2, 2, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      sh.getRange(2, 11, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      sh.getRange(2, 1, maxRows - 1, 1).setHorizontalAlignment('center');
+      sh.getRange(2, 8, maxRows - 1, 3).setHorizontalAlignment('center');
+    }
+  } catch(ePad) {
+    console.warn('Aviso ao formatar cabeçalhos de CONFERENCIA_CAIXA:', ePad.message);
   }
+
   return sh;
 }
 
 /**
  * 📑 Obtém ou renomeia a aba de Fechamento Fiscal para o padrão FECHAMENTO_FISCAL
+ * e assegura o cabeçalho executivo de 7 colunas
  */
 function obterAbaFechamentoFiscal(ss) {
   const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
   let sh = planilha.getSheetByName('FECHAMENTO_FISCAL') || planilha.getSheetByName('CAIXA_FISCAL');
-  if (sh && sh.getName() === 'CAIXA_FISCAL') {
+  if (!sh) sh = planilha.insertSheet('FECHAMENTO_FISCAL');
+  if (sh.getName() !== 'FECHAMENTO_FISCAL') {
     try { sh.setName('FECHAMENTO_FISCAL'); } catch(e) {}
   }
-  if (!sh) {
-    sh = planilha.insertSheet('FECHAMENTO_FISCAL');
-    sh.getRange('A1:F1').setValues([[
-      'Data Referência','Entradas','Saídas','Saldo','Fechado em','Responsável'
-    ]]);
-    sh.getRange('A1:F1').setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+
+  const cabecalhos = [
+    'Data Referência', 'Entradas', 'Saídas', 'Saldo Fiscal', 'Fechado em', 'Responsável', 'Observações'
+  ];
+
+  try {
+    const valG1 = sh.getRange(1, 7).getValue();
+    if (String(valG1).trim().toLowerCase() !== 'observações' && String(valG1).trim().toLowerCase() !== 'observacoes') {
+      sh.getRange(1, 1, 1, cabecalhos.length).setValues([cabecalhos]);
+      sh.getRange(1, 1, 1, cabecalhos.length)
+        .setFontWeight('bold')
+        .setBackground('#0f172a')
+        .setFontColor('#ffffff')
+        .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle');
+      try { sh.setRowHeight(1, 28); } catch(e) {}
+
+      const maxRows = Math.max(sh.getLastRow(), 2);
+      sh.getRange(2, 2, maxRows - 1, 3).setNumberFormat('R$ #,##0.00');
+      sh.getRange(2, 5, maxRows - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    }
+  } catch(ePad) {
+    console.warn('Aviso ao formatar cabeçalhos de FECHAMENTO_FISCAL:', ePad.message);
   }
+
   return sh;
 }
 
