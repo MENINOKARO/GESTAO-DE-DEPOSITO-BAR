@@ -305,11 +305,19 @@ function migrarTudoPlanilhaParaSupabase() {
     if (shProd && shProd.getLastRow() > 1) {
       const dadosProd = shProd.getDataRange().getValues();
       const rowsProd = [];
+      const idsUsados = new Set();
+
       for (let i = 1; i < dadosProd.length; i++) {
         const nome = String(dadosProd[i][0] || '').trim();
         if (nome) {
+          let idProd = String(dadosProd[i][10] || '').trim();
+          if (!idProd || idsUsados.has(idProd)) {
+            idProd = `PRD-${String(i).padStart(4, '0')}`;
+          }
+          idsUsados.add(idProd);
+
           rowsProd.push({
-            id: String(dadosProd[i][10] || `PRD-${String(i).padStart(4, '0')}`).trim(),
+            id: idProd,
             nome: nome,
             categoria: String(dadosProd[i][1] || 'Geral').trim(),
             marca: String(dadosProd[i][2] || '').trim(),
@@ -325,10 +333,9 @@ function migrarTudoPlanilhaParaSupabase() {
         }
       }
       if (rowsProd.length > 0) {
-        // Envia em lotes de 100 para evitar payload grande
         for (let b = 0; b < rowsProd.length; b += 100) {
           const lote = rowsProd.slice(b, b + 100);
-          supabaseRequest('produtos', 'POST', lote, { 'Prefer': 'resolution=merge-duplicates' });
+          supabaseRequest('produtos?on_conflict=id', 'POST', lote, { 'Prefer': 'resolution=merge-duplicates' });
         }
         totalMigrado.produtos = rowsProd.length;
       }
@@ -338,19 +345,31 @@ function migrarTudoPlanilhaParaSupabase() {
     const shEst = ss.getSheetByName('ESTOQUE');
     if (shEst && shEst.getLastRow() > 1) {
       const dadosEst = shEst.getDataRange().getValues();
-      const rowsEst = [];
+      const mapaEstoque = {};
+
       for (let i = 1; i < dadosEst.length; i++) {
         const prodNome = String(dadosEst[i][0] || '').trim();
         if (prodNome) {
-          rowsEst.push({
-            produto_nome: prodNome,
-            quantidade: Number(dadosEst[i][1]) || 0,
-            estoque_minimo: Number(dadosEst[i][2]) || 0,
-            status: String(dadosEst[i][3] || '🟢   OK   🔋').trim(),
-            observacao: String(dadosEst[i][4] || '').trim()
-          });
+          const key = prodNome.toLowerCase();
+          const qtd = Number(dadosEst[i][1]) || 0;
+          const min = Number(dadosEst[i][2]) || 0;
+          const status = String(dadosEst[i][3] || '🟢   OK   🔋').trim();
+          const obs = String(dadosEst[i][4] || '').trim();
+
+          if (!mapaEstoque[key]) {
+            mapaEstoque[key] = {
+              produto_nome: prodNome,
+              quantidade: qtd,
+              estoque_minimo: min,
+              status: status,
+              observacao: obs
+            };
+          } else {
+            mapaEstoque[key].quantidade += qtd;
+          }
         }
       }
+      const rowsEst = Object.values(mapaEstoque);
       if (rowsEst.length > 0) {
         for (let b = 0; b < rowsEst.length; b += 100) {
           const lote = rowsEst.slice(b, b + 100);
@@ -364,20 +383,23 @@ function migrarTudoPlanilhaParaSupabase() {
     const shCli = ss.getSheetByName('CLIENTES');
     if (shCli && shCli.getLastRow() > 1) {
       const dadosCli = shCli.getDataRange().getValues();
-      const rowsCli = [];
+      const mapaClientes = {};
+
       for (let i = 1; i < dadosCli.length; i++) {
         const nomeCli = String(dadosCli[i][0] || '').trim();
         if (nomeCli) {
-          rowsCli.push({
+          const key = nomeCli.toLowerCase();
+          mapaClientes[key] = {
             nome: nomeCli,
             telefone: String(dadosCli[i][1] || '').trim(),
             endereco: String(dadosCli[i][2] || '').trim(),
             limite_fiado: Number(dadosCli[i][3]) || 0,
             saldo_devedor: Number(dadosCli[i][4]) || 0,
             status: String(dadosCli[i][5] || 'ATIVO').trim()
-          });
+          };
         }
       }
+      const rowsCli = Object.values(mapaClientes);
       if (rowsCli.length > 0) {
         for (let b = 0; b < rowsCli.length; b += 100) {
           const lote = rowsCli.slice(b, b + 100);
@@ -391,11 +413,12 @@ function migrarTudoPlanilhaParaSupabase() {
     const shUser = ss.getSheetByName('USUARIOS');
     if (shUser && shUser.getLastRow() > 1) {
       const dadosUser = shUser.getDataRange().getValues();
-      const rowsUser = [];
+      const mapaUsuarios = {};
+
       for (let i = 1; i < dadosUser.length; i++) {
         const uId = String(dadosUser[i][0] || '').trim();
         if (uId) {
-          rowsUser.push({
+          mapaUsuarios[uId.toLowerCase()] = {
             id: uId,
             username: uId,
             nome: String(dadosUser[i][1] || uId).trim(),
@@ -404,11 +427,12 @@ function migrarTudoPlanilhaParaSupabase() {
             perfil: String(dadosUser[i][4] || 'VENDEDOR').toUpperCase().trim(),
             ativo: String(dadosUser[i][5] || 'SIM').toUpperCase().trim() === 'SIM',
             telegram_chat_id: String(dadosUser[i][8] || '').trim()
-          });
+          };
         }
       }
+      const rowsUser = Object.values(mapaUsuarios);
       if (rowsUser.length > 0) {
-        supabaseRequest('usuarios', 'POST', rowsUser, { 'Prefer': 'resolution=merge-duplicates' });
+        supabaseRequest('usuarios?on_conflict=id', 'POST', rowsUser, { 'Prefer': 'resolution=merge-duplicates' });
         totalMigrado.usuarios = rowsUser.length;
       }
     }

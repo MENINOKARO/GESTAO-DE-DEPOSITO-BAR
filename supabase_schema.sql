@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "unaccent";
 -- 2. TABELA DE PRODUTOS
 CREATE TABLE IF NOT EXISTS public.produtos (
     id TEXT PRIMARY KEY,                       -- Ex: PRD-0001
-    nome TEXT NOT NULL UNIQUE,
+    nome TEXT NOT NULL,                        -- Permite produtos com mesmo nome e volumes/marcas diferentes
     categoria TEXT DEFAULT 'Geral',
     marca TEXT,
     volume TEXT,
@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Remove restrições de nome único caso já tenham sido criadas
+ALTER TABLE public.produtos DROP CONSTRAINT IF EXISTS produtos_nome_key;
+ALTER TABLE public.estoque DROP CONSTRAINT IF EXISTS estoque_produto_nome_key;
+
 -- Índices para busca ultra-rápida (insensível a maiúsculas/minúsculas)
 CREATE INDEX IF NOT EXISTS idx_produtos_nome_lower ON public.produtos (LOWER(nome));
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos (categoria);
@@ -31,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos (categoria)
 -- 3. TABELA DE ESTOQUE (FONTE DA VERDADE FÍSICA)
 CREATE TABLE IF NOT EXISTS public.estoque (
     id BIGSERIAL PRIMARY KEY,
-    produto_nome TEXT NOT NULL UNIQUE,
+    produto_nome TEXT NOT NULL,
     quantidade NUMERIC(10, 2) DEFAULT 0,
     estoque_minimo NUMERIC(10, 2) DEFAULT 0,
     status TEXT DEFAULT '🟢   OK   🔋',
