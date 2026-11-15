@@ -55,7 +55,10 @@
    */
   function uiNotificar(msg, tipo, titulo) {
     try {
-      SpreadsheetApp.getActive().toast(String(msg || ''), String(titulo || 'Sistema Depósito'), 5);
+      const activeSs = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+      if (activeSs && typeof activeSs.toast === 'function') {
+        activeSs.toast(String(msg || ''), String(titulo || 'Sistema Depósito'), 5);
+      }
     } catch(e) {
       console.log('[' + String(tipo || 'INFO').toUpperCase() + '] ' + String(msg || ''));
     }
@@ -515,18 +518,22 @@
   }
 
   function padronizarTodasAbasSistema(){
-    const ss = SpreadsheetApp.getActive();
-    const abas = ss.getSheets();
+    const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+    if (!ss) return { ok: false, msg: 'Planilha não ativa' };
 
-    abas.forEach(sh => {
-      aplicarFormatacaoPadrao(sh);
-    });
+    try {
+      padronizarAbaConferenciaCaixa(ss);
+    } catch(e) {}
+    try {
+      padronizarAbaFechamentoFiscal(ss);
+    } catch(e) {}
+    try {
+      padronizarVisualECoresAbasSistema(ss);
+    } catch(e) {}
 
-    padronizarAbaConferenciaCaixa(ss);
-    padronizarAbaFechamentoFiscal(ss);
-
-    uiNotificar('Formatação padrão aplicada em todas as abas.','sucesso','Padronização');
-    return { ok:true, total: abas.length };
+    const total = ss.getSheets().length;
+    uiNotificar('Formatação padrão e cores limpas aplicadas em todas as abas.','sucesso','Padronização');
+    return { ok:true, total: total };
   }
 
 // ===============================
@@ -3026,13 +3033,19 @@
     }
 
     const agora = new Date();
-    fechamento.appendRow([
+    inserirLinhaPadronizadaNoTopo(fechamento, [
+      'CONF-MANUAL-' + Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyyMMdd-HHmmss'),
       agora,
       entrada,
       saida,
       saldo,
-      status,
-      agora
+      saldo,
+      0,
+      'APROVADO',
+      'Operador Manual',
+      'Gestor',
+      agora,
+      'Fechamento manual registrado na planilha'
     ]);
 
     try {
@@ -3172,8 +3185,8 @@
 
     const agora = new Date();
 
-    // 1. Grava na aba CAIXA_FISCAL
-    fiscal.appendRow([
+    // 1. Grava no topo da aba FECHAMENTO_FISCAL
+    inserirLinhaPadronizadaNoTopo(fiscal, [
       agora,
       entrada,
       saida,
@@ -4884,7 +4897,7 @@
     });
 
     const idPedido = typeof gerarIdVendaDelivery === 'function' ? gerarIdVendaDelivery(pedido) : ('DEL-' + String(pedido).padStart(6, '0'));
-    del.appendRow([
+    inserirLinhaPadronizadaNoTopo(del, [
       pedido,
       new Date(),
       cliente || '',
@@ -5767,7 +5780,7 @@
         ]]);
       }
 
-      shComandas.appendRow([
+      inserirLinhaPadronizadaNoTopo(shComandas, [
         pedido,
         new Date(),
         cliente || '',
@@ -5788,7 +5801,7 @@
 
       itens.forEach(i => {
 
-        shItens.appendRow([
+        inserirLinhaPadronizadaNoTopo(shItens, [
           pedido,
           i.produto,
           Number(i.qtd),
@@ -6169,8 +6182,8 @@
       // 🔥 SOMENTE ITENS NOVOS
       if(item.travado === false){
 
-        // 1️⃣ Grava item
-        sh.appendRow([
+        // 1️⃣ Grava item no topo com padronização visual
+        inserirLinhaPadronizadaNoTopo(sh, [
           pedido,
           item.produto,
           Number(item.qtd),
@@ -6230,7 +6243,7 @@
       const chaveProd = safeNorm(i.produto);
         validarEstoqueCarrinho([i]);
 
-        itensSh.appendRow([
+        inserirLinhaPadronizadaNoTopo(itensSh, [
           pedido,
           i.produto,
           Number(i.qtd),
@@ -6740,7 +6753,7 @@
     const idVenda = gerarIdVendaComanda(pedido);
 
     itens.forEach(i=>{
-      vendas.appendRow([
+      inserirLinhaPadronizadaNoTopo(vendas, [
         agoraBrasil(),
         i[1],
         Number(i[2]),
@@ -6861,7 +6874,7 @@
     }
 
     const pedido = gerarNumeroComanda(); // ✅ AQUI
-    sh.appendRow([pedido,new Date(),cliente,'BALCAO','ABERTA']);
+    inserirLinhaPadronizadaNoTopo(sh, [pedido, new Date(), cliente, 'BALCAO', 'ABERTA']);
     return pedido;
   }
   function gerarNumeroComanda(){
@@ -7100,7 +7113,7 @@
 
     itens.forEach(i=>{
       const total = i.qtd * i.unit;
-      vendas.appendRow([
+      inserirLinhaPadronizadaNoTopo(vendas, [
         new Date(),
         i.produto,
         i.qtd,
@@ -7144,35 +7157,196 @@
     // 🔒 garante que nenhuma cópia de estilo antigo volte
     SpreadsheetApp.flush();
   }
-  function inserirLinhaNoTopo(nomeAba, dados){
+  /**
+   * 🌟 Inserção Universal no Topo com Padronização Visual Estrita:
+   * Linha 1 = Cabeçalho Colorido
+   * Linha 2 em diante = Fundo Branco (#ffffff), Texto Preto (#000000), Peso Normal
+   */
+  function inserirLinhaPadronizadaNoTopo(sheetOuNome, dados) {
+    if (!dados || !Array.isArray(dados) || dados.length === 0) return;
 
-    if(!nomeAba || !Array.isArray(dados)){
-      throw new Error('Parâmetros inválidos.');
-    }
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = (typeof sheetOuNome === 'string') ? ss.getSheetByName(sheetOuNome) : sheetOuNome;
+    if (!sh) return;
 
-    const ss = SpreadsheetApp.getActive();
-    const sh = ss.getSheetByName(nomeAba);
+    if (sh.getLastRow() < 1) return;
 
-    if(!sh){
-      throw new Error(`Aba ${nomeAba} não encontrada.`);
-    }
-
-    // Insere nova linha logo abaixo do cabeçalho
+    // Insere nova linha logo abaixo do cabeçalho (na linha 2)
     sh.insertRowBefore(2);
 
-    // Grava dados na linha 2
-    sh.getRange(2, 1, 1, dados.length)
-      .setValues([dados]);
+    // Grava os valores na linha 2
+    const range = sh.getRange(2, 1, 1, dados.length);
+    range.setValues([dados]);
+
+    // Aplica o padrão visual exigido:
+    // Fundo BRANCO (#ffffff) e Texto PRETO (#000000)
+    range.setBackground('#ffffff')
+         .setFontColor('#000000')
+         .setFontWeight('normal')
+         .setVerticalAlignment('middle');
+
+    try { sh.setRowHeight(2, 24); } catch(e) {}
+  }
+
+  function inserirLinhaNoTopo(nomeAba, dados){
+    inserirLinhaPadronizadaNoTopo(nomeAba, dados);
 
     // Atualização automática de relatórios em background
     const abasFonte = ['CAIXA', 'VENDAS', 'COMPRAS', 'ESTOQUE', 'PRODUTOS'];
     if (abasFonte.indexOf(nomeAba) !== -1) {
       try {
-        atualizarTodosOsRelatoriosSilencioso();
+        if (typeof atualizarTodosOsRelatoriosSilencioso === 'function') {
+          atualizarTodosOsRelatoriosSilencioso();
+        }
       } catch(e) {
         console.warn("Erro ao atualizar relatórios no inserirLinhaNoTopo:", e.message);
       }
     }
+  }
+
+  /**
+   * 🎨 Higieniza e padroniza as cores de todas as abas operacionais do sistema:
+   * Linha 1: Fundo escuro executivo #0f172a, texto branco #ffffff, negrito, centralizado
+   * Linhas 2 em diante: Fundo BRANCO (#ffffff), texto PRETO (#000000), sem negrito residual
+   */
+  function padronizarVisualECoresAbasSistema(ss) {
+    const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
+    if (!planilha) return;
+
+    // 1. Padroniza nomes oficiais de abas críticas
+    try {
+      const shConfOld = planilha.getSheetByName('CAIXA_FECHAMENTO') || planilha.getSheetByName('CONFERÊNCIA_CAIXA');
+      if (shConfOld && !planilha.getSheetByName('CONFERENCIA_CAIXA')) {
+        shConfOld.setName('CONFERENCIA_CAIXA');
+      }
+      const shFiscOld = planilha.getSheetByName('CAIXA_FISCAL');
+      if (shFiscOld && !planilha.getSheetByName('FECHAMENTO_FISCAL')) {
+        shFiscOld.setName('FECHAMENTO_FISCAL');
+      }
+    } catch(eRen) {
+      console.warn('Aviso ao renomear abas:', eRen.message);
+    }
+
+    const abas = planilha.getSheets();
+    const abasIgnorar = ['CONFIG', 'AJUDA', 'DASHBOARD'];
+
+    abas.forEach(sh => {
+      const nomeAba = sh.getName();
+      if (abasIgnorar.includes(nomeAba)) return;
+
+      const lastRow = sh.getLastRow();
+      const lastCol = Math.max(sh.getLastColumn(), 1);
+
+      // Tratamento especial para CONFERENCIA_CAIXA: cabeçalho oficial de 12 colunas e alinhamento de linhas legadas
+      if (nomeAba === 'CONFERENCIA_CAIXA') {
+        const cabecalhosConf = [
+          'Protocolo', 'Data Registro', 'Entradas', 'Saídas', 'Saldo Sistema', 'Valor Gaveta', 'Diferença', 'Status', 'Operador', 'Gestor Aprovador', 'Data Aprovação', 'Observações'
+        ];
+        sh.getRange(1, 1, 1, cabecalhosConf.length).setValues([cabecalhosConf]);
+        sh.getRange(1, 1, 1, cabecalhosConf.length)
+          .setBackground('#0f172a')
+          .setFontColor('#ffffff')
+          .setFontWeight('bold')
+          .setHorizontalAlignment('center')
+          .setVerticalAlignment('middle');
+        try { sh.setRowHeight(1, 28); } catch(e) {}
+
+        if (lastRow >= 2) {
+          const rangeCols = Math.max(sh.getLastColumn(), 12);
+          const vals = sh.getRange(2, 1, lastRow - 1, rangeCols).getValues();
+          let alterou = false;
+
+          for (let i = 0; i < vals.length; i++) {
+            const row = vals[i];
+            const p0 = String(row[0] || '').trim();
+            // Detecta linhas legadas de 6 colunas (Data, Entradas, Saidas, Saldo, Status, Fechado em)
+            if (!p0.startsWith('CONF-') && !p0.startsWith('FECH-')) {
+              const dtOrig = (row[0] instanceof Date) ? row[0] : (row[5] instanceof Date ? row[5] : new Date());
+              const entradas = Number(row[1]) || 0;
+              const saidas = Number(row[2]) || 0;
+              const saldo = Number(row[3]) || 0;
+              const status = String(row[4] || 'CONCLUIDO').trim().toUpperCase();
+              const dtFech = (row[5] instanceof Date) ? row[5] : dtOrig;
+
+              vals[i] = [
+                'FECH-LEGADO-' + (i + 1),
+                dtOrig,
+                entradas,
+                saidas,
+                saldo,
+                saldo,
+                0,
+                status.includes('NEGATIVO') ? 'FECHAMENTO NEGATIVO' : (status.includes('POSITIVO') ? 'FECHAMENTO POSITIVO' : 'CONCLUIDO'),
+                'Sistema',
+                'Admin',
+                dtFech,
+                'Fechamento legado migrado'
+              ];
+              alterou = true;
+            }
+          }
+
+          if (alterou) {
+            sh.getRange(2, 1, vals.length, 12).setValues(vals.map(r => r.slice(0, 12)));
+          }
+
+          // Higienização de cores: Fundo BRANCO e Texto PRETO
+          const dadosRange = sh.getRange(2, 1, lastRow - 1, 12);
+          dadosRange.setBackground('#ffffff')
+                    .setFontColor('#000000')
+                    .setFontWeight('normal')
+                    .setVerticalAlignment('middle');
+
+          sh.getRange(2, 1, lastRow - 1, 1).setHorizontalAlignment('center');
+          sh.getRange(2, 2, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          sh.getRange(2, 3, lastRow - 1, 5).setNumberFormat('R$ #,##0.00');
+          sh.getRange(2, 8, lastRow - 1, 3).setHorizontalAlignment('center');
+          sh.getRange(2, 11, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+        }
+        return;
+      }
+
+      if (lastRow >= 1) {
+        // Linha 1: Cabeçalho Escuro Executivo
+        const header = sh.getRange(1, 1, 1, lastCol);
+        header.setBackground('#0f172a')
+              .setFontColor('#ffffff')
+              .setFontWeight('bold')
+              .setVerticalAlignment('middle');
+        try { sh.setRowHeight(1, 28); } catch(e) {}
+      }
+
+      if (lastRow >= 2) {
+        // Linhas 2 em diante: Fundo BRANCO e Texto PRETO (limpa qualquer fundo escuro ou negrito)
+        const dadosRange = sh.getRange(2, 1, lastRow - 1, lastCol);
+        dadosRange.setBackground('#ffffff')
+                  .setFontColor('#000000')
+                  .setFontWeight('normal')
+                  .setVerticalAlignment('middle');
+
+        // Formatações monetárias e de data específicas
+        if (nomeAba === 'CAIXA') {
+          sh.getRange(2, 1, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          sh.getRange(2, 3, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
+        } else if (nomeAba === 'FECHAMENTO_FISCAL') {
+          sh.getRange(2, 2, lastRow - 1, 3).setNumberFormat('R$ #,##0.00');
+          sh.getRange(2, 5, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+        } else if (nomeAba === 'VENDAS') {
+          sh.getRange(2, 1, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          sh.getRange(2, 4, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
+        } else if (nomeAba === 'COMANDAS') {
+          sh.getRange(2, 2, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+        } else if (nomeAba === 'COMANDA_ITENS') {
+          sh.getRange(2, 4, lastRow - 1, 2).setNumberFormat('R$ #,##0.00');
+        } else if (nomeAba === 'DELIVERY') {
+          sh.getRange(2, 2, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          sh.getRange(2, 6, lastRow - 1, 2).setNumberFormat('R$ #,##0.00');
+        } else if (nomeAba === 'COMPRAS') {
+          sh.getRange(2, 3, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
+          sh.getRange(2, 5, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+        }
+      }
+    });
   }
 // ===============================
 // PROTEÇÃO

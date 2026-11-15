@@ -7,6 +7,50 @@
  */
 
 /**
+ * 🔔 Notificação segura da UI para evitar ReferenceError caso a interface não esteja disponível
+ */
+function uiNotificar(msg, tipo, titulo) {
+  try {
+    const activeSs = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+    if (activeSs && typeof activeSs.toast === 'function') {
+      activeSs.toast(String(msg || ''), String(titulo || 'Sistema Depósito'), 5);
+    }
+  } catch(e) {
+    console.log('[' + String(tipo || 'INFO').toUpperCase() + '] ' + String(msg || ''));
+  }
+}
+
+/**
+ * 🌟 Inserção Universal no Topo com Padronização Visual Estrita:
+ * Linha 1 = Cabeçalho Colorido
+ * Linha 2 em diante = Fundo Branco (#ffffff), Texto Preto (#000000), Peso Normal
+ */
+function inserirLinhaPadronizadaNoTopo(sheetOuNome, dados) {
+  if (!dados || !Array.isArray(dados) || dados.length === 0) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = (typeof sheetOuNome === 'string') ? ss.getSheetByName(sheetOuNome) : sheetOuNome;
+  if (!sh) return;
+
+  if (sh.getLastRow() < 1) return;
+
+  // Insere nova linha logo abaixo do cabeçalho (na linha 2)
+  sh.insertRowBefore(2);
+
+  // Grava os valores na linha 2
+  const range = sh.getRange(2, 1, 1, dados.length);
+  range.setValues([dados]);
+
+  // Aplica o padrão visual exigido: Fundo BRANCO (#ffffff) e Texto PRETO (#000000)
+  range.setBackground('#ffffff')
+       .setFontColor('#000000')
+       .setFontWeight('normal')
+       .setVerticalAlignment('middle');
+
+  try { sh.setRowHeight(2, 24); } catch(e) {}
+}
+
+/**
  * Retorna todos os dados consolidados para o Painel Executivo 360°, PDV e Configurações.
  */
 function obterDadosPainel360() {
@@ -16,10 +60,16 @@ function obterDadosPainel360() {
     const spreadsheetUrl = ss.getUrl();
     const spreadsheetId = ss.getId();
 
-    // 1. Data de Hoje
-    // 1. Sincronização do Fuso Horário e Verificações Iniciais
+    // 1. Sincronização do Fuso Horário e Padronização Visual Limpa
     sincronizarFusoHorarioPlanilha();
     try { verificarENotificarFechamentoFiscalAtrasado(); } catch(e) {}
+    try {
+      if (typeof padronizarVisualECoresAbasSistema === 'function') {
+        padronizarVisualECoresAbasSistema(ss);
+      }
+    } catch(ePad) {
+      console.warn('Aviso ao padronizar cores das abas:', ePad.message);
+    }
 
     const hoje = new Date();
     const hojeStr = formatarDataSimples(hoje);
@@ -568,7 +618,7 @@ function salvarComandaBalcaoAberta360(payload) {
         let shCom = ss.getSheetByName('COMANDAS');
         if (!shCom) shCom = ss.insertSheet('COMANDAS');
         pedido = Math.floor(Date.now() / 1000) % 100000;
-        shCom.appendRow([pedido, new Date(), cliente, 'BALCAO', 'ABERTA']);
+        inserirLinhaPadronizadaNoTopo(shCom, [pedido, new Date(), cliente, 'BALCAO', 'ABERTA']);
       }
     }
 
@@ -582,7 +632,7 @@ function salvarComandaBalcaoAberta360(payload) {
       payload.itens.forEach(i => {
         const q = Number(i.qtd) || 0;
         const u = Number(i.unit) || 0;
-        shItens.appendRow([pedido, i.produto, q, u, q * u]);
+        inserirLinhaPadronizadaNoTopo(shItens, [pedido, i.produto, q, u, q * u]);
         try {
           if (typeof baixarEstoquePorComanda === 'function') {
             baixarEstoquePorComanda(i.produto, q);
@@ -632,8 +682,8 @@ function adicionarItemComandaBalcao360(pedido, produto, qtd, unit) {
       throw new Error('Estoque insuficiente para ' + produto + ': ' + eEst.message);
     }
 
-    // 2. Registrar item na comanda
-    shItens.appendRow([
+    // 2. Registrar item na comanda no topo com padronização visual
+    inserirLinhaPadronizadaNoTopo(shItens, [
       pedido,
       produto,
       qtd,
@@ -740,7 +790,7 @@ function removerItemComandaBalcao360(token, pedido, produto, qtd) {
     try {
       const shAud = ss.getSheetByName('AUDITORIA_USUARIOS');
       if (shAud) {
-        shAud.appendRow([
+        inserirLinhaPadronizadaNoTopo(shAud, [
           new Date(),
           caller.nome,
           caller.perfil,
@@ -986,7 +1036,7 @@ function registrarPagamentoParcialComanda360(pedido, valor, formaPgto) {
         `COMANDA #${pedido} (PARCIAL)`
       ]);
     } else {
-      shCaixa.appendRow([
+      inserirLinhaPadronizadaNoTopo(shCaixa, [
         new Date(),
         'Entrada',
         valor,
@@ -1120,8 +1170,8 @@ function executarVendaBalcao360(payload) {
         } catch (eSupa) {}
       }
 
-      // 3. Registra na aba VENDAS
-      shVendas.appendRow([
+      // 3. Registra no topo da aba VENDAS com padronização visual
+      inserirLinhaPadronizadaNoTopo(shVendas, [
         agora,
         item.produto,
         item.qtd,
@@ -1179,7 +1229,7 @@ function executarVendaBalcao360(payload) {
         } else {
           const shCaixa = ss.getSheetByName('CAIXA');
           if (shCaixa) {
-            shCaixa.appendRow([agora, 'Entrada', totalVenda, formaPgto, 'Balcão', 'Venda Balcão - ' + cliente]);
+            inserirLinhaPadronizadaNoTopo(shCaixa, [agora, 'Entrada', totalVenda, formaPgto, 'Balcão', 'Venda Balcão - ' + cliente]);
           }
         }
 
@@ -1267,8 +1317,8 @@ function executarVendaDelivery360(payload) {
     const endereco = String(payload.endereco || '').trim();
     const idPedido = typeof gerarIdVendaDelivery === 'function' ? gerarIdVendaDelivery(pedido) : ('DEL-' + String(pedido).padStart(6, '0'));
 
-    // 3. Registrar na aba DELIVERY
-    shDel.appendRow([
+    // 3. Registrar na aba DELIVERY no topo com padronização visual
+    inserirLinhaPadronizadaNoTopo(shDel, [
       pedido,
       agora,
       cliente,
@@ -1292,7 +1342,7 @@ function executarVendaDelivery360(payload) {
     payload.itens.forEach(i => {
       const q = Number(i.qtd) || 0;
       const u = Number(i.unit) || 0;
-      shItens.appendRow([
+      inserirLinhaPadronizadaNoTopo(shItens, [
         pedido,
         i.produto,
         q,
@@ -1450,7 +1500,7 @@ function cadastrarCliente360(dados) {
     }
 
     if (!jaCadastrado) {
-      sh.appendRow([nome, tel, end, ref, obs]);
+      inserirLinhaPadronizadaNoTopo(sh, [nome, tel, end, ref, obs]);
     }
 
     // Garante que o cliente tenha conta fiado inicializada em CONTAS_A_RECEBER
@@ -1508,7 +1558,7 @@ function garantirClienteCadastrado(nome, tel, end, ref, obs) {
       return;
     }
   }
-  sh.appendRow([normNome, tel || '', end || '', ref || '', obs || '']);
+  inserirLinhaPadronizadaNoTopo(sh, [normNome, tel || '', end || '', ref || '', obs || '']);
 }
 
 /**
@@ -3059,7 +3109,7 @@ function solicitarAprovacaoConferenciaCaixa(token, payload) {
     const aprovador = autoAprovar ? caller.nome : '';
     const dtAprov = autoAprovar ? agora : '';
 
-    shConf.appendRow([
+    inserirLinhaPadronizadaNoTopo(shConf, [
       idConf,
       agora,
       entradas,

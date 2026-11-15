@@ -3005,9 +3005,9 @@
         </label>
         <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
           <div class="stepper-box" style="flex: 1; display: flex;">
-            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', -10, 0, null, calcularDiferencaConferencia)">-10</button>
-            <input type="number" id="prevConfValorGaveta" class="stepper-input" value="0.00" step="0.50" min="0" style="flex: 1; font-size: 18px; color: #34d399;" oninput="calcularDiferencaConferencia()">
-            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', 10, 0, null, calcularDiferencaConferencia)">+10</button>
+            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', -10, null, null, calcularDiferencaConferencia)">-10</button>
+            <input type="number" id="prevConfValorGaveta" class="stepper-input" value="0.00" step="0.50" style="flex: 1; font-size: 18px; color: #34d399;" oninput="calcularDiferencaConferencia()">
+            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', 10, null, null, calcularDiferencaConferencia)">+10</button>
           </div>
         </div>
         <div id="prevConfDiferencaBox" style="font-size: 12px; font-weight: 700; padding: 8px 12px; border-radius: 6px; text-align: center; background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3);">
@@ -3410,9 +3410,10 @@
     function confirmarEnvioConferenciaCaixa() {
       if (!DADOS_PREVIA_CONFERENCIA) return;
 
-      const valorGaveta = Number(document.getElementById('prevConfValorGaveta').value);
-      if (isNaN(valorGaveta) || valorGaveta < 0) {
-        showToast('Informe o valor físico contado na gaveta (mínimo R$ 0,00)!', 'warning');
+      const valStr = document.getElementById('prevConfValorGaveta').value;
+      const valorGaveta = Number(valStr);
+      if (valStr === '' || isNaN(valorGaveta)) {
+        showToast('Informe o valor numérico apurado na gaveta física!', 'warning');
         return;
       }
 
@@ -4497,10 +4498,23 @@
         formaPgto: FORMA_PGTO_SELECIONADA
       };
 
+      // 🔒 Trava Anti-Duplo Clique
+      const btnVenda = document.querySelector('.btn-finish-sale');
+      if (btnVenda) {
+        if (btnVenda.disabled) return;
+        btnVenda.disabled = true;
+        btnVenda.dataset.origText = btnVenda.innerHTML;
+        btnVenda.innerHTML = '⏳ Gravando...';
+      }
+
       mostrarLoader('Registrando venda e baixando estoque...');
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
+          if (btnVenda) {
+            btnVenda.disabled = false;
+            btnVenda.innerHTML = btnVenda.dataset.origText || '<span>⚡</span> FINALIZAR VENDA';
+          }
           if (res && res.sucesso) {
             showToast('Venda finalizada: ' + formatMoeda(res.total), 'success');
             limparCarrinho();
@@ -4511,6 +4525,10 @@
         })
         .withFailureHandler(err => {
           esconderLoader();
+          if (btnVenda) {
+            btnVenda.disabled = false;
+            btnVenda.innerHTML = btnVenda.dataset.origText || '<span>⚡</span> FINALIZAR VENDA';
+          }
           showToast('Erro: ' + err.message, 'error');
         })
         .executarVendaBalcao360(payload);
@@ -4523,6 +4541,15 @@
         return;
       }
 
+      // 🔒 Trava Anti-Duplo Clique
+      const btnComanda = document.querySelector('button[onclick="abrirComoComandaBalcao()"]');
+      if (btnComanda) {
+        if (btnComanda.disabled) return;
+        btnComanda.disabled = true;
+        btnComanda.dataset.origText = btnComanda.innerHTML;
+        btnComanda.innerHTML = '⏳ Abrindo...';
+      }
+
       const cliente = document.getElementById('pdvCliente').value.trim() || 'Balcão';
       const payload = {
         cliente: cliente,
@@ -4533,6 +4560,10 @@
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
+          if (btnComanda) {
+            btnComanda.disabled = false;
+            btnComanda.innerHTML = btnComanda.dataset.origText || '<span>🧾</span> ABRIR COMANDA';
+          }
           if (res && res.sucesso) {
             showToast(res.msg, 'success');
             limparCarrinho();
@@ -4544,6 +4575,10 @@
         })
         .withFailureHandler(err => {
           esconderLoader();
+          if (btnComanda) {
+            btnComanda.disabled = false;
+            btnComanda.innerHTML = btnComanda.dataset.origText || '<span>🧾</span> ABRIR COMANDA';
+          }
           showToast('Erro: ' + err.message, 'error');
         })
         .salvarComandaBalcaoAberta360(payload);
@@ -4593,11 +4628,12 @@
         const totalConsumido = Number(c.total) || 0;
         const totalPago = Number(c.pagos) || 0;
         const saldoDevedor = (c.saldo !== undefined) ? Number(c.saldo) : Math.max(0, totalConsumido - totalPago);
-        const isQuitada = !!c.quitada || (totalConsumido > 0 && saldoDevedor <= 0.001);
-        const isVazia = !!c.vazia || (totalConsumido === 0 && (!c.itens || c.itens.length === 0));
-        const isZerada = (saldoDevedor <= 0.001 || isVazia || isQuitada);
+        const temItens = Array.isArray(c.itens) && c.itens.length > 0;
+        const isVazia = !temItens && totalConsumido === 0;
+        const isQuitada = (totalConsumido > 0 && saldoDevedor <= 0.001) || !!c.quitada;
+        const isZerada = (saldoDevedor <= 0.001 || totalConsumido === 0 || isVazia || isQuitada);
 
-        const itensHtml = c.itens && c.itens.length > 0 
+        const itensHtml = temItens 
           ? c.itens.map(i => `
               <div class="comanda-item-row" title="${i.qtd}x ${i.produto} (${formatMoeda(i.total)})">
                 <span class="comanda-item-prod">• <strong>${i.qtd}x</strong> ${i.produto}</span>
@@ -4611,25 +4647,23 @@
         let rodapeValorHtml = '';
         let btnFecharHtml = '';
 
-        if (isQuitada) {
-          statusBadge = `<span style="background: rgba(52, 211, 153, 0.2); color: #34d399; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.4);">✅ QUITADA</span>`;
-          rodapeValorHtml = `
-            <div style="display:flex; flex-direction:column;">
-              <span style="font-size:10px; color:var(--text-muted);">Consumido: ${formatMoeda(totalConsumido)} | Pago: ${formatMoeda(totalPago)}</span>
-              <span class="comanda-total" style="color:#34d399; font-size:15px;">Saldo: R$ 0,00</span>
-            </div>
-          `;
+        if (isZerada || isQuitada || isVazia) {
+          statusBadge = isQuitada 
+            ? `<span style="background: rgba(52, 211, 153, 0.2); color: #34d399; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.4);">✅ QUITADA</span>`
+            : `<span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">SEM DÉBITOS</span>`;
+
+          rodapeValorHtml = (totalPago > 0 || totalConsumido > 0)
+            ? `
+              <div style="display:flex; flex-direction:column;">
+                <span style="font-size:10px; color:var(--text-muted);">Consumido: ${formatMoeda(totalConsumido)} | Pago: ${formatMoeda(totalPago)}</span>
+                <span class="comanda-total" style="color:#34d399; font-size:15px;">Saldo: R$ 0,00</span>
+              </div>
+            `
+            : `<span class="comanda-total" style="color:var(--text-muted); font-size:13px;">R$ 0,00</span>`;
+
           btnFecharHtml = `
-            <button class="btn-fechar-comanda" style="background: linear-gradient(135deg, #10b981, #059669);" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', true)" title="Encerrar e arquivar comanda quitada">
+            <button class="btn-fechar-comanda" style="background: linear-gradient(135deg, #10b981, #059669);" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', true)" title="Encerrar e arquivar comanda zerada">
               <span>✅</span> Encerrar
-            </button>
-          `;
-        } else if (isVazia) {
-          statusBadge = `<span style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">SEM ITENS</span>`;
-          rodapeValorHtml = `<span class="comanda-total" style="color:var(--text-muted); font-size:13px;">R$ 0,00</span>`;
-          btnFecharHtml = `
-            <button class="btn-fechar-comanda" style="background: #475569;" type="button" onclick="event.stopPropagation(); acionarEncerramentoComandaCard('${c.pedido}', true)" title="Encerrar comanda vazia">
-              <span>✕</span> Encerrar
             </button>
           `;
         } else if (totalPago > 0) {
@@ -5017,6 +5051,14 @@
       }
 
       const totalNum = Number(comanda.total) || 0;
+      const saldoDevedor = (comanda.saldo !== undefined) ? Number(comanda.saldo) : totalNum;
+
+      // Se já estiver zerada ou sem itens, roteia diretamente para confirmação de arquivamento
+      if (totalNum <= 0 || saldoDevedor <= 0.001) {
+        acionarEncerramentoComandaCard(pedido, true);
+        return;
+      }
+
       COMANDA_EM_FECHAMENTO = {
         ...comanda,
         financeiro: {
@@ -5081,7 +5123,17 @@
       const btnParcial = document.getElementById('btnPagamentoParcialComanda');
       const btnQuitar = document.getElementById('btnQuitarIntegralComanda');
 
-      if (valDigitado <= 0) {
+      if (saldoDevedor <= 0.001) {
+        aviso.innerHTML = '<span style="color:#34d399;">✅ Comanda quitada/sem débitos pendentes. Clique em Encerrar para arquivar.</span>';
+        if (btnParcial) {
+          btnParcial.disabled = true;
+          btnParcial.style.opacity = '0.5';
+        }
+        if (btnQuitar) {
+          btnQuitar.disabled = false;
+          btnQuitar.style.opacity = '1';
+        }
+      } else if (valDigitado <= 0) {
         aviso.innerHTML = '<span style="color:#ef4444;">Digite um valor válido maior que zero.</span>';
         if (btnParcial) btnParcial.disabled = true;
         if (btnQuitar) btnQuitar.disabled = true;
@@ -5431,10 +5483,20 @@
         textoConfirmar: 'Sim, Arquivar Agora',
         textoCancelar: 'Cancelar',
         onConfirm: () => {
+          const btnLote = document.getElementById('btnArquivarQuitadasLote');
+          if (btnLote) {
+            btnLote.disabled = true;
+            btnLote.dataset.origText = btnLote.innerHTML;
+            btnLote.innerHTML = '⏳ Arquivando...';
+          }
           mostrarLoader('Verificando e arquivando comandas quitadas...');
           google.script.run
             .withSuccessHandler(res => {
               esconderLoader();
+              if (btnLote) {
+                btnLote.disabled = false;
+                btnLote.innerHTML = btnLote.dataset.origText || '<span>🧹</span> Arquivar Quitadas / Vazias';
+              }
               if (res && res.sucesso) {
                 showToast(res.msg, 'success');
                 sincronizarPainel();
@@ -5444,6 +5506,10 @@
             })
             .withFailureHandler(err => {
               esconderLoader();
+              if (btnLote) {
+                btnLote.disabled = false;
+                btnLote.innerHTML = btnLote.dataset.origText || '<span>🧹</span> Arquivar Quitadas / Vazias';
+              }
               showToast('Erro: ' + err.message, 'error');
             })
             .arquivarComandasQuitadas360(TOKEN_SESSAO);
