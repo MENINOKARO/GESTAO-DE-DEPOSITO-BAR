@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 20px;
+      margin: 0;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 22px;
+      border: 1px solid #334155;
+    }
+    h3 {
+      margin-top: 0;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 19px;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #38bdf8;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .input-group {
+      margin-bottom: 14px;
+    }
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #cbd5e1;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .hint {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .btn-salvar {
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      border: none;
+      padding: 13px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-salvar:hover {
+      background: linear-gradient(135deg, #0369a1, #075985);
+    }
+    .btn-salvar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 15px;
+      color: #38bdf8;
+      font-size: 13px;
+    }
+    .result-box {
+      display: none;
+      margin-top: 15px;
+      padding: 14px;
+      background: #064e3b;
+      border: 1px solid #059669;
+      border-radius: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3 id="titleH3">🎉 Boas-Vindas ao Seu Novo Sistema</h3>
+    <p id="descP">Sua planilha para nova empresa está pronta! Preencha as informações do seu depósito abaixo para inicializar o sistema:</p>
+
+    <!-- 1. DADOS DA EMPRESA -->
+    <div class="section-title">🏢 Dados do Estabelecimento</div>
+    
+    <div class="input-group">
+      <label>🏷️ Nome da Empresa / Depósito *</label>
+      <input type="text" id="nome" placeholder="Ex: Distribuidora & Depósito Central" required>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>👤 Nome do Dono / Responsável *</label>
+        <input type="text" id="dono" placeholder="Ex: João da Silva" required>
+      </div>
+      <div class="input-group">
+        <label>🏙️ Cidade / UF</label>
+        <input type="text" id="cidade" placeholder="Ex: São Paulo - SP">
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>🏢 CNPJ (Opcional)</label>
+        <input type="text" id="cnpj" placeholder="00.000.000/0000-00">
+      </div>
+      <div class="input-group">
+        <label>📞 WhatsApp / Telefone</label>
+        <input type="text" id="telefone" placeholder="(00) 00000-0000">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>🔑 Chave Pix para Recebimentos / Recibos</label>
+      <input type="text" id="chavePix" placeholder="CNPJ, E-mail, Celular ou Chave Aleatória">
+      <div class="hint">Usada para geração automática de cobranças e recibos no balcão e delivery.</div>
+    </div>
+
+    <!-- 2. CONTA DO ADMINISTRADOR -->
+    <div class="section-title">👑 Conta de Acesso do Dono (Super Administrador)</div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>👤 Usuário / Login *</label>
+        <input type="text" id="adminLogin" value="admin" placeholder="Ex: admin ou joao">
+      </div>
+      <div class="input-group">
+        <label>🔑 Senha de Acesso *</label>
+        <input type="password" id="adminSenha" placeholder="Mínimo 6 caracteres">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>🔑 Confirmar Senha *</label>
+      <input type="password" id="adminConfirmaSenha" placeholder="Repita a senha de acesso">
+    </div>
+
+    <!-- 3. TELEGRAM BOT -->
+    <div class="section-title">🤖 Bot do Telegram (Opcional)</div>
+    <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-size:12px;color:#94a3b8;">
+        Crie seu bot em 1 minuto no Telegram para vender e emitir comandas:
+      </div>
+      <a href="https://t.me/BotFather" target="_blank" style="background:#0284c7;color:#fff;text-decoration:none;padding:7px 12px;border-radius:6px;font-size:11px;font-weight:bold;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">
+        🤖 Abrir @BotFather ↗
+      </a>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>Token do Bot Telegram</label>
+        <input type="text" id="telegram_token" placeholder="Ex: 7123456789:AAHk...">
+        <div class="hint">Cole o token gerado pelo @BotFather.</div>
+      </div>
+      <div class="input-group">
+        <label>Chat ID do Dono (Opcional)</label>
+        <input type="text" id="telegram_chat_id" placeholder="Coletado automático no /start">
+        <div class="hint">Preenchido sozinho ao dar /start no bot.</div>
+      </div>
+    </div>
+
+    <button class="btn-salvar" id="btnSalvar" onclick="salvarTudo()">
+      🚀 Inicializar e Começar a Usar
+    </button>
+
+    <div id="loading" class="loading">
+      ⏳ Gravando dados e inicializando o sistema... Aguarde alguns segundos.
+    </div>
+
+    <div id="resultBox" class="result-box">
+      <div style="color:#a7f3d0;font-weight:bold;">✅ Sistema inicializado com sucesso! Pronto para usar.</div>
+    </div>
+  </div>
+
+  <script>
+    let setupJaConcluido = false;
+
+    function formatPhone(val){
+      let digits = (val || '').replace(/\D/g, '');
+      if(digits.length <= 2) return digits;
+      if(digits.length <= 6) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+      if(digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+      return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`;
+    }
+
+    function formatCNPJ(val){
+      let digits = (val || '').replace(/\D/g, '');
+      if(digits.length <= 2) return digits;
+      if(digits.length <= 5) return `${digits.slice(0,2)}.${digits.slice(2)}`;
+      if(digits.length <= 8) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5)}`;
+      if(digits.length <= 12) return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8)}`;
+      return `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8,12)}-${digits.slice(12,14)}`;
+    }
+
+    window.addEventListener('load', () => {
+      document.getElementById('telefone').addEventListener('blur', e => e.target.value = formatPhone(e.target.value));
+      document.getElementById('cnpj').addEventListener('blur', e => e.target.value = formatCNPJ(e.target.value));
+      carregarDados();
+    });
+
+    function carregarDados(){
+      google.script.run
+        .withSuccessHandler(dados => {
+          if(dados){
+            if (dados.nome) document.getElementById('nome').value = dados.nome;
+            if (dados.dono) document.getElementById('dono').value = dados.dono;
+            if (dados.cnpj) document.getElementById('cnpj').value = formatCNPJ(dados.cnpj);
+            if (dados.telefone) document.getElementById('telefone').value = formatPhone(dados.telefone);
+            if (dados.cidade) document.getElementById('cidade').value = dados.cidade;
+            if (dados.chave_pix) document.getElementById('chavePix').value = dados.chave_pix;
+            if (dados.telegram_token) document.getElementById('telegram_token').value = dados.telegram_token;
+            if (dados.telegram_chat_id) document.getElementById('telegram_chat_id').value = dados.telegram_chat_id;
+
+            if (dados.setup_concluido === 'SIM') {
+              setupJaConcluido = true;
+              document.getElementById('titleH3').textContent = '⚙️ Configuração do Depósito';
+              document.getElementById('descP').textContent = 'Altere as informações e parâmetros do seu estabelecimento:';
+              document.getElementById('btnSalvar').innerHTML = '💾 Salvar Alterações';
+            }
+          }
+        })
+        .carregarDadosConfiguracao();
+    }
+
+    function salvarTudo() {
+      const nome = document.getElementById('nome').value.trim();
+      const dono = document.getElementById('dono').value.trim();
+      const login = document.getElementById('adminLogin').value.trim();
+      const senha = document.getElementById('adminSenha').value.trim();
+      const confirma = document.getElementById('adminConfirmaSenha').value.trim();
+
+      if (!nome) {
+        alert('Por favor, informe o Nome da Empresa / Depósito.');
+        document.getElementById('nome').focus();
+        return;
+      }
+      if (!dono) {
+        alert('Por favor, informe o Nome do Dono / Responsável.');
+        document.getElementById('dono').focus();
+        return;
+      }
+      if (!login) {
+        alert('Por favor, informe o Usuário / Login de Acesso.');
+        document.getElementById('adminLogin').focus();
+        return;
+      }
+
+      if (senha || !setupJaConcluido) {
+        if (senha.length < 6) {
+          alert('A senha de acesso deve ter no mínimo 6 caracteres.');
+          document.getElementById('adminSenha').focus();
+          return;
+        }
+        if (senha !== confirma) {
+          alert('As senhas digitadas não coincidem.');
+          document.getElementById('adminConfirmaSenha').focus();
+          return;
+        }
+      }
+
+      const dados = {
+        nome: nome,
+        dono: dono,
+        cnpj: document.getElementById('cnpj').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        cidade: document.getElementById('cidade').value.trim(),
+        chave_pix: document.getElementById('chavePix').value.trim(),
+        admin_login: login,
+        admin_senha: senha,
+        telegram_token: document.getElementById('telegram_token').value.trim(),
+        telegram_chat_id: document.getElementById('telegram_chat_id').value.trim()
+      };
+
+      document.getElementById('btnSalvar').disabled = true;
+      document.getElementById('loading').style.display = 'block';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          document.getElementById('loading').style.display = 'none';
+          if(res && res.ok){
+            document.getElementById('resultBox').style.display = 'block';
+            setTimeout(() => {
+              google.script.host.close();
+            }, 1200);
+          } else {
+            alert('❌ Erro ao inicializar sistema: ' + (res?.msg || 'Desconhecido'));
+            document.getElementById('btnSalvar').disabled = false;
+          }
+        })
+        .withFailureHandler(err => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('btnSalvar').disabled = false;
+          alert('❌ Erro: ' + err.message);
+        })
+        .salvarConfiguracaoDeposito(dados);
+    }
+  </script>
+</body>
+</html>

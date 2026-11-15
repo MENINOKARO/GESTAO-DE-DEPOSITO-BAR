@@ -1,0 +1,4444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>👑 Painel Executivo & PDV 360°</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #273549;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #8b5cf6;
+      --primary-hover: #7c3aed;
+      --primary-glow: rgba(139, 92, 246, 0.3);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.25);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #0284c7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      padding: 16px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    h1, h2, h3, h4, .brand-title, .kpi-val, .val-monetary {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-360 {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .live-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0.4; transform: scale(0.9); }
+    }
+
+    .btn-action {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--bg-card);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .btn-sync {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: white;
+      border: none;
+    }
+    .btn-sync:hover { filter: brightness(1.1); }
+
+    .btn-planilha {
+      background: linear-gradient(135deg, #059669, #047857);
+      color: white;
+      border: none;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
+    }
+    .btn-planilha:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    /* KPI RIBBON */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+      flex-shrink: 0;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+      background: #1e293b;
+    }
+
+    .pi-secao {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+    }
+    .pi-secao-titulo {
+      font-size: 14px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .pi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .pi-card {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .pi-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+      background: #1e293b;
+    }
+    .pi-card-danger:hover {
+      border-color: #f43f5e;
+      background: rgba(244, 63, 94, 0.08);
+    }
+    .pi-icon {
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .pi-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .pi-info strong {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .pi-info span {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.3;
+    }
+
+    .kpi-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-val {
+      font-size: 19px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: #fff;
+    }
+
+    .kpi-val.green { color: #34d399; }
+    .kpi-val.purple { color: #c084fc; }
+    .kpi-val.blue { color: #38bdf8; }
+    .kpi-val.yellow { color: #fbbf24; }
+    .kpi-val.red { color: #f87171; }
+
+    /* TABS */
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 9px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-card);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.15));
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 10px var(--primary-glow);
+    }
+
+    .tab-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #334155;
+      color: #fff;
+    }
+
+    .tab-btn.active .tab-badge {
+      background: var(--primary);
+    }
+
+    /* MAIN CONTENT VIEWPORT */
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-pane {
+      display: none;
+      height: 100%;
+    }
+
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* GENERAL CARD CONTAINERS */
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    /* ======================================================== */
+    /* ⚡ PDV BALCÃO STYLES & SUB-TABS (NOVA VENDA / COMANDAS) */
+    /* ======================================================== */
+    .pdv-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .pdv-left {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .pdv-right {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .subtabs-balcao {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 4px;
+      border-radius: 10px;
+      width: fit-content;
+    }
+
+    .subtab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .subtab-btn.active {
+      background: var(--bg-card);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .subtab-badge {
+      background: #f59e0b;
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .search-box-pdv {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .input-search {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-search:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-glow);
+    }
+
+    .category-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    .chip {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .chip.active, .chip:hover {
+      background: var(--bg-card);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* Product Grid */
+    .product-grid {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      padding-right: 4px;
+      align-content: start;
+    }
+
+    .prod-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .prod-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+
+    .prod-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    .prod-cat {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .prod-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: auto;
+    }
+
+    .prod-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: #34d399;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .prod-stock {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    .prod-stock.critico {
+      background: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    /* CART STYLES */
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .cart-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-clear-cart {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .cart-items {
+      flex: 1;
+      overflow-y: auto;
+      margin: 12px 0;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cart-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+
+    .ci-info {
+      flex: 1;
+      margin-right: 12px;
+    }
+
+    .ci-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .ci-unit {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .ci-qty-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 14px;
+    }
+
+    .btn-qty {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ci-qty-val {
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .ci-total {
+      font-size: 14px;
+      font-weight: 700;
+      color: #34d399;
+      font-family: 'Outfit', sans-serif;
+      min-width: 70px;
+      text-align: right;
+    }
+
+    .btn-remove-item {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      padding: 4px;
+      margin-left: 8px;
+      font-size: 14px;
+    }
+    .btn-remove-item:hover { color: var(--danger); }
+
+    /* Cart Footer Form */
+    .cart-footer {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .cart-row-field {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .cart-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      width: 90px;
+    }
+
+    .cart-select, .cart-input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .payment-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .pay-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 6px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .pay-btn.active {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border-color: #10b981;
+      box-shadow: 0 2px 8px var(--success-glow);
+    }
+
+    .cart-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      background: var(--bg-base);
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin: 2px 0;
+    }
+
+    .summary-total-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .summary-total-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: #34d399;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .cart-buttons-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-abrir-comanda {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-abrir-comanda:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    .btn-finish-sale {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 16px var(--success-glow);
+      transition: all 0.2s;
+    }
+    .btn-finish-sale:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    /* ======================================================== */
+    /* 🧾 CARDS DE COMANDAS BALCÃO EM ABERTO */
+    /* ======================================================== */
+    .comandas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      overflow-y: auto;
+      padding-right: 4px;
+      height: 100%;
+      align-content: start;
+    }
+
+    .comanda-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .comanda-card:hover {
+      border-color: #f59e0b;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(245, 158, 11, 0.25);
+    }
+
+    .comanda-card-hint {
+      font-size: 11px;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .comanda-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .comanda-num {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .comanda-cliente {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .comanda-itens-lista {
+      font-size: 12px;
+      color: #cbd5e1;
+      height: 86px;
+      max-height: 86px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: var(--bg-base);
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      scrollbar-width: thin;
+      scrollbar-color: #f59e0b rgba(255,255,255,0.06);
+    }
+
+    .comanda-itens-lista::-webkit-scrollbar {
+      width: 5px;
+    }
+    .comanda-itens-lista::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    .comanda-itens-lista::-webkit-scrollbar-thumb {
+      background: #f59e0b;
+      border-radius: 4px;
+    }
+
+    .comanda-item-row {
+      line-height: 22px;
+      min-height: 22px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .comanda-item-prod {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .comanda-item-val {
+      font-weight: 600;
+      color: #94a3b8;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .comanda-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .comanda-total {
+      font-size: 18px;
+      font-weight: 800;
+      color: #34d399;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .btn-fechar-comanda {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-fechar-comanda:hover { filter: brightness(1.2); transform: scale(1.03); }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(9, 13, 22, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+    }
+
+    .modal-content-comanda {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ======================================================== */
+    /* ⚙️ ABA CONFIGURAÇÕES GERAIS */
+    /* ======================================================== */
+    .config-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      overflow-y: auto;
+      height: 100%;
+    }
+
+    .config-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .config-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #38bdf8;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .config-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .config-input {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .config-input:focus { border-color: var(--primary); }
+
+    .btn-salvar-config {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+    .btn-salvar-config:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    /* ======================================================== */
+    /* 🛵 DELIVERY LAYOUT */
+    /* ======================================================== */
+    .delivery-layout {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 16px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .delivery-form-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    .delivery-list-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .del-cards-container {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+      padding-right: 4px;
+    }
+
+    .del-item-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .del-item-card:hover { border-color: #64748b; }
+
+    .del-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .del-id {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .del-status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .del-status-badge.feito { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .del-status-badge.rota { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border: 1px solid rgba(2, 132, 199, 0.4); }
+    .del-status-badge.entregue { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .del-status-badge.cancelado { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .del-client-info {
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .del-address {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .del-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      justify-content: flex-end;
+    }
+
+    .btn-sm-action {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-sm-action:hover { filter: brightness(1.2); }
+    .btn-sm-action.blue { background: #0284c7; border-color: #0284c7; }
+    .btn-sm-action.green { background: #059669; border-color: #059669; }
+
+    /* ======================================================== */
+    /* 📊 VISÃO 360° DASHBOARD */
+    /* ======================================================== */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .table-responsive {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .table-responsive th {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    .table-responsive td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: #cbd5e1;
+    }
+
+    .table-responsive tr:hover td {
+      background: var(--bg-card);
+    }
+
+    /* TOAST / MODAL FEEDBACK */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-box.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-box.success { border-color: var(--success); }
+    .toast-box.error { border-color: var(--danger); color: #fca5a5; }
+
+    /* Loading overlay */
+    .loader-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(9, 13, 22, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 999;
+      display: none;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ======================================================== */
+    /* 🔐 ESTILOS DA TELA DE LOGIN & SESSÃO */
+    /* ======================================================== */
+    .login-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at center, #1e1b4b 0%, #090d16 100%);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .login-card {
+      background: #0f172a;
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      border-radius: 20px;
+      padding: 36px 32px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 40px rgba(139, 92, 246, 0.2);
+      animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.94); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .login-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      box-shadow: 0 8px 24px var(--primary-glow);
+      margin-bottom: 12px;
+    }
+
+    .login-brand h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+
+    .login-badge-360 {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(139, 92, 246, 0.18);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      letter-spacing: 0.8px;
+    }
+
+    .login-alert {
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .login-alert.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .login-alert.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+    }
+
+    .login-input-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .login-input-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .login-input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .login-input:focus {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+      background: #243047;
+    }
+
+    .btn-toggle-pass {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .btn-login-submit {
+      width: 100%;
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+      transition: all 0.2s;
+    }
+
+    .btn-login-submit:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .login-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .login-footer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+    }
+
+    /* HEADER USER PILL */
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 10px;
+    }
+
+    .user-role-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .user-role-badge.dono {
+      background: linear-gradient(135deg, #f59e0b, #b45309);
+      color: black;
+    }
+
+    .user-role-badge.gerente {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+    }
+
+    .user-role-badge.vendedor {
+      background: linear-gradient(135deg, #10b981, #047857);
+      color: white;
+    }
+
+    .user-name-txt {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .btn-logout-header {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-logout-header:hover {
+      background: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ======================================================== -->
+  <!-- 🔐 OVERLAY DE LOGIN & AUTENTICAÇÃO (BLOQUEIO TOTAL) -->
+  <!-- ======================================================== -->
+  <div id="overlayLogin" class="login-backdrop" style="display: flex;">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-icon">👑</div>
+        <h2 id="loginBrandTitle">Gestão de Depósito</h2>
+        <div class="login-badge-360">ACESSO RESTRITO & PDV 360°</div>
+      </div>
+
+      <div id="loginAlertBox" class="login-alert" style="display: none;"></div>
+
+      <form id="formLoginWeb" onsubmit="executarLoginWeb(event)">
+        <div class="login-input-group">
+          <label for="loginUsuarioInput">👤 Usuário ou E-mail</label>
+          <input type="text" id="loginUsuarioInput" class="login-input" placeholder="Ex: admin ou seu_usuario" autocomplete="username" required>
+        </div>
+
+        <div class="login-input-group">
+          <label for="loginSenhaInput">🔑 Senha de Acesso</label>
+          <div style="position: relative;">
+            <input type="password" id="loginSenhaInput" class="login-input" placeholder="Digite sua senha" autocomplete="current-password" required style="padding-right: 42px;">
+            <button type="button" class="btn-toggle-pass" onclick="alternarVisibilidadeSenhaLogin()" tabindex="-1" title="Ver / Ocultar Senha">👁️</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0 20px 0; font-size: 13px; color: var(--text-muted);">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="loginLembrarCheckbox" checked style="accent-color: var(--primary); width: 16px; height: 16px;">
+            <span>Manter conectado neste aparelho</span>
+          </label>
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="btn-login-submit">
+          <span id="btnLoginText">Entrar no Sistema 🚀</span>
+          <span id="btnLoginSpinner" class="login-spinner" style="display: none;"></span>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        🔒 Acesso seguro criptografado com SHA-256 e sessões gerenciadas.
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loaderOverlay" class="loader-overlay">
+    <div class="spinner"></div>
+    <div style="font-size: 14px; font-weight: 600; color: #cbd5e1;" id="loaderMsg">Carregando Painel Executivo...</div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">📦</div>
+      <div>
+        <div class="brand-title">
+          <span id="nomeDepositoTitle">Gestão de Depósito</span>
+          <span class="badge-360">PANORAMA 360°</span>
+        </div>
+        <div class="brand-sub">Terminal Executivo de Controle, Estoque & PDV Inteligente</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- BOTÃO DE GESTÃO DE EQUIPE (DONO / GERENTE) -->
+      <button id="btnHeaderEquipe" class="btn-action" style="display: none;" onclick="trocarAba('tabEquipe')" title="Gerenciar Equipe e Colaboradores">
+        <span>👥</span> Equipe
+      </button>
+
+      <!-- BOTÃO DIRETO PARA ABRIR A PLANILHA DO GOOGLE -->
+      <a id="btnAbrirPlanilhaGoogle" href="#" target="_blank" class="btn-action btn-planilha" title="Abrir Planilha Mestre do Google Sheets">
+        <span>📊</span> Abrir Planilha Google Sheets
+      </a>
+
+      <div class="live-time">
+        <span class="pulse-dot"></span>
+        <span id="relogioLive">--:--:--</span>
+      </div>
+
+      <!-- USER PROFILE PILL -->
+      <div id="userHeaderPill" class="user-pill" style="display: none;">
+        <span id="userHeaderRole" class="user-role-badge dono">👑 DONO</span>
+        <span id="userHeaderName" class="user-name-txt">admin</span>
+        <button class="btn-logout-header" onclick="fazerLogoutWeb()" title="Encerrar Sessão">
+          <span>🚪</span> Sair
+        </button>
+      </div>
+
+      <button class="btn-action btn-sync" onclick="sincronizarPainel()">
+        <span>🔄</span> Sincronizar
+      </button>
+
+      <button class="btn-action" title="Abrir em Nova Aba" onclick="abrirExterno()">
+        <span>↗️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- TOP KPI RIBBON -->
+  <section class="kpi-row">
+    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
+      <div class="kpi-lbl"><span>Faturamento Hoje</span><span>💰</span></div>
+      <div class="kpi-val green" id="kpiFatHoje">R$ 0,00</div>
+    </div>
+    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Panorama Financeiro 360°">
+      <div class="kpi-lbl"><span>Faturamento Mês</span><span>📅</span></div>
+      <div class="kpi-val purple" id="kpiFatMes">R$ 0,00</div>
+    </div>
+    <div class="kpi-card" onclick="trocarAba('tabVisao360')" title="Clique para ver o Saldo e Fluxo de Caixa">
+      <div class="kpi-lbl"><span>Saldo Caixa</span><span>💵</span></div>
+      <div class="kpi-val blue" id="kpiSaldoCaixa">R$ 0,00</div>
+    </div>
+    <div class="kpi-card" id="cardKpiValorEstoque" onclick="trocarAba('tabEstoque')" title="Clique para ver Estoque & Preços">
+      <div class="kpi-lbl"><span>Valor Estoque</span><span>📦</span></div>
+      <div class="kpi-val" id="kpiValorEstoque">R$ 0,00</div>
+    </div>
+    <div class="kpi-card" onclick="trocarAba('tabComandas')" title="Clique para ver Comandas Balcão">
+      <div class="kpi-lbl"><span>Comandas Abertas</span><span>🧾</span></div>
+      <div class="kpi-val yellow" id="kpiComandasAbertas">0</div>
+    </div>
+    <div class="kpi-card" onclick="trocarAba('tabDelivery')" title="Clique para ver Módulo Delivery">
+      <div class="kpi-lbl"><span>Deliverys Pendentes</span><span>🛵</span></div>
+      <div class="kpi-val red" id="kpiDelPendentes">0</div>
+    </div>
+  </section>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="tabs-bar">
+    <button class="tab-btn active" onclick="trocarAba('tabPdv')">
+      <span>⚡</span> PDV Balcão (Caixa Rápido)
+    </button>
+    <button class="tab-btn" onclick="trocarAba('tabComandas')">
+      <span>🧾</span> Comandas Balcão <span class="tab-badge" id="tabComandasBadge" style="background:#f59e0b; color:#000;">0</span>
+    </button>
+    <button class="tab-btn" onclick="trocarAba('tabDelivery')">
+      <span>🛵</span> Módulo Delivery <span class="tab-badge" id="tabDelBadge">0</span>
+    </button>
+    <button class="tab-btn" onclick="trocarAba('tabVisao360')">
+      <span>📊</span> Panorama 360°
+    </button>
+    <button class="tab-btn" onclick="trocarAba('tabEstoque')">
+      <span>📦</span> Estoque & Preços
+    </button>
+    <!-- BOTÕES DE EQUIPE, PAINEL INTELIGENTE E CONFIGURAÇÃO -->
+    <button class="tab-btn" id="btnTabEquipe" onclick="trocarAba('tabEquipe')" style="display: none;">
+      <span>👥</span> Equipe
+    </button>
+    <button class="tab-btn" id="btnTabInteligente" onclick="trocarAba('tabPainelInteligente')">
+      <span>🧠</span> Painel Inteligente
+    </button>
+    <button class="tab-btn" id="btnTabConfig" onclick="trocarAba('tabConfig')">
+      <span>⚙️</span> Config
+    </button>
+  </nav>
+
+  <!-- TAB VIEWPORT -->
+  <main class="tab-content">
+
+    <!-- ======================================================== -->
+    <!-- ABA 1: ⚡ PDV BALCÃO -->
+    <!-- ======================================================== -->
+    <div id="tabPdv" class="tab-pane active">
+      <div class="pdv-layout">
+        
+        <!-- Catálogo de Produtos -->
+        <div class="pdv-left">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="search-box-pdv" style="flex:1;">
+              <input type="text" id="buscaProdutoPdv" class="input-search" placeholder="🔍 Digite o produto ou bipe o Código de Barras... (F2)" onkeyup="filtrarCatalogoPdv()">
+            </div>
+          </div>
+
+          <div class="category-chips" id="categoryChips">
+            <div class="chip active" onclick="filtrarCategoriaPdv('')">Todos</div>
+          </div>
+
+          <div class="product-grid" id="productGridPdv">
+            <!-- Injetado dinamicamente via JS -->
+          </div>
+        </div>
+
+        <!-- Carrinho de Compras -->
+        <div class="pdv-right">
+          <div class="cart-header">
+            <div class="cart-title">
+              <span>🛒</span> Carrinho de Venda
+            </div>
+            <button class="btn-clear-cart" onclick="limparCarrinho()">Limpar Carrinho</button>
+          </div>
+
+          <div class="cart-items" id="cartItemsList">
+            <div style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 13px;">
+              Carrinho vazio.<br>Clique nos produtos ao lado ou bipe um código.
+            </div>
+          </div>
+
+          <div class="cart-footer">
+            <div class="cart-row-field">
+              <span class="cart-label">👤 Cliente:</span>
+              <div style="display:flex; gap:6px; flex:1;">
+                <input type="text" id="pdvCliente" class="cart-input" list="clientesDatalist" value="Consumidor Final" placeholder="Nome do Cliente" style="flex:1;">
+                <button type="button" class="btn-action" onclick="abrirModalNovoCliente('pdv')" title="Cadastrar Novo Cliente" style="padding:6px 10px; font-size:12px; white-space:nowrap; background:linear-gradient(135deg, #3b82f6, #2563eb); border:none;">
+                  <span>➕</span> Novo
+                </button>
+              </div>
+              <datalist id="clientesDatalist"></datalist>
+            </div>
+
+            <div class="cart-row-field">
+              <span class="cart-label">💳 Pagamento:</span>
+              <div class="payment-options" style="flex:1;">
+                <button type="button" class="pay-btn active" onclick="selecionarFormaPgto('Dinheiro', this)">💵 Dinheiro</button>
+                <button type="button" class="pay-btn" onclick="selecionarFormaPgto('PIX', this)">💠 PIX</button>
+                <button type="button" class="pay-btn" onclick="selecionarFormaPgto('Cartão Débito', this)">💳 Débito</button>
+                <button type="button" class="pay-btn" onclick="selecionarFormaPgto('Cartão Crédito', this)">💳 Crédito</button>
+                <button type="button" class="pay-btn" onclick="selecionarFormaPgto('Fiado', this)">🧾 Fiado</button>
+                <button type="button" class="pay-btn" onclick="selecionarFormaPgto('Outro', this)">🏷️ Outro</button>
+              </div>
+            </div>
+
+            <div class="cart-row-field" id="rowTrocoCalculo">
+              <span class="cart-label">💵 Recebido:</span>
+              <input type="number" id="pdvValorRecebido" class="cart-input" placeholder="R$ 0,00" oninput="calcularTrocoPdv()" step="0.50">
+              <span id="lblTrocoResultado" style="font-size: 13px; font-weight: 700; color: #34d399; margin-left: 6px;">Troco: R$ 0,00</span>
+            </div>
+
+            <div class="cart-summary">
+              <span class="summary-total-label">TOTAL A PAGAR:</span>
+              <span class="summary-total-val" id="pdvTotalVenda">R$ 0,00</span>
+            </div>
+
+            <div class="cart-buttons-row">
+              <button class="btn-abrir-comanda" type="button" onclick="abrirComoComandaBalcao()" title="Deixa a conta em aberto no balcão">
+                <span>🧾</span> ABRIR COMANDA
+              </button>
+              <button class="btn-finish-sale" type="button" onclick="finalizarVendaBalcao()">
+                <span>⚡</span> FECHAR VENDA (F8)
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 2: 🧾 CARDS DE COMANDAS BALCÃO EM ABERTO -->
+    <!-- ======================================================== -->
+    <div id="tabComandas" class="tab-pane">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h3 style="font-size: 16px; display:flex; align-items:center; gap:8px;">
+          <span>🧾</span> Comandas Balcão em Aberto (<span id="comandasCountTitulo">0</span>)
+        </h3>
+        <button class="btn-action btn-sync" onclick="sincronizarPainel()">
+          <span>🔄</span> Atualizar Comandas
+        </button>
+      </div>
+
+      <div class="comandas-grid" id="comandasCardsContainer">
+        <!-- Injetado dinamicamente via JS -->
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 3: 🛵 MÓDULO DELIVERY -->
+    <!-- ======================================================== -->
+    <div id="tabDelivery" class="tab-pane">
+      <div class="delivery-layout">
+        
+        <!-- Formulário de Novo Pedido -->
+        <div class="delivery-form-card">
+          <h3 style="font-size: 16px; margin-bottom: 4px; display:flex; align-items:center; gap:8px;">
+            <span>🛵</span> Novo Pedido Delivery
+          </h3>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label style="font-size:12px; color:var(--text-muted);">Cliente</label>
+              <button type="button" class="btn-sm-action blue" onclick="abrirModalNovoCliente('delivery')" style="font-size:11px; padding:2px 8px;">
+                <span>➕</span> Cadastrar Cliente
+              </button>
+            </div>
+            <input type="text" id="delCliente" class="cart-input" list="clientesDatalist" placeholder="Nome do Cliente (selecione ou digite)" onchange="autocompletarClienteDelivery(this.value)">
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:12px; color:var(--text-muted);">Telefone / WhatsApp</label>
+              <input type="text" id="delTelefone" class="cart-input" placeholder="(00) 00000-0000">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:12px; color:var(--text-muted);">Entregador</label>
+              <input type="text" id="delEntregador" class="cart-input" placeholder="Nome do Entregador">
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; color:var(--text-muted);">Endereço de Entrega Completo</label>
+            <input type="text" id="delEndereco" class="cart-input" placeholder="Rua, Número, Bairro">
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:12px; color:var(--text-muted);">Ponto de Referência</label>
+              <input type="text" id="delReferencia" class="cart-input" placeholder="Próximo a...">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-size:12px; color:var(--text-muted);">Taxa de Entrega (R$)</label>
+              <input type="number" id="delTaxa" class="cart-input" value="0.00" step="0.50" oninput="atualizarTotalDelivery()">
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; color:var(--text-muted);">Adicionar Produto ao Pedido</label>
+            <div style="display:flex; gap:8px;">
+              <select id="delSelectProduto" class="cart-select" style="flex:1;">
+                <option value="">Selecione um produto...</option>
+              </select>
+              <input type="number" id="delQtdItem" class="cart-input" value="1" min="1" style="width:65px;">
+              <button class="btn-action btn-sync" type="button" onclick="adicionarItemDelivery()">+ Add</button>
+            </div>
+          </div>
+
+          <!-- Tabela de Itens do Delivery -->
+          <div style="border: 1px solid var(--border); border-radius: 8px; padding: 8px; max-height: 140px; overflow-y:auto; background:var(--bg-base);">
+            <table class="table-responsive" id="tabelaItensDelivery">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style="width:50px;">Qtd</th>
+                  <th style="width:70px;">Total</th>
+                  <th style="width:30px;"></th>
+                </tr>
+              </thead>
+              <tbody id="corpoItensDelivery">
+                <tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Nenhum item adicionado</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-base); padding:10px; border-radius:8px; border:1px solid var(--border);">
+            <span style="font-size:13px; color:var(--text-muted); font-weight:600;">TOTAL DO PEDIDO:</span>
+            <span style="font-size:20px; font-weight:800; color:#34d399;" id="delTotalDisplay">R$ 0,00</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; color:var(--text-muted);">Forma de Pagamento</label>
+            <select id="delFormaPgto" class="cart-select">
+              <option value="Dinheiro">💵 Dinheiro (na entrega)</option>
+              <option value="PIX">💠 PIX</option>
+              <option value="Cartão Débito">💳 Cartão Débito (levar maquininha)</option>
+              <option value="Cartão Crédito">💳 Cartão Crédito (levar maquininha)</option>
+              <option value="Fiado">🧾 Fiado</option>
+            </select>
+          </div>
+
+          <button class="btn-finish-sale" style="margin-top:6px;" onclick="enviarPedidoDelivery()">
+            <span>🛵</span> CRIAR PEDIDO DELIVERY
+          </button>
+        </div>
+
+        <!-- Fila de Pedidos Delivery -->
+        <div class="delivery-list-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="font-size: 16px; display:flex; align-items:center; gap:8px;">
+              <span>📋</span> Fila de Pedidos Delivery (<span id="totalDeliverysBadge">0</span>)
+            </h3>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-sm-action" onclick="renderizarDeliverys('TODOS')">Todos</button>
+              <button class="btn-sm-action blue" onclick="renderizarDeliverys('PENDENTES')">Pendentes</button>
+            </div>
+          </div>
+
+          <div class="del-cards-container" id="delCardsList">
+            <!-- Cards de Deliverys injetados via JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 4: 📊 PANORAMA 360° -->
+    <!-- ======================================================== -->
+    <div id="tabVisao360" class="tab-pane">
+      <div class="dash-grid">
+        
+        <!-- Feed de Últimas Vendas -->
+        <div class="panel-card" style="display:flex; flex-direction:column; height: 100%;">
+          <h3 style="font-size:15px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+            <span>⚡</span> Feed de Vendas Recentes
+          </h3>
+          <div style="flex:1; overflow-y:auto;">
+            <table class="table-responsive">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Valor</th>
+                  <th>Pgto</th>
+                  <th>Origem</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaFeedVendas">
+                <!-- Injetado dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Produtos & Formas de Pgto -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          
+          <!-- Top Produtos Mais Vendidos -->
+          <div class="panel-card">
+            <h3 style="font-size:15px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+              <span>🏆</span> Mais Vendidos (Giro Rápido)
+            </h3>
+            <div id="rankingTopContainer" style="display:flex; flex-direction:column; gap:8px;">
+              <!-- Injetado dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Distribuição de Pagamento Hoje -->
+          <div class="panel-card">
+            <h3 style="font-size:15px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+              <span>💳</span> Recebimentos Hoje por Forma de Pagamento
+            </h3>
+            <div id="formasPgtoContainer" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <!-- Injetado dinamicamente -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 5: 📦 ESTOQUE & PREÇOS -->
+    <!-- ======================================================== -->
+    <div id="tabEstoque" class="tab-pane">
+      <div class="panel-card" style="display:flex; flex-direction:column; height: 100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <input type="text" id="buscaEstoqueTabela" class="input-search" style="max-width:350px;" placeholder="🔍 Filtrar produtos no estoque..." onkeyup="filtrarTabelaEstoque()">
+          <span style="font-size:12px; color:var(--text-muted);" id="lblTotalProdutosContador">Carregando catálogo...</span>
+        </div>
+
+        <div style="flex:1; overflow-y:auto;">
+          <table class="table-responsive">
+            <thead>
+              <tr>
+                <th>Código/ID</th>
+                <th>Produto</th>
+                <th>Categoria</th>
+                <th>Preço Venda</th>
+                <th>Custo Médio</th>
+                <th>Estoque Atual</th>
+                <th>Mínimo</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaEstoqueCompleta">
+              <!-- Injetado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 6: ⚙️ CONFIGURAÇÃO GERAL (CONFIG) -->
+    <!-- ======================================================== -->
+    <div id="tabConfig" class="tab-pane">
+      <div class="config-layout">
+        
+        <!-- Painel 1: Dados do Estabelecimento -->
+        <div class="config-box">
+          <div class="config-section-title">
+            <span>🏢</span> Dados do Estabelecimento
+          </div>
+
+          <div class="config-group">
+            <label>🏷️ Nome do Depósito / Empresa</label>
+            <input type="text" id="cfgNome" class="config-input" placeholder="Nome do depósito">
+          </div>
+
+          <div class="config-group">
+            <label>👤 Nome do Dono / Responsável</label>
+            <input type="text" id="cfgDono" class="config-input" placeholder="Nome do dono">
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div class="config-group">
+              <label>🏢 CNPJ</label>
+              <input type="text" id="cfgCnpj" class="config-input" placeholder="00.000.000/0000-00">
+            </div>
+            <div class="config-group">
+              <label>📞 WhatsApp / Telefone</label>
+              <input type="text" id="cfgTelefone" class="config-input" placeholder="(00) 00000-0000">
+            </div>
+          </div>
+
+          <div class="config-group">
+            <label>🏙️ Cidade / UF</label>
+            <input type="text" id="cfgCidade" class="config-input" placeholder="Ex: Salvador - BA">
+          </div>
+
+          <div class="config-group">
+            <label>🔑 Chave Pix para Recebimentos</label>
+            <input type="text" id="cfgChavePix" class="config-input" placeholder="Chave Pix">
+          </div>
+        </div>
+
+        <!-- Painel 2: Integrações & Planilha -->
+        <div class="config-box">
+          <div class="config-section-title">
+            <span>🔗</span> Links & Integrações
+          </div>
+
+          <div class="config-group">
+            <label>📊 Planilha Mestre Oficial (Google Sheets)</label>
+            <input type="text" id="cfgSpreadsheetUrl" class="config-input" readonly style="color:#38bdf8; cursor:pointer;" onclick="abrirPlanilhaUrl()">
+            <small style="color:var(--text-muted); font-size:11px;">Clique no campo acima ou no botão do topo para abrir sua planilha.</small>
+          </div>
+
+          <div class="config-group">
+            <label>🤖 Token do Bot Telegram (Opcional)</label>
+            <input type="text" id="cfgTelegramToken" class="config-input" placeholder="Token do @BotFather">
+          </div>
+
+          <div class="config-group">
+            <label>💬 Chat ID do Dono no Telegram</label>
+            <input type="text" id="cfgTelegramChatId" class="config-input" placeholder="Chat ID do Telegram">
+          </div>
+
+          <button class="btn-salvar-config" onclick="salvarConfiguracoesGerais()">
+            <span>💾</span> Salvar Configurações Gerais
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 7: 👥 GESTÃO DE EQUIPE & COLABORADORES -->
+    <!-- ======================================================== -->
+    <div id="tabEquipe" class="tab-pane">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+            <span>👥</span> Gestão de Colaboradores & Acessos
+          </h2>
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Controle de usuários, perfis operacionais e permissões de login.
+          </div>
+        </div>
+        <button class="btn-action" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; font-weight: 700;" onclick="abrirFormNovoUsuario()">
+          <span>➕</span> Novo Colaborador
+        </button>
+      </div>
+
+      <!-- FORMULÁRIO DE NOVO USUÁRIO (COLLAPSIBLE) -->
+      <div id="boxNovoUsuarioForm" style="display: none; background: var(--bg-surface); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 14px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #c4b5fd;">➕ Cadastrar Novo Colaborador</h3>
+        <form id="formNovoUsuarioEquipe" onsubmit="salvarNovoUsuarioForm(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: flex-end;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">NOME / LOGIN *</label>
+            <input type="text" id="novoUserNome" class="cart-input" placeholder="Ex: joao" required maxlength="40">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">E-MAIL (OPCIONAL)</label>
+            <input type="email" id="novoUserEmail" class="cart-input" placeholder="Ex: joao@deposito.com" maxlength="60">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">PERFIL DE ACESSO *</label>
+            <select id="novoUserPerfil" class="cart-select">
+              <option value="VENDEDOR">🛒 VENDEDOR (PDV & Comandas)</option>
+              <option value="GERENTE">👔 GERENTE (Gestão & Relatórios)</option>
+              <option value="DONO">👑 DONO (Acesso Total)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">SENHA INICIAL *</label>
+            <input type="password" id="novoUserSenha" class="cart-input" placeholder="Mínimo 3 caracteres" required minlength="3">
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="submit" class="btn-action btn-sync" style="flex: 1; justify-content: center; height: 38px;">
+              💾 Salvar
+            </button>
+            <button type="button" class="btn-action" style="height: 38px;" onclick="fecharFormNovoUsuario()">
+              ❌
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- TABELA / LISTA DE USUÁRIOS -->
+      <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+          <thead>
+            <tr style="background: #1e293b; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+              <th style="padding: 12px 16px;">Colaborador</th>
+              <th style="padding: 12px 16px;">E-mail</th>
+              <th style="padding: 12px 16px;">Perfil</th>
+              <th style="padding: 12px 16px;">Status</th>
+              <th style="padding: 12px 16px;">Último Acesso</th>
+              <th style="padding: 12px 16px; text-align: center;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaUsuariosCorpo">
+            <tr>
+              <td colspan="6" style="padding: 30px; text-align: center; color: var(--text-muted);">
+                Carregando colaboradores...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA 8: 🧠 PAINEL INTELIGENTE & CENTRAL OPERACIONAL -->
+    <!-- ======================================================== -->
+    <div id="tabPainelInteligente" class="tab-pane">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+            <span>🧠</span> Painel Inteligente & Central Operacional
+          </h2>
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Acesso integrado a todas as rotinas, conferências de caixa, relatórios gerenciais e controle do depósito.
+          </div>
+        </div>
+        <div style="min-width: 280px; flex: 1; max-width: 380px;">
+          <input type="search" id="buscaPainelInteligente" class="input-search" placeholder="🔍 Filtrar função ou relatório..." oninput="filtrarFuncoesInteligentes()">
+        </div>
+      </div>
+
+      <div id="painelInteligenteGrupos" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Grupo 1: Ações Rápidas -->
+        <div class="pi-secao">
+          <div class="pi-secao-titulo">⚡ Ações Rápidas</div>
+          <div class="pi-grid">
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabComandas')">
+              <span class="pi-icon">🧾</span>
+              <div class="pi-info">
+                <strong>Comandas Balcão</strong>
+                <span>Gerenciar comandas, pedidos e parciais</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabDelivery')">
+              <span class="pi-icon">🛵</span>
+              <div class="pi-info">
+                <strong>Módulo Delivery</strong>
+                <span>Acompanhar pedidos e entregas</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabVisao360')">
+              <span class="pi-icon">📊</span>
+              <div class="pi-info">
+                <strong>Panorama Financeiro</strong>
+                <span>Fluxo de caixa, vendas e saldos</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabPdv')">
+              <span class="pi-icon">⚡</span>
+              <div class="pi-info">
+                <strong>Caixa Rápido (PDV)</strong>
+                <span>Venda balcão express com baixa direta</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEstoque')">
+              <span class="pi-icon">📦</span>
+              <div class="pi-info">
+                <strong>Estoque & Preços</strong>
+                <span>Consulta de produtos e quantidades</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 2: Controle & Auditoria -->
+        <div class="pi-secao">
+          <div class="pi-secao-titulo">🛅 Controle & Auditoria</div>
+          <div class="pi-grid">
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'fecharCaixaDia')">
+              <span class="pi-icon">🔒</span>
+              <div class="pi-info">
+                <strong>Conferência de Caixa</strong>
+                <span>Registra fechamento/conferência em CAIXA_FECHAMENTO</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'fecharFiscalDia')">
+              <span class="pi-icon">📑</span>
+              <div class="pi-info">
+                <strong>Fechamento Fiscal</strong>
+                <span>Registra conferência fiscal em CAIXA_FISCAL</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="abrirModalNovoCliente('pdv')">
+              <span class="pi-icon">👤</span>
+              <div class="pi-info">
+                <strong>Novo Cliente</strong>
+                <span>Cadastrar cliente para balcão ou entrega</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEquipe')">
+              <span class="pi-icon">👥</span>
+              <div class="pi-info">
+                <strong>Gestão de Colaboradores</strong>
+                <span>Gerenciar usuários, senhas e acessos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 3: Estoque Financeiro -->
+        <div class="pi-secao">
+          <div class="pi-secao-titulo">📦 Estoque Financeiro</div>
+          <div class="pi-grid">
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'atualizarEstoque')">
+              <span class="pi-icon">🔄</span>
+              <div class="pi-info">
+                <strong>Sincronizar Estoque</strong>
+                <span>Atualiza fórmulas e saldos da planilha</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'recalcularValoresEstoque')">
+              <span class="pi-icon">💹</span>
+              <div class="pi-info">
+                <strong>Recalcular Valores</strong>
+                <span>Atualiza valores de custo e venda</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioValoresEstoque')">
+              <span class="pi-icon">📊</span>
+              <div class="pi-info">
+                <strong>Relatório Valores Estoque</strong>
+                <span>Gera aba com valorização de mercadorias</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 4: Relatórios Gerenciais -->
+        <div class="pi-secao">
+          <div class="pi-secao-titulo">📚 Relatórios Gerenciais</div>
+          <div class="pi-grid">
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioFinanceiroCompleto')">
+              <span class="pi-icon">💰</span>
+              <div class="pi-info">
+                <strong>Relatório Financeiro Completo</strong>
+                <span>Extrato consolidado de receitas e despesas</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioCompras')">
+              <span class="pi-icon">🛒</span>
+              <div class="pi-info">
+                <strong>Relatório de Compras</strong>
+                <span>Histórico e notas de fornecedores</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioLogsSistema')">
+              <span class="pi-icon">🧾</span>
+              <div class="pi-info">
+                <strong>Relatório de Logs e Auditoria</strong>
+                <span>Trilha de ações e segurança</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarPacoteRelatoriosGerenciais')">
+              <span class="pi-icon">📦</span>
+              <div class="pi-info">
+                <strong>Gerar TODOS os Relatórios</strong>
+                <span>Executa pacote completo gerencial</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 5: Sistema (Exclusivo Dono) -->
+        <div class="pi-secao" id="piSecaoDono">
+          <div class="pi-secao-titulo" style="color: #f43f5e;">🖥️ Sistema (Exclusivo Dono)</div>
+          <div class="pi-grid">
+            <div class="pi-card pi-card-danger" onclick="acionarFuncaoInteligente('exec', 'fazerBackupSistema')">
+              <span class="pi-icon">💾</span>
+              <div class="pi-info">
+                <strong>Fazer Backup no Drive</strong>
+                <span>Cópia de segurança no Google Drive</span>
+              </div>
+            </div>
+            <div class="pi-card pi-card-danger" onclick="acionarFuncaoInteligente('exec', 'padronizarTodasAbasSistema')">
+              <span class="pi-icon">🧹</span>
+              <div class="pi-info">
+                <strong>Padronizar Todas as Abas</strong>
+                <span>Corrige formatação, fontes e cabeçalhos</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'obterLinkDrive')">
+              <span class="pi-icon">📂</span>
+              <div class="pi-info">
+                <strong>Abrir Pasta no Google Drive</strong>
+                <span>Acessar arquivos e backups salvos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: ADICIONAR ITEM NA COMANDA ABERTA -->
+  <div id="modalAddItemComanda" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h3 style="font-size: 16px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+          <span>➕</span> Adicionar Item na Comanda #<span id="modalAddComandaNum"></span>
+        </h3>
+        <button type="button" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer;" onclick="fecharModalAddItemComanda()">✕</button>
+      </div>
+
+      <div style="font-size: 13px; color: #cbd5e1;">
+        Cliente: <strong id="modalAddComandaCliente"></strong>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Selecione o Produto</label>
+        <select id="modalAddSelectProduto" class="cart-select" onchange="atualizarPrecoModalAdd()">
+          <option value="">Selecione um produto...</option>
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Quantidade</label>
+          <input type="number" id="modalAddQtd" class="cart-input" value="1" min="1" oninput="atualizarPrecoModalAdd()">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Valor Unitário (R$)</label>
+          <input type="number" id="modalAddUnit" class="cart-input" value="0.00" step="0.50" oninput="atualizarPrecoModalAdd()">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 4px;">
+        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">SUBTOTAL:</span>
+        <span style="font-size: 20px; font-weight: 800; color: #34d399;" id="modalAddSubtotal">R$ 0,00</span>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
+        <button type="button" class="btn-action" onclick="fecharModalAddItemComanda()">Cancelar</button>
+        <button type="button" class="btn-action btn-sync" style="background: linear-gradient(135deg, #d97706, #b45309); border: none;" onclick="confirmarAddItemComanda()">
+          <span>➕</span> Confirmar & Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CADASTRAR NOVO CLIENTE -->
+  <div id="modalNovoCliente" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda" style="max-width: 480px; width: 90%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+          <span>👤➕</span> Cadastrar Novo Cliente
+        </h3>
+        <button type="button" class="btn-clear-cart" onclick="fecharModalNovoCliente()">✕ Fechar</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Nome Completo / Razão Social <span style="color:#ef4444;">*</span></label>
+          <input type="text" id="modalCliNome" class="cart-input" placeholder="Ex: João da Silva" maxlength="80">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Telefone / WhatsApp</label>
+            <input type="text" id="modalCliTelefone" class="cart-input" placeholder="(00) 00000-0000" maxlength="20">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Ponto de Referência</label>
+            <input type="text" id="modalCliReferencia" class="cart-input" placeholder="Ex: Próximo à praça" maxlength="80">
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Endereço Completo</label>
+          <input type="text" id="modalCliEndereco" class="cart-input" placeholder="Rua, Número, Bairro" maxlength="120">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Observações</label>
+          <input type="text" id="modalCliObs" class="cart-input" placeholder="Preferências, horário, etc." maxlength="100">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+        <button type="button" class="btn-action" onclick="fecharModalNovoCliente()">Cancelar</button>
+        <button type="button" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none;" onclick="salvarNovoClienteModal()">
+          <span>💾</span> Salvar Cliente
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR COLABORADOR (EXCLUSIVO DONO / GERENTE) -->
+  <div id="modalEditarColaborador" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda" style="max-width: 480px; width: 92%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+          <span>✏️</span> Editar Colaborador
+        </h3>
+        <button type="button" class="btn-clear-cart" onclick="fecharModalEditarColaborador()">✕ Fechar</button>
+      </div>
+
+      <form id="formEditarColaborador" onsubmit="salvarEdicaoColaboradorForm(event)" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <input type="hidden" id="editUserId">
+        
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">ID DO COLABORADOR</label>
+          <input type="text" id="editUserIdDisplay" class="cart-input" disabled style="opacity: 0.7; background: #0f172a;">
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">NOME / LOGIN *</label>
+          <input type="text" id="editUserNome" class="cart-input" required maxlength="40">
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">E-MAIL</label>
+          <input type="email" id="editUserEmail" class="cart-input" placeholder="exemplo@deposito.com" maxlength="60">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">PERFIL DE ACESSO</label>
+            <select id="editUserPerfil" class="cart-select">
+              <option value="VENDEDOR">🛒 VENDEDOR</option>
+              <option value="GERENTE">👔 GERENTE</option>
+              <option value="DONO">👑 DONO</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">STATUS DA CONTA</label>
+            <select id="editUserStatus" class="cart-select">
+              <option value="SIM">✅ ATIVO</option>
+              <option value="NAO">🚫 BLOQUEADO</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">NOVA SENHA (OPCIONAL)</label>
+          <input type="password" id="editUserSenha" class="cart-input" placeholder="Deixe em branco para manter a atual" minlength="3">
+          <small style="font-size: 10px; color: #64748b;">Preencha somente se desejar alterar a senha atual.</small>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-action" onclick="fecharModalEditarColaborador()">Cancelar</button>
+          <button type="submit" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 18px;">
+            💾 Salvar Alterações
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PAGAMENTO & FECHAMENTO DE COMANDA (TOTAL OU PARCIAL) -->
+  <div id="modalFecharComanda" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda" style="max-width: 500px; width: 94%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+          <span>💳</span> Pagamento da Comanda #<span id="modalFecharNumComanda">--</span>
+        </h3>
+        <button type="button" class="btn-clear-cart" onclick="fecharModalFechamentoComanda()">✕ Fechar</button>
+      </div>
+
+      <!-- RESUMO FINANCEIRO (CONSUMIDO, JÁ PAGO, SALDO RESTANTE) -->
+      <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <div style="background: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+          <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Total Comanda</div>
+          <div style="font-size: 14px; font-weight: 700; color: #fff;" id="modalFecharTotalConsumido">R$ 0,00</div>
+        </div>
+        <div style="background: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+          <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Já Pago</div>
+          <div style="font-size: 14px; font-weight: 700; color: #38bdf8;" id="modalFecharTotalPago">R$ 0,00</div>
+        </div>
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #10b981; text-align: center;">
+          <div style="font-size: 10px; color: #34d399; text-transform: uppercase; font-weight: 700;">Saldo Devedor</div>
+          <div style="font-size: 16px; font-weight: 800; color: #34d399;" id="modalFecharSaldoRestante">R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- CLIENTE INFO -->
+      <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px;">
+        <span style="color: var(--text-muted);">Cliente:</span>
+        <strong id="modalFecharClienteNome" style="color: #fff;">Consumidor</strong>
+      </div>
+
+      <!-- CAMPO: VALOR A PAGAR NESTA OPERAÇÃO -->
+      <div style="margin-top: 12px; background: #0f172a; padding: 12px 14px; border-radius: 10px; border: 1px solid #334155;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="font-size: 12px; font-weight: 700; color: #f8fafc;">Valor a Pagar Agora (R$):</label>
+          <button type="button" class="btn-action" style="font-size: 10px; padding: 2px 8px; background: #1e293b;" onclick="preencherSaldoTotalNoInput()">Quitar Saldo Todo</button>
+        </div>
+        <input type="number" id="modalFecharValorPagamento" class="cart-input" style="font-size: 20px; font-weight: 800; text-align: center; color: #34d399; border-color: #059669; padding: 8px;" step="0.50" min="0.01" oninput="atualizarCalculoModalFechar()">
+        <div id="modalFecharAvisoRestante" style="font-size: 11px; color: #94a3b8; margin-top: 6px; text-align: center;"></div>
+      </div>
+
+      <!-- FORMAS DE PAGAMENTO -->
+      <div style="margin-top: 12px;">
+        <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 6px;">Selecione a Forma de Pagamento:</label>
+        <div class="payment-options" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <button type="button" class="pay-btn active" id="btnPgtoDinheiro" onclick="selecionarFormaModalFechar('Dinheiro')">💵 Dinheiro</button>
+          <button type="button" class="pay-btn" id="btnPgtoPix" onclick="selecionarFormaModalFechar('PIX')">💠 PIX</button>
+          <button type="button" class="pay-btn" id="btnPgtoDebito" onclick="selecionarFormaModalFechar('Cartão Débito')">💳 Débito</button>
+          <button type="button" class="pay-btn" id="btnPgtoCredito" onclick="selecionarFormaModalFechar('Cartão Crédito')">💳 Crédito</button>
+          <button type="button" class="pay-btn" id="btnPgtoFiado" onclick="selecionarFormaModalFechar('Fiado')">🧾 Fiado</button>
+          <button type="button" class="pay-btn" id="btnPgtoOutro" onclick="selecionarFormaModalFechar('Outro')">🏷️ Outro</button>
+        </div>
+      </div>
+
+      <!-- PAINEL PIX QR CODE DINÂMICO DO VALOR EXATO DIGITADO -->
+      <div id="painelPixQrcodeComanda" style="display: none; margin-top: 12px; background: rgba(16, 185, 129, 0.06); border: 1px dashed #10b981; border-radius: 12px; padding: 12px; text-align: center;">
+        <div style="font-size: 13px; font-weight: 700; color: #34d399; margin-bottom: 6px;">
+          📱 Escaneie o QR Code Pix com Valor Exato
+        </div>
+        
+        <div style="display: flex; justify-content: center; align-items: center; margin: 8px 0;">
+          <div style="background: #ffffff; padding: 8px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+            <img id="imgPixQrcodeComanda" src="" alt="QR Code Pix" style="width: 160px; height: 160px; display: block; object-fit: contain;">
+          </div>
+        </div>
+
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
+          Chave Pix: <strong id="lblChavePixDisplay" style="color:#fff;">--</strong>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <input type="text" id="inputPixCopiaCola" readonly style="flex:1; font-size:11px; background:var(--bg-base); border:1px solid var(--border); color:#cbd5e1; border-radius:6px; padding:6px;">
+          <button type="button" class="btn-action" onclick="copiarPixCopiaCola()" style="font-size:11px; padding:6px 10px; white-space:nowrap; background:#059669; border:none; color:#fff;">
+            📋 Copiar
+          </button>
+        </div>
+      </div>
+
+      <!-- PAINEL DE TROCO PARA DINHEIRO -->
+      <div id="painelTrocoModalFechar" style="margin-top: 10px; display: flex; align-items: center; gap: 8px; background: var(--bg-base); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <span style="font-size: 12px; color: var(--text-muted);">💵 Valor Entregue:</span>
+        <input type="number" id="modalFecharRecebido" class="cart-input" placeholder="R$ 0,00" step="0.50" oninput="calcularTrocoModalFechar()" style="width: 100px;">
+        <span id="modalFecharTrocoValor" style="font-size: 13px; font-weight: 700; color: #34d399; margin-left: auto;">Troco: R$ 0,00</span>
+      </div>
+
+      <!-- BOTÕES DE AÇÃO: PAGAMENTO PARCIAL OU QUITAÇÃO INTEGRAL -->
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap;">
+        <button type="button" class="btn-action" onclick="fecharModalFechamentoComanda()">Cancelar</button>
+        
+        <button type="button" id="btnPagamentoParcialComanda" class="btn-action" style="background: #3b82f6; color: #fff; border: none; font-weight: 700; padding: 10px 16px;" onclick="executarAcaoPagamentoComanda(false)">
+          <span>💸</span> Registrar Pagamento Parcial
+        </button>
+
+        <button type="button" id="btnQuitarIntegralComanda" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 16px;" onclick="executarAcaoPagamentoComanda(true)">
+          <span>✅</span> Quitar Comanda Integral
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST FEEDBACK -->
+  <div id="toastBox" class="toast-box">
+    <span id="toastIcon">✅</span>
+    <span id="toastMsg">Operação realizada com sucesso!</span>
+  </div>
+
+  <script>
+    // ESTADO DA APLICAÇÃO EM MEMÓRIA
+    let DADOS_SISTEMA = null;
+    let CARRINHO = [];
+    let FORMA_PGTO_SELECIONADA = 'Dinheiro';
+    let ITENS_DELIVERY = [];
+    let CATEGORIA_SELECIONADA_PDV = '';
+    let TOKEN_SESSAO = null;
+    let USUARIO_LOGADO = null;
+
+    // INICIALIZAÇÃO
+    window.addEventListener('DOMContentLoaded', () => {
+      iniciarRelogio();
+      configurarAtalhosTeclado();
+      iniciarAutenticacaoWeb();
+    });
+
+    // ========================================================
+    // 🔐 GESTÃO DE AUTENTICAÇÃO E SESSÃO DO PAINEL WEB
+    // ========================================================
+    function iniciarAutenticacaoWeb() {
+      const token = localStorage.getItem('deposito360_token') || sessionStorage.getItem('deposito360_token');
+      if (token) {
+        mostrarLoader('Validando sessão de acesso...');
+        google.script.run
+          .withSuccessHandler(res => {
+            esconderLoader();
+            if (res && res.ok && res.usuario) {
+              TOKEN_SESSAO = token;
+              USUARIO_LOGADO = res.usuario;
+              document.getElementById('overlayLogin').style.display = 'none';
+              atualizarHeaderUsuario(res.usuario);
+              aplicarPermissoesPerfil(res.usuario);
+              sincronizarPainel();
+            } else {
+              localStorage.removeItem('deposito360_token');
+              sessionStorage.removeItem('deposito360_token');
+              exibirOverlayLogin();
+            }
+          })
+          .withFailureHandler(err => {
+            esconderLoader();
+            console.warn('Falha ao validar sessão:', err);
+            exibirOverlayLogin();
+          })
+          .validarSessaoAtiva(token);
+      } else {
+        exibirOverlayLogin();
+      }
+    }
+
+    function exibirOverlayLogin() {
+      document.getElementById('overlayLogin').style.display = 'flex';
+      setTimeout(() => {
+        const inp = document.getElementById('loginUsuarioInput');
+        if (inp) inp.focus();
+      }, 300);
+    }
+
+    function executarLoginWeb(e) {
+      if (e) e.preventDefault();
+      const login = document.getElementById('loginUsuarioInput').value.trim();
+      const pass = document.getElementById('loginSenhaInput').value;
+      const lembrar = document.getElementById('loginLembrarCheckbox').checked;
+      const alertBox = document.getElementById('loginAlertBox');
+      const btnText = document.getElementById('btnLoginText');
+      const spinner = document.getElementById('btnLoginSpinner');
+      const btnSubmit = document.getElementById('btnLoginSubmit');
+
+      if (!login || !pass) {
+        alertBox.className = 'login-alert error';
+        alertBox.innerHTML = '<span>⚠️</span> Preencha o usuário e a senha.';
+        alertBox.style.display = 'flex';
+        return;
+      }
+
+      alertBox.style.display = 'none';
+      btnText.style.display = 'none';
+      spinner.style.display = 'inline-block';
+      btnSubmit.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btnText.style.display = 'inline';
+          spinner.style.display = 'none';
+          btnSubmit.disabled = false;
+
+          if (res && res.ok && res.usuario) {
+            TOKEN_SESSAO = res.token;
+            USUARIO_LOGADO = res.usuario;
+
+            if (lembrar) {
+              localStorage.setItem('deposito360_token', res.token);
+            } else {
+              sessionStorage.setItem('deposito360_token', res.token);
+              localStorage.removeItem('deposito360_token');
+            }
+
+            document.getElementById('overlayLogin').style.display = 'none';
+            document.getElementById('loginSenhaInput').value = '';
+            atualizarHeaderUsuario(res.usuario);
+            aplicarPermissoesPerfil(res.usuario);
+            sincronizarPainel();
+            showToast(`Bem-vindo de volta, ${res.usuario.nome}!`, 'success');
+          } else {
+            alertBox.className = 'login-alert error';
+            alertBox.innerHTML = `<span>❌</span> ${res ? res.msg : 'Usuário ou senha inválidos.'}`;
+            alertBox.style.display = 'flex';
+            document.getElementById('loginSenhaInput').focus();
+          }
+        })
+        .withFailureHandler(err => {
+          btnText.style.display = 'inline';
+          spinner.style.display = 'none';
+          btnSubmit.disabled = false;
+
+          alertBox.className = 'login-alert error';
+          alertBox.innerHTML = `<span>❌</span> Erro de conexão: ${err.message}`;
+          alertBox.style.display = 'flex';
+        })
+        .autenticarWebPainel(login, pass, lembrar);
+    }
+
+    function fazerLogoutWeb() {
+      if (!confirm('Deseja realmente sair do sistema?')) return;
+      mostrarLoader('Encerrando sessão...');
+      const token = TOKEN_SESSAO || localStorage.getItem('deposito360_token');
+
+      if (token) {
+        google.script.run
+          .withSuccessHandler(() => {
+            finalizarLogoutLocal();
+          })
+          .withFailureHandler(() => {
+            finalizarLogoutLocal();
+          })
+          .encerrarSessaoWeb(token);
+      } else {
+        finalizarLogoutLocal();
+      }
+    }
+
+    function finalizarLogoutLocal() {
+      esconderLoader();
+      localStorage.removeItem('deposito360_token');
+      sessionStorage.removeItem('deposito360_token');
+      TOKEN_SESSAO = null;
+      USUARIO_LOGADO = null;
+      document.getElementById('userHeaderPill').style.display = 'none';
+      document.getElementById('btnHeaderEquipe').style.display = 'none';
+      document.getElementById('loginSenhaInput').value = '';
+      exibirOverlayLogin();
+      showToast('Sessão encerrada com sucesso.', 'info');
+    }
+
+    function atualizarHeaderUsuario(user) {
+      if (!user) return;
+      const pill = document.getElementById('userHeaderPill');
+      const badge = document.getElementById('userHeaderRole');
+      const name = document.getElementById('userHeaderName');
+
+      pill.style.display = 'flex';
+      name.innerText = user.nome || 'Usuário';
+
+      const perfil = String(user.perfil || 'VENDEDOR').toUpperCase();
+      badge.className = 'user-role-badge ' + perfil.toLowerCase();
+
+      if (perfil === 'DONO') {
+        badge.innerText = '👑 DONO';
+      } else if (perfil === 'GERENTE') {
+        badge.innerText = '👔 GERENTE';
+      } else {
+        badge.innerText = '🛒 VENDEDOR';
+      }
+    }
+
+    function aplicarPermissoesPerfil(user) {
+      if (!user) return;
+      const perfil = String(user.perfil || 'VENDEDOR').toUpperCase();
+      const btnPlanilha = document.getElementById('btnAbrirPlanilhaGoogle');
+      const btnTabConfig = document.getElementById('btnTabConfig');
+      const btnTabEquipe = document.getElementById('btnTabEquipe');
+      const btnHeaderEquipe = document.getElementById('btnHeaderEquipe');
+      const cardValorEstoque = document.getElementById('cardKpiValorEstoque');
+      const secaoDonoPi = document.getElementById('piSecaoDono');
+
+      if (perfil === 'VENDEDOR') {
+        if (btnPlanilha) btnPlanilha.style.display = 'none';
+        if (btnTabConfig) btnTabConfig.style.display = 'none';
+        if (btnTabEquipe) btnTabEquipe.style.display = 'none';
+        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'none';
+        if (cardValorEstoque) cardValorEstoque.style.display = 'none';
+        if (secaoDonoPi) secaoDonoPi.style.display = 'none';
+      } else if (perfil === 'GERENTE') {
+        if (btnPlanilha) btnPlanilha.style.display = 'inline-flex';
+        if (btnTabConfig) btnTabConfig.style.display = 'none'; // Apenas Dono altera configs mestre
+        if (btnTabEquipe) btnTabEquipe.style.display = 'inline-flex';
+        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'inline-flex';
+        if (cardValorEstoque) cardValorEstoque.style.display = 'block';
+        if (secaoDonoPi) secaoDonoPi.style.display = 'none';
+      } else { // DONO
+        if (btnPlanilha) btnPlanilha.style.display = 'inline-flex';
+        if (btnTabConfig) btnTabConfig.style.display = 'inline-flex';
+        if (btnTabEquipe) btnTabEquipe.style.display = 'inline-flex';
+        if (btnHeaderEquipe) btnHeaderEquipe.style.display = 'inline-flex';
+        if (cardValorEstoque) cardValorEstoque.style.display = 'block';
+        if (secaoDonoPi) secaoDonoPi.style.display = 'block';
+      }
+    }
+
+    function alternarVisibilidadeSenhaLogin() {
+      const inp = document.getElementById('loginSenhaInput');
+      if (!inp) return;
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    function iniciarRelogio() {
+      setInterval(() => {
+        const d = new Date();
+        document.getElementById('relogioLive').innerText = d.toLocaleTimeString('pt-BR');
+      }, 1000);
+    }
+
+    function mostrarLoader(msg) {
+      document.getElementById('loaderMsg').innerText = msg || 'Processando...';
+      document.getElementById('loaderOverlay').style.display = 'flex';
+    }
+
+    function esconderLoader() {
+      document.getElementById('loaderOverlay').style.display = 'none';
+    }
+
+    function showToast(msg, tipo = 'success') {
+      const box = document.getElementById('toastBox');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastMsg');
+
+      box.className = 'toast-box ' + tipo;
+      icon.innerText = tipo === 'success' ? '✅' : '⚠️';
+      text.innerText = msg;
+
+      box.classList.add('show');
+      setTimeout(() => { box.classList.remove('show'); }, 3500);
+    }
+
+    function formatMoeda(val) {
+      return (Number(val) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // SINCRONIZAR COM O BACKEND
+    function sincronizarPainel() {
+      mostrarLoader('Buscando dados em tempo real...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            DADOS_SISTEMA = res;
+            renderizarPainelCompleto();
+            showToast('Painel sincronizado!');
+          } else {
+            showToast(res ? res.erro : 'Erro ao sincronizar', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Falha na conexão: ' + err.message, 'error');
+        })
+        .obterDadosPainel360();
+    }
+
+    // RENDERIZAÇÃO COMPLETA
+    function renderizarPainelCompleto() {
+      if (!DADOS_SISTEMA) return;
+
+      // 1. Header & Título
+      document.getElementById('nomeDepositoTitle').innerText = DADOS_SISTEMA.nomeDeposito || 'Gestão de Depósito';
+
+      // 2. Link Direto da Planilha
+      if (DADOS_SISTEMA.spreadsheetUrl) {
+        document.getElementById('btnAbrirPlanilhaGoogle').href = DADOS_SISTEMA.spreadsheetUrl;
+        document.getElementById('cfgSpreadsheetUrl').value = DADOS_SISTEMA.spreadsheetUrl;
+      }
+
+      // 3. KPIs
+      const k = DADOS_SISTEMA.kpis;
+      document.getElementById('kpiFatHoje').innerText = formatMoeda(k.faturamentoHoje);
+      document.getElementById('kpiFatMes').innerText = formatMoeda(k.faturamentoMes);
+      document.getElementById('kpiSaldoCaixa').innerText = formatMoeda(k.saldoCaixa);
+      document.getElementById('kpiValorEstoque').innerText = formatMoeda(k.valorEstoqueVenda);
+      document.getElementById('kpiComandasAbertas').innerText = k.comandasAbertasCount || 0;
+      document.getElementById('tabComandasBadge').innerText = k.comandasAbertasCount || 0;
+      document.getElementById('kpiDelPendentes').innerText = k.deliverysPendentes;
+      document.getElementById('tabDelBadge').innerText = k.deliverysPendentes;
+
+      // 4. Catálogo PDV & Comandas
+      renderizarCategoriasChips();
+      renderizarCatalogoPdv();
+      renderizarComandasAbertas();
+
+      // 5. Clientes Datalist
+      renderizarClientesDatalist();
+
+      // 6. Select de Produtos do Delivery
+      renderizarSelectProdutosDelivery();
+
+      // 7. Deliverys
+      renderizarDeliverys('TODOS');
+
+      // 8. Visão 360° (Feed de Vendas, Ranking, Formas de Pgto)
+      renderizarFeedVendas();
+      renderizarRankingTop();
+      renderizarFormasPgto();
+
+      // 9. Tabela de Estoque
+      renderizarTabelaEstoque();
+
+      // 10. Configurações
+      carregarConfiguracoesNaTela();
+    }
+
+    // NAVEGAÇÃO DE ABAS
+    function trocarAba(abaId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const pane = document.getElementById(abaId);
+      if (pane) pane.classList.add('active');
+
+      const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(abaId));
+      if (btn) btn.classList.add('active');
+
+      if (abaId === 'tabPdv') {
+        setTimeout(() => document.getElementById('buscaProdutoPdv').focus(), 150);
+      }
+      if (abaId === 'tabEquipe') {
+        carregarListaUsuariosPainel();
+      }
+    }
+
+    // ========================================================
+    // 👥 GESTÃO DE EQUIPE & COLABORADORES (PAINEL WEB)
+    // ========================================================
+    function carregarListaUsuariosPainel() {
+      if (!TOKEN_SESSAO) return;
+      const tbody = document.getElementById('tabelaUsuariosCorpo');
+      tbody.innerHTML = `<tr><td colspan="6" style="padding: 25px; text-align: center; color: var(--text-muted);">Carregando colaboradores...</td></tr>`;
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && res.ok && res.usuarios) {
+            renderizarTabelaUsuarios(res.usuarios, res.perfilSolicitante);
+          } else {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding: 25px; text-align: center; color: #ef4444;">${res ? res.msg : 'Erro ao carregar lista de usuários.'}</td></tr>`;
+          }
+        })
+        .withFailureHandler(err => {
+          tbody.innerHTML = `<tr><td colspan="6" style="padding: 25px; text-align: center; color: #ef4444;">Falha: ${err.message}</td></tr>`;
+        })
+        .listarUsuariosPainel(TOKEN_SESSAO);
+    }
+
+    function renderizarTabelaUsuarios(usuarios, perfilSolicitante) {
+      const tbody = document.getElementById('tabelaUsuariosCorpo');
+      if (!usuarios || usuarios.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 25px; text-align: center; color: var(--text-muted);">Nenhum colaborador cadastrado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = usuarios.map(u => {
+        const isAtivo = u.ativo === 'SIM';
+        const roleClass = u.perfil ? u.perfil.toLowerCase() : 'vendedor';
+        let roleLabel = '🛒 VENDEDOR';
+        if (u.perfil === 'DONO') roleLabel = '👑 DONO';
+        else if (u.perfil === 'GERENTE') roleLabel = '👔 GERENTE';
+
+        const podeGerenciar = (perfilSolicitante === 'DONO') || (perfilSolicitante === 'GERENTE' && u.perfil === 'VENDEDOR');
+
+        const uNomeEsc = escapeHtml(u.nome).replace(/'/g, "\\'");
+        const uEmailEsc = escapeHtml(u.email || '').replace(/'/g, "\\'");
+
+        return `
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 12px 16px; font-weight: 700; color: #fff;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">👤</span>
+                <div>
+                  <div>${escapeHtml(u.nome)}</div>
+                  <div style="font-size: 11px; color: #64748b; font-weight: 400;">ID: ${u.id}</div>
+                </div>
+              </div>
+            </td>
+            <td style="padding: 12px 16px; color: #94a3b8;">${escapeHtml(u.email || '—')}</td>
+            <td style="padding: 12px 16px;">
+              <span class="user-role-badge ${roleClass}">${roleLabel}</span>
+            </td>
+            <td style="padding: 12px 16px;">
+              <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: ${isAtivo ? '#34d399' : '#f87171'};">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: ${isAtivo ? '#10b981' : '#ef4444'};"></span>
+                ${isAtivo ? 'ATIVO' : 'BLOQUEADO'}
+              </span>
+            </td>
+            <td style="padding: 12px 16px; color: #94a3b8; font-size: 12px;">${u.ultimoAcesso || 'Nunca acessou'}</td>
+            <td style="padding: 12px 16px; text-align: center;">
+              ${podeGerenciar ? `
+                <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                  <button class="btn-action" style="padding: 4px 8px; font-size: 11px; background: #3b82f6; border-color: #2563eb; color: #fff;" onclick="abrirModalEditarColaborador('${u.id}', '${uNomeEsc}', '${uEmailEsc}', '${u.perfil}', '${u.ativo}')" title="Editar Colaborador">
+                    ✏️ Editar
+                  </button>
+                  <button class="btn-action" style="padding: 4px 8px; font-size: 11px;" onclick="redefinirSenhaUsuarioPrompt('${u.id}', '${uNomeEsc}')" title="Redefinir Senha">
+                    🔑 Senha
+                  </button>
+                  <button class="btn-action" style="padding: 4px 8px; font-size: 11px; color: ${isAtivo ? '#f87171' : '#34d399'};" onclick="alternarStatusUsuario('${u.id}', '${isAtivo ? 'NAO' : 'SIM'}')" title="${isAtivo ? 'Desativar Usuário' : 'Ativar Usuário'}">
+                    ${isAtivo ? '🚫 Bloquear' : '✅ Ativar'}
+                  </button>
+                </div>
+              ` : `<span style="color: #64748b; font-size: 11px;">Protegido</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function abrirModalEditarColaborador(id, nome, email, perfil, ativo) {
+      document.getElementById('editUserId').value = id;
+      document.getElementById('editUserIdDisplay').value = id;
+      document.getElementById('editUserNome').value = nome || '';
+      document.getElementById('editUserEmail').value = email || '';
+      document.getElementById('editUserPerfil').value = perfil || 'VENDEDOR';
+      document.getElementById('editUserStatus').value = (ativo === 'SIM' ? 'SIM' : 'NAO');
+      document.getElementById('editUserSenha').value = '';
+
+      // Se o usuário logado for GERENTE, não permite alterar para DONO ou GERENTE
+      const editPerfilSelect = document.getElementById('editUserPerfil');
+      if (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE') {
+        Array.from(editPerfilSelect.options).forEach(opt => {
+          if (opt.value === 'DONO' || opt.value === 'GERENTE') {
+            opt.disabled = true;
+          } else {
+            opt.disabled = false;
+          }
+        });
+      } else {
+        Array.from(editPerfilSelect.options).forEach(opt => opt.disabled = false);
+      }
+
+      document.getElementById('modalEditarColaborador').style.display = 'flex';
+    }
+
+    function fecharModalEditarColaborador() {
+      document.getElementById('modalEditarColaborador').style.display = 'none';
+      document.getElementById('formEditarColaborador').reset();
+    }
+
+    function salvarEdicaoColaboradorForm(e) {
+      if (e) e.preventDefault();
+      if (!TOKEN_SESSAO) return;
+
+      const payload = {
+        id: document.getElementById('editUserId').value.trim(),
+        nome: document.getElementById('editUserNome').value.trim(),
+        email: document.getElementById('editUserEmail').value.trim(),
+        perfil: document.getElementById('editUserPerfil').value.trim(),
+        ativo: document.getElementById('editUserStatus').value.trim(),
+        senha: document.getElementById('editUserSenha').value.trim()
+      };
+
+      if (!payload.nome) {
+        showToast('O nome do colaborador é obrigatório.', 'error');
+        return;
+      }
+
+      mostrarLoader('Salvando dados do colaborador...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            fecharModalEditarColaborador();
+            showToast(res.msg || 'Colaborador atualizado com sucesso!', 'success');
+            carregarListaUsuariosPainel();
+            if (USUARIO_LOGADO && USUARIO_LOGADO.id === payload.id) {
+              USUARIO_LOGADO.nome = payload.nome;
+              document.getElementById('userHeaderName').innerText = payload.nome;
+            }
+          } else {
+            showToast(res ? res.msg : 'Erro ao atualizar colaborador.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .editarColaboradorPainel(TOKEN_SESSAO, payload);
+    }
+
+    function abrirFormNovoUsuario() {
+      const box = document.getElementById('boxNovoUsuarioForm');
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      if (box.style.display === 'block') {
+        document.getElementById('novoUserNome').focus();
+      }
+    }
+
+    function fecharFormNovoUsuario() {
+      document.getElementById('boxNovoUsuarioForm').style.display = 'none';
+      document.getElementById('formNovoUsuarioEquipe').reset();
+    }
+
+    function salvarNovoUsuarioForm(e) {
+      if (e) e.preventDefault();
+      if (!TOKEN_SESSAO) return;
+
+      const payload = {
+        nome: document.getElementById('novoUserNome').value.trim(),
+        email: document.getElementById('novoUserEmail').value.trim(),
+        perfil: document.getElementById('novoUserPerfil').value,
+        senha: document.getElementById('novoUserSenha').value.trim()
+      };
+
+      mostrarLoader('Cadastrando novo colaborador...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            showToast(res.msg || 'Colaborador cadastrado!', 'success');
+            fecharFormNovoUsuario();
+            carregarListaUsuariosPainel();
+          } else {
+            showToast(res ? res.msg : 'Erro ao cadastrar', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .salvarNovoUsuarioPainel(TOKEN_SESSAO, payload);
+    }
+
+    function alternarStatusUsuario(idUser, novoStatus) {
+      if (!confirm(`Deseja realmente ${novoStatus === 'SIM' ? 'ATIVAR' : 'BLOQUEAR'} este colaborador?`)) return;
+      mostrarLoader('Atualizando status...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            showToast('Status atualizado!', 'success');
+            carregarListaUsuariosPainel();
+          } else {
+            showToast(res ? res.msg : 'Erro ao atualizar status', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .alterarStatusUsuarioPainel(TOKEN_SESSAO, idUser, novoStatus);
+    }
+
+    function redefinirSenhaUsuarioPrompt(idUser, nome) {
+      const nova = prompt(`Digite a nova senha para o colaborador "${nome}":`);
+      if (nova === null) return;
+      if (nova.trim().length < 3) {
+        alert('A senha deve ter pelo menos 3 caracteres.');
+        return;
+      }
+
+      mostrarLoader('Redefinindo senha...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            showToast(res.msg || 'Senha redefinida!', 'success');
+          } else {
+            showToast(res ? res.msg : 'Erro ao alterar senha', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .redefinirSenhaUsuarioPainel(TOKEN_SESSAO, idUser, nova.trim());
+    }
+
+    // ========================================================
+    // LÓGICA DO PDV BALCÃO
+    // ========================================================
+    function renderizarCategoriasChips() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const cats = Array.from(new Set(DADOS_SISTEMA.produtos.map(p => p.categoria || 'Geral'))).sort();
+      const container = document.getElementById('categoryChips');
+      container.innerHTML = `<div class="chip ${CATEGORIA_SELECIONADA_PDV === '' ? 'active' : ''}" onclick="filtrarCategoriaPdv('')">Todos (${DADOS_SISTEMA.produtos.length})</div>`;
+      
+      cats.forEach(c => {
+        const count = DADOS_SISTEMA.produtos.filter(p => p.categoria === c).length;
+        container.innerHTML += `<div class="chip ${CATEGORIA_SELECIONADA_PDV === c ? 'active' : ''}" onclick="filtrarCategoriaPdv('${c}')">${c} (${count})</div>`;
+      });
+    }
+
+    function filtrarCategoriaPdv(cat) {
+      CATEGORIA_SELECIONADA_PDV = cat;
+      renderizarCategoriasChips();
+      renderizarCatalogoPdv();
+    }
+
+    function filtrarCatalogoPdv() {
+      renderizarCatalogoPdv();
+    }
+
+    function renderizarCatalogoPdv() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const grid = document.getElementById('productGridPdv');
+      const termo = document.getElementById('buscaProdutoPdv').value.toUpperCase().trim();
+
+      const filtrados = DADOS_SISTEMA.produtos.filter(p => {
+        const matchCat = !CATEGORIA_SELECIONADA_PDV || p.categoria === CATEGORIA_SELECIONADA_PDV;
+        const matchTermo = !termo || p.nome.toUpperCase().includes(termo) || String(p.id).includes(termo);
+        return matchCat && matchTermo;
+      });
+
+      if (filtrados.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">Nenhum produto encontrado.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtrados.map(p => {
+        const isCritico = p.status === 'CRITICO';
+        return `
+          <div class="prod-card" onclick="adicionarAoCarrinho('${p.nome.replace(/'/g, "\\'")}', ${p.preco})">
+            <div>
+              <div class="prod-name">${p.nome}</div>
+              <div class="prod-cat">${p.categoria}</div>
+            </div>
+            <div class="prod-footer">
+              <span class="prod-price">${formatMoeda(p.preco)}</span>
+              <span class="prod-stock ${isCritico ? 'critico' : ''}">${p.estoque} un</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function adicionarAoCarrinho(produtoNome, preco) {
+      const itemExistente = CARRINHO.find(i => i.produto === produtoNome);
+      if (itemExistente) {
+        itemExistente.qtd++;
+        itemExistente.total = itemExistente.qtd * itemExistente.unit;
+      } else {
+        CARRINHO.push({
+          produto: produtoNome,
+          unit: Number(preco) || 0,
+          qtd: 1,
+          total: Number(preco) || 0
+        });
+      }
+      beep();
+      atualizarCarrinhoVisual();
+    }
+
+    function alterarQtdCarrinho(idx, delta) {
+      if (!CARRINHO[idx]) return;
+      CARRINHO[idx].qtd += delta;
+      if (CARRINHO[idx].qtd <= 0) {
+        CARRINHO.splice(idx, 1);
+      } else {
+        CARRINHO[idx].total = CARRINHO[idx].qtd * CARRINHO[idx].unit;
+      }
+      atualizarCarrinhoVisual();
+    }
+
+    function removerItemCarrinho(idx) {
+      CARRINHO.splice(idx, 1);
+      atualizarCarrinhoVisual();
+    }
+
+    function limparCarrinho() {
+      CARRINHO = [];
+      document.getElementById('pdvValorRecebido').value = '';
+      document.getElementById('lblTrocoResultado').innerText = 'Troco: R$ 0,00';
+      atualizarCarrinhoVisual();
+    }
+
+    function atualizarCarrinhoVisual() {
+      const container = document.getElementById('cartItemsList');
+      if (CARRINHO.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 13px;">
+            Carrinho vazio.<br>Clique nos produtos ao lado ou bipe um código.
+          </div>
+        `;
+        document.getElementById('pdvTotalVenda').innerText = formatMoeda(0);
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = CARRINHO.map((item, idx) => {
+        total += item.total;
+        return `
+          <div class="cart-item">
+            <div class="ci-info">
+              <div class="ci-name">${item.produto}</div>
+              <div class="ci-unit">${formatMoeda(item.unit)} cada</div>
+            </div>
+            <div class="ci-qty-control">
+              <button type="button" class="btn-qty" onclick="alterarQtdCarrinho(${idx}, -1)">-</button>
+              <span class="ci-qty-val">${item.qtd}</span>
+              <button type="button" class="btn-qty" onclick="alterarQtdCarrinho(${idx}, 1)">+</button>
+            </div>
+            <div class="ci-total">${formatMoeda(item.total)}</div>
+            <button type="button" class="btn-remove-item" onclick="removerItemCarrinho(${idx})">🗑️</button>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pdvTotalVenda').innerText = formatMoeda(total);
+      calcularTrocoPdv();
+    }
+
+    function selecionarFormaPgto(forma, btnEl) {
+      FORMA_PGTO_SELECIONADA = forma;
+      document.querySelectorAll('.payment-options .pay-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      const rowTroco = document.getElementById('rowTrocoCalculo');
+      if (forma === 'Dinheiro') {
+        rowTroco.style.display = 'flex';
+      } else {
+        rowTroco.style.display = 'none';
+      }
+    }
+
+    function calcularTrocoPdv() {
+      const total = CARRINHO.reduce((acc, i) => acc + i.total, 0);
+      const recebido = Number(document.getElementById('pdvValorRecebido').value) || 0;
+      const troco = Math.max(0, recebido - total);
+      document.getElementById('lblTrocoResultado').innerText = 'Troco: ' + formatMoeda(troco);
+    }
+
+    // FECHA VENDA DIRETA BALCÃO
+    function finalizarVendaBalcao() {
+      if (CARRINHO.length === 0) {
+        showToast('Adicione pelo menos 1 item ao carrinho!', 'error');
+        return;
+      }
+
+      const cliente = document.getElementById('pdvCliente').value.trim() || 'Consumidor Final (Balcão)';
+      const payload = {
+        cliente: cliente,
+        itens: CARRINHO,
+        formaPgto: FORMA_PGTO_SELECIONADA
+      };
+
+      mostrarLoader('Registrando venda e baixando estoque...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast('Venda finalizada: ' + formatMoeda(res.total), 'success');
+            limparCarrinho();
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao finalizar venda', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .executarVendaBalcao360(payload);
+    }
+
+    // ABRE COMO COMANDA BALCÃO
+    function abrirComoComandaBalcao() {
+      if (CARRINHO.length === 0) {
+        showToast('Adicione itens ao carrinho para abrir comanda!', 'error');
+        return;
+      }
+
+      const cliente = document.getElementById('pdvCliente').value.trim() || 'Balcão';
+      const payload = {
+        cliente: cliente,
+        itens: CARRINHO
+      };
+
+      mostrarLoader('Abrindo comanda no balcão...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast(res.msg, 'success');
+            limparCarrinho();
+            sincronizarPainel();
+            trocarAba('tabComandas');
+          } else {
+            showToast(res ? res.erro : 'Erro ao abrir comanda', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .salvarComandaBalcaoAberta360(payload);
+    }
+
+    // ========================================================
+    // RENDERIZAR CARDS DE COMANDAS BALCÃO EM ABERTO
+    // ========================================================
+    function renderizarComandasAbertas() {
+      if (!DADOS_SISTEMA) return;
+      const container = document.getElementById('comandasCardsContainer');
+      const comandas = DADOS_SISTEMA.comandasAbertas || [];
+      document.getElementById('comandasCountTitulo').innerText = comandas.length;
+
+      if (comandas.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px;">
+            <h3>Nenhuma comanda aberta no balcão no momento! 🎉</h3>
+            <p style="margin-top:8px; font-size:13px;">Abra comandas usando o botão "ABRIR COMANDA" na aba do PDV Balcão.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = comandas.map(c => {
+        const itensHtml = c.itens && c.itens.length > 0 
+          ? c.itens.map(i => `
+              <div class="comanda-item-row" title="${i.qtd}x ${i.produto} (${formatMoeda(i.total)})">
+                <span class="comanda-item-prod">• <strong>${i.qtd}x</strong> ${i.produto}</span>
+                <span class="comanda-item-val">${formatMoeda(i.total)}</span>
+              </div>
+            `).join('')
+          : '<div style="color:var(--text-muted); font-size:11px; padding:4px;">Nenhum item discriminado</div>';
+
+        return `
+          <div class="comanda-card" onclick="abrirModalAddItemComanda('${c.pedido}', '${c.cliente.replace(/'/g, "\\'")}')" title="Clique para adicionar mais produtos à Comanda #${c.pedido}">
+            <div>
+              <div class="comanda-header">
+                <span class="comanda-num">🧾 Comanda #${c.pedido}</span>
+                <span style="font-size:11px; color:var(--text-muted);">${c.dataHora}</span>
+              </div>
+              <div class="comanda-card-hint" style="margin-top:4px;">
+                <span>➕ Toque no card para adicionar itens</span>
+              </div>
+              <div class="comanda-cliente" style="margin-top:8px;">
+                👤 ${c.cliente}
+              </div>
+              <div class="comanda-itens-lista" style="margin-top:8px;">
+                ${itensHtml}
+              </div>
+            </div>
+
+            <div class="comanda-footer">
+              <span class="comanda-total">${formatMoeda(c.total)}</span>
+              <button class="btn-fechar-comanda" type="button" onclick="event.stopPropagation(); fecharComandaBalcaoDireta('${c.pedido}')" title="Encerrar e receber comanda">
+                <span>💳</span> Fechar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let COMANDA_ATUAL_ADD_MODAL = null;
+
+    function abrirModalAddItemComanda(pedido, cliente) {
+      COMANDA_ATUAL_ADD_MODAL = pedido;
+      document.getElementById('modalAddComandaNum').innerText = pedido;
+      document.getElementById('modalAddComandaCliente').innerText = cliente || 'Balcão';
+
+      // Popula select de produtos se necessário
+      const sel = document.getElementById('modalAddSelectProduto');
+      if (DADOS_SISTEMA && DADOS_SISTEMA.produtos) {
+        sel.innerHTML = '<option value="">Selecione um produto...</option>' + 
+          DADOS_SISTEMA.produtos.map(p => `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)} (Estoque: ${p.estoque})</option>`).join('');
+      }
+
+      document.getElementById('modalAddQtd').value = 1;
+      document.getElementById('modalAddUnit').value = '0.00';
+      document.getElementById('modalAddSubtotal').innerText = 'R$ 0,00';
+      document.getElementById('modalAddItemComanda').style.display = 'flex';
+    }
+
+    function fecharModalAddItemComanda() {
+      document.getElementById('modalAddItemComanda').style.display = 'none';
+      COMANDA_ATUAL_ADD_MODAL = null;
+    }
+
+    function atualizarPrecoModalAdd() {
+      const sel = document.getElementById('modalAddSelectProduto');
+      if (sel.selectedIndex > 0) {
+        const opt = sel.options[sel.selectedIndex];
+        const precoPadrao = Number(opt.getAttribute('data-preco')) || 0;
+        const inputUnit = document.getElementById('modalAddUnit');
+        if (Number(inputUnit.value) === 0 || inputUnit.getAttribute('data-user-modified') !== 'true') {
+          inputUnit.value = precoPadrao.toFixed(2);
+        }
+      }
+      const qtd = Number(document.getElementById('modalAddQtd').value) || 1;
+      const unit = Number(document.getElementById('modalAddUnit').value) || 0;
+      document.getElementById('modalAddSubtotal').innerText = formatMoeda(qtd * unit);
+    }
+
+    function confirmarAddItemComanda() {
+      if (!COMANDA_ATUAL_ADD_MODAL) return;
+      const sel = document.getElementById('modalAddSelectProduto');
+      const prodNome = sel.value;
+      if (!prodNome) {
+        showToast('Selecione um produto para adicionar!', 'error');
+        return;
+      }
+      const qtd = Number(document.getElementById('modalAddQtd').value) || 1;
+      const unit = Number(document.getElementById('modalAddUnit').value) || 0;
+
+      mostrarLoader('Adicionando ' + prodNome + ' à Comanda #' + COMANDA_ATUAL_ADD_MODAL + '...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            fecharModalAddItemComanda();
+            showToast(res.msg, 'success');
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao adicionar item', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .adicionarItemComandaBalcao360(COMANDA_ATUAL_ADD_MODAL, prodNome, qtd, unit);
+    }
+
+    // ========================================================
+    // MODAL FECHAR COMANDA COM PIX QR CODE DINÂMICO
+    // ========================================================
+    let COMANDA_EM_FECHAMENTO = null;
+    let FORMA_MODAL_FECHAR = 'Dinheiro';
+
+    function fecharComandaBalcaoDireta(pedido) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.comandasAbertas) return;
+      const comanda = DADOS_SISTEMA.comandasAbertas.find(c => String(c.pedido) === String(pedido));
+      if (!comanda) {
+        showToast('Comanda #' + pedido + ' não encontrada.', 'error');
+        return;
+      }
+
+      const totalNum = Number(comanda.total) || 0;
+      COMANDA_EM_FECHAMENTO = {
+        ...comanda,
+        financeiro: {
+          total: totalNum,
+          pagos: 0,
+          saldo: totalNum
+        }
+      };
+
+      document.getElementById('modalFecharNumComanda').innerText = comanda.pedido;
+      document.getElementById('modalFecharClienteNome').innerText = comanda.cliente || 'Consumidor';
+      
+      // Valores provisórios enquanto busca contabilidade em tempo real
+      document.getElementById('modalFecharTotalConsumido').innerText = formatMoeda(totalNum);
+      document.getElementById('modalFecharTotalPago').innerText = 'R$ 0,00';
+      document.getElementById('modalFecharSaldoRestante').innerText = formatMoeda(totalNum);
+      document.getElementById('modalFecharValorPagamento').value = totalNum.toFixed(2);
+
+      // Reseta inputs de dinheiro / troco
+      document.getElementById('modalFecharRecebido').value = '';
+      document.getElementById('modalFecharTrocoValor').innerText = 'Troco: R$ 0,00';
+      
+      // Seleciona forma padrão (Dinheiro)
+      selecionarFormaModalFechar('Dinheiro');
+      atualizarCalculoModalFechar();
+
+      document.getElementById('modalFecharComanda').style.display = 'flex';
+
+      // Consulta situação contábil em tempo real na planilha (amortizações já feitas)
+      google.script.run
+        .withSuccessHandler(fin => {
+          if (fin && fin.sucesso) {
+            COMANDA_EM_FECHAMENTO.financeiro = fin;
+            document.getElementById('modalFecharTotalConsumido').innerText = formatMoeda(fin.total);
+            document.getElementById('modalFecharTotalPago').innerText = formatMoeda(fin.pagos);
+            document.getElementById('modalFecharSaldoRestante').innerText = formatMoeda(fin.saldo);
+            document.getElementById('modalFecharValorPagamento').value = fin.saldo > 0 ? fin.saldo.toFixed(2) : '0.00';
+            atualizarCalculoModalFechar();
+          }
+        })
+        .obterFinanceiroComanda360(pedido);
+    }
+
+    function fecharModalFechamentoComanda() {
+      document.getElementById('modalFecharComanda').style.display = 'none';
+      COMANDA_EM_FECHAMENTO = null;
+    }
+
+    function preencherSaldoTotalNoInput() {
+      if (!COMANDA_EM_FECHAMENTO || !COMANDA_EM_FECHAMENTO.financeiro) return;
+      const saldo = Number(COMANDA_EM_FECHAMENTO.financeiro.saldo) || 0;
+      document.getElementById('modalFecharValorPagamento').value = saldo.toFixed(2);
+      atualizarCalculoModalFechar();
+    }
+
+    function atualizarCalculoModalFechar() {
+      if (!COMANDA_EM_FECHAMENTO) return;
+      const fin = COMANDA_EM_FECHAMENTO.financeiro || { total: Number(COMANDA_EM_FECHAMENTO.total) || 0, saldo: Number(COMANDA_EM_FECHAMENTO.total) || 0, pagos: 0 };
+      const saldoDevedor = Number(fin.saldo) || 0;
+      const valDigitado = Number(document.getElementById('modalFecharValorPagamento').value) || 0;
+      const aviso = document.getElementById('modalFecharAvisoRestante');
+      const btnParcial = document.getElementById('btnPagamentoParcialComanda');
+      const btnQuitar = document.getElementById('btnQuitarIntegralComanda');
+
+      if (valDigitado <= 0) {
+        aviso.innerHTML = '<span style="color:#ef4444;">Digite um valor válido maior que zero.</span>';
+        if (btnParcial) btnParcial.disabled = true;
+        if (btnQuitar) btnQuitar.disabled = true;
+      } else if (valDigitado < saldoDevedor - 0.009) {
+        const restanteApos = Math.max(0, saldoDevedor - valDigitado);
+        aviso.innerHTML = `<span style="color:#38bdf8;">💸 Pagamento parcial: restará um saldo de <strong>${formatMoeda(restanteApos)}</strong></span>`;
+        if (btnParcial) {
+          btnParcial.disabled = false;
+          btnParcial.style.opacity = '1';
+        }
+        if (btnQuitar) {
+          btnQuitar.disabled = false;
+          btnQuitar.style.opacity = '0.7';
+        }
+      } else {
+        aviso.innerHTML = `<span style="color:#34d399;">✅ Este valor quita integralmente a comanda!</span>`;
+        if (btnParcial) {
+          btnParcial.disabled = true;
+          btnParcial.style.opacity = '0.5';
+        }
+        if (btnQuitar) {
+          btnQuitar.disabled = false;
+          btnQuitar.style.opacity = '1';
+        }
+      }
+
+      // Se a forma for PIX, recalcula o QR Code dinamicamente para o valor digitado!
+      if (FORMA_MODAL_FECHAR === 'PIX') {
+        gerarPixComandaVisual(COMANDA_EM_FECHAMENTO, valDigitado);
+      } else if (FORMA_MODAL_FECHAR === 'Dinheiro') {
+        calcularTrocoModalFechar();
+      }
+    }
+
+    function selecionarFormaModalFechar(forma) {
+      FORMA_MODAL_FECHAR = forma;
+      
+      const botoes = [
+        { id: 'btnPgtoDinheiro', nome: 'Dinheiro' },
+        { id: 'btnPgtoPix', nome: 'PIX' },
+        { id: 'btnPgtoDebito', nome: 'Cartão Débito' },
+        { id: 'btnPgtoCredito', nome: 'Cartão Crédito' },
+        { id: 'btnPgtoFiado', nome: 'Fiado' },
+        { id: 'btnPgtoOutro', nome: 'Outro' }
+      ];
+
+      botoes.forEach(b => {
+        const el = document.getElementById(b.id);
+        if (el) {
+          if (b.nome === forma) el.classList.add('active');
+          else el.classList.remove('active');
+        }
+      });
+
+      const painelPix = document.getElementById('painelPixQrcodeComanda');
+      const painelTroco = document.getElementById('painelTrocoModalFechar');
+
+      if (forma === 'PIX') {
+        painelPix.style.display = 'block';
+        painelTroco.style.display = 'none';
+        const valDigitado = Number(document.getElementById('modalFecharValorPagamento').value) || 0;
+        gerarPixComandaVisual(COMANDA_EM_FECHAMENTO, valDigitado);
+      } else if (forma === 'Dinheiro') {
+        painelPix.style.display = 'none';
+        painelTroco.style.display = 'flex';
+        calcularTrocoModalFechar();
+      } else {
+        painelPix.style.display = 'none';
+        painelTroco.style.display = 'none';
+      }
+    }
+
+    function calcularTrocoModalFechar() {
+      const valAPagar = Number(document.getElementById('modalFecharValorPagamento')?.value) || 0;
+      const recebido = Number(document.getElementById('modalFecharRecebido')?.value) || 0;
+      const troco = Math.max(0, recebido - valAPagar);
+      const elTroco = document.getElementById('modalFecharTrocoValor');
+      if (elTroco) elTroco.innerText = 'Troco: ' + formatMoeda(troco);
+    }
+
+    // Geração do Payload Pix Padrão Banco Central (BR Code Oficial)
+    function normalizarChavePixBCB(chave) {
+      let c = String(chave || '').trim();
+      if (!c) return '';
+      // Se for email
+      if (c.includes('@')) return c.toLowerCase().trim();
+      
+      // Se for chave aleatória (UUID)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c);
+      if (isUuid) return c.toLowerCase().trim();
+
+      const digitos = c.replace(/\D/g, '');
+      // Se for CNPJ (14 dígitos)
+      if (digitos.length === 14) return digitos;
+
+      // Se já possui +55
+      if (c.startsWith('+55')) return '+' + digitos;
+
+      // Se for telefone fixo ou celular antigo (10 dígitos)
+      if (digitos.length === 10) return '+55' + digitos;
+
+      // Se possui 11 dígitos:
+      if (digitos.length === 11) {
+        // Se foi explicitamente digitado com máscara clássica de CPF (ex: 000.000.000-00)
+        if (c.includes('.') && c.includes('-')) return digitos;
+
+        // Se o 3º dígito for 9 (DDD + 9xxxx-xxxx), é Celular brasileiro (ex: 71987177597)
+        // Conforme a Resolução do Banco Central do Brasil, Celular no Pix EXIGE o prefixo internacional +55
+        if (digitos.charAt(2) === '9') {
+          return '+55' + digitos;
+        }
+
+        return digitos;
+      }
+
+      return c;
+    }
+
+    function gerarPayloadPixBRCode(chave, nomeRecebedor, cidadeRecebedor, valor, txId) {
+      chave = normalizarChavePixBCB(chave);
+      nomeRecebedor = (nomeRecebedor || 'DEPOSITO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 25).toUpperCase();
+      cidadeRecebedor = (cidadeRecebedor || 'SALVADOR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 15).toUpperCase();
+      txId = (txId || '***').replace(/[^a-zA-Z0-9]/g, '').slice(0, 25);
+      if (!txId) txId = '***';
+
+      function emv(id, value) {
+        const valStr = String(value);
+        const len = valStr.length.toString().padStart(2, '0');
+        return id + len + valStr;
+      }
+
+      // 00 = Payload Format Indicator
+      let payload = emv('00', '01');
+
+      // 26 = Merchant Account Information - Pix
+      const merchantAccount = emv('00', 'br.gov.bcb.pix') + emv('01', chave);
+      payload += emv('26', merchantAccount);
+
+      // 52 = Merchant Category Code (0000 = não informado)
+      payload += emv('52', '0000');
+
+      // 53 = Transaction Currency (986 = BRL)
+      payload += emv('53', '986');
+
+      // 54 = Transaction Amount (Valor com 2 decimais com ponto)
+      if (valor > 0) {
+        payload += emv('54', Number(valor).toFixed(2));
+      }
+
+      // 58 = Country Code (BR)
+      payload += emv('58', 'BR');
+
+      // 59 = Merchant Name (máx 25 caracteres)
+      payload += emv('59', nomeRecebedor || 'DEPOSITO');
+
+      // 60 = Merchant City (máx 15 caracteres)
+      payload += emv('60', cidadeRecebedor || 'SALVADOR');
+
+      // 62 = Additional Data Field Template (txId)
+      const additionalData = emv('05', txId);
+      payload += emv('62', additionalData);
+
+      // 63 = CRC16 (4 hexadecimais ao final)
+      payload += '6304';
+
+      // Cálculo oficial CRC-16/CCITT-FALSE (Polinômio 0x1021, Init 0xFFFF)
+      let crc = 0xFFFF;
+      for (let i = 0; i < payload.length; i++) {
+        crc ^= (payload.charCodeAt(i) << 8);
+        for (let j = 0; j < 8; j++) {
+          if ((crc & 0x8000) !== 0) {
+            crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+          } else {
+            crc = (crc << 1) & 0xFFFF;
+          }
+        }
+      }
+      const crcHex = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+      return payload + crcHex;
+    }
+
+    function gerarPixComandaVisual(comanda, valorSobDemanda) {
+      if (!comanda) return;
+      const chavePix = (DADOS_SISTEMA && DADOS_SISTEMA.configs && DADOS_SISTEMA.configs.chave_pix) 
+        ? DADOS_SISTEMA.configs.chave_pix 
+        : '';
+      const nomeDep = (DADOS_SISTEMA && DADOS_SISTEMA.configs && DADOS_SISTEMA.configs.dono) 
+        ? DADOS_SISTEMA.configs.dono 
+        : (DADOS_SISTEMA && DADOS_SISTEMA.nomeDeposito ? DADOS_SISTEMA.nomeDeposito : 'DEPOSITO');
+      const cidade = (DADOS_SISTEMA && DADOS_SISTEMA.configs && DADOS_SISTEMA.configs.cidade) 
+        ? DADOS_SISTEMA.configs.cidade 
+        : 'SALVADOR';
+
+      const lblChave = document.getElementById('lblChavePixDisplay');
+      const imgQr = document.getElementById('imgPixQrcodeComanda');
+      const inputCopia = document.getElementById('inputPixCopiaCola');
+
+      if (!chavePix) {
+        lblChave.innerText = '⚠️ Nenhuma chave Pix cadastrada em "Config"';
+        lblChave.style.color = '#ef4444';
+        inputCopia.value = 'Cadastre a Chave Pix no botão [⚙️ Config]';
+        imgQr.src = '';
+        imgQr.style.display = 'none';
+        return;
+      }
+
+      const chaveNormalizada = normalizarChavePixBCB(chavePix);
+      lblChave.innerText = chaveNormalizada;
+      lblChave.style.color = '#34d399';
+      imgQr.style.display = 'block';
+
+      let valorOperacao = (typeof valorSobDemanda === 'number' && valorSobDemanda > 0)
+        ? valorSobDemanda
+        : (Number(document.getElementById('modalFecharValorPagamento')?.value) || Number(comanda.total) || 0);
+
+      const txId = 'COM' + comanda.pedido;
+
+      // Gera Payload Copia e Cola Oficial Banco Central
+      const copiaCola = gerarPayloadPixBRCode(chavePix, nomeDep, cidade, valorOperacao, txId);
+      inputCopia.value = copiaCola;
+
+      // Renderiza QR Code com correção de erro nível M (15%)
+      const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&ecc=M&data=' + encodeURIComponent(copiaCola);
+      imgQr.src = qrUrl;
+    }
+
+    function copiarPixCopiaCola() {
+      const input = document.getElementById('inputPixCopiaCola');
+      if (!input || !input.value) return;
+      input.select();
+      navigator.clipboard.writeText(input.value).then(() => {
+        showToast('Código Pix Copia e Cola copiado!', 'success');
+      }).catch(() => {
+        document.execCommand('copy');
+        showToast('Código Pix copiado!', 'success');
+      });
+    }
+
+    function executarAcaoPagamentoComanda(isQuitacaoTotal) {
+      if (!COMANDA_EM_FECHAMENTO) return;
+      const pedido = COMANDA_EM_FECHAMENTO.pedido;
+      const forma = FORMA_MODAL_FECHAR || 'Dinheiro';
+      const valor = Number(document.getElementById('modalFecharValorPagamento').value) || 0;
+
+      if (valor <= 0) {
+        showToast('Informe um valor válido maior que zero.', 'error');
+        return;
+      }
+
+      if (isQuitacaoTotal) {
+        // Quitação Integral da Comanda
+        mostrarLoader('Finalizando Comanda #' + pedido + ' com ' + forma + '...');
+        google.script.run
+          .withSuccessHandler(res => {
+            esconderLoader();
+            if (res && res.sucesso) {
+              fecharModalFechamentoComanda();
+              showToast(res.msg, 'success');
+              sincronizarPainel();
+            } else {
+              showToast(res ? res.erro : 'Erro ao fechar comanda', 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            esconderLoader();
+            showToast('Erro: ' + err.message, 'error');
+          })
+          .fecharComandaBalcao360(pedido, forma);
+      } else {
+        // Pagamento Parcial (Amortização)
+        mostrarLoader(`Registrando pagamento parcial de ${formatMoeda(valor)} (${forma})...`);
+        google.script.run
+          .withSuccessHandler(res => {
+            esconderLoader();
+            if (res && res.sucesso) {
+              showToast(res.msg, 'success');
+              if (res.quitado || res.saldoAtual <= 0) {
+                fecharModalFechamentoComanda();
+                sincronizarPainel();
+              } else {
+                // Atualiza a comanda em tela com o novo saldo
+                fecharComandaBalcaoDireta(pedido);
+                sincronizarPainel();
+              }
+            } else {
+              showToast(res ? res.erro : 'Erro ao amortizar comanda', 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            esconderLoader();
+            showToast('Erro: ' + err.message, 'error');
+          })
+          .registrarPagamentoParcialComanda360(pedido, valor, forma);
+      }
+    }
+
+    // ========================================================
+    // LÓGICA DO PAINEL INTELIGENTE
+    // ========================================================
+    function filtrarFuncoesInteligentes() {
+      const q = (document.getElementById('buscaPainelInteligente')?.value || '').toLowerCase().trim();
+      const cards = document.querySelectorAll('.pi-card');
+      cards.forEach(c => {
+        const txt = c.innerText.toLowerCase();
+        if (!q || txt.includes(q)) {
+          c.style.display = 'flex';
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      // Oculta seções inteiras que ficarem sem cards visíveis
+      document.querySelectorAll('.pi-secao').forEach(sec => {
+        const visiveis = Array.from(sec.querySelectorAll('.pi-card')).filter(c => c.style.display !== 'none');
+        sec.style.display = visiveis.length > 0 ? 'block' : 'none';
+      });
+    }
+
+    function acionarFuncaoInteligente(tipo, param) {
+      if (tipo === 'nav') {
+        trocarAba(param);
+        return;
+      }
+
+      if (tipo === 'exec') {
+        const nomesAmigaveis = {
+          'fecharCaixaDia': 'Conferência de Caixa do Dia',
+          'fecharFiscalDia': 'Fechamento Fiscal do Dia',
+          'fazerBackupSistema': 'Backup Completo do Sistema no Drive',
+          'padronizarTodasAbasSistema': 'Padronização Visual de Todas as Abas',
+          'gerarRelatorioValoresEstoque': 'Relatório de Valores do Estoque',
+          'gerarRelatorioFinanceiroCompleto': 'Relatório Financeiro Completo',
+          'gerarRelatorioCompras': 'Relatório de Compras',
+          'gerarRelatorioLogsSistema': 'Relatório de Logs e Auditoria',
+          'gerarPacoteRelatoriosGerenciais': 'Pacote de Relatórios Gerenciais',
+          'atualizarEstoque': 'Sincronização de Estoque',
+          'recalcularValoresEstoque': 'Recálculo de Valores do Estoque',
+          'obterLinkDrive': 'Acesso à Pasta no Google Drive'
+        };
+
+        const nomeAcao = nomesAmigaveis[param] || param;
+
+        if (param === 'obterLinkDrive') {
+          mostrarLoader('Obtendo link da pasta no Google Drive...');
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.ok && res.link) {
+                window.open(res.link, '_blank');
+                showToast('Pasta aberta em nova aba!', 'success');
+              } else {
+                showToast(res ? res.msg : 'Não foi possível obter o link do Drive.', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .executarFuncaoPainelInteligente(TOKEN_SESSAO, param);
+          return;
+        }
+
+        const confirmar = confirm(`Deseja executar a ação "${nomeAcao}" agora?`);
+        if (!confirmar) return;
+
+        mostrarLoader(`Executando "${nomeAcao}"...`);
+        google.script.run
+          .withSuccessHandler(res => {
+            esconderLoader();
+            if (res && res.ok) {
+              showToast(res.msg || `Ação "${nomeAcao}" concluída com sucesso!`, 'success');
+              sincronizarPainel();
+            } else {
+              showToast(res ? res.msg : `Falha ao executar "${nomeAcao}".`, 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            esconderLoader();
+            showToast('Erro: ' + err.message, 'error');
+          })
+          .executarFuncaoPainelInteligente(TOKEN_SESSAO, param);
+      }
+    }
+
+    // ========================================================
+    // GESTÃO DE CLIENTES & MODAL DE CADASTRO
+    // ========================================================
+    let ORIGEM_CADASTRO_CLIENTE = 'pdv'; // 'pdv' ou 'delivery'
+
+    function abrirModalNovoCliente(origem) {
+      ORIGEM_CADASTRO_CLIENTE = origem || 'pdv';
+      const inputAtual = (ORIGEM_CADASTRO_CLIENTE === 'pdv') 
+        ? document.getElementById('pdvCliente').value.trim() 
+        : document.getElementById('delCliente').value.trim();
+
+      document.getElementById('modalCliNome').value = (inputAtual && inputAtual !== 'Consumidor Final') ? inputAtual : '';
+      document.getElementById('modalCliTelefone').value = (ORIGEM_CADASTRO_CLIENTE === 'delivery') ? document.getElementById('delTelefone').value.trim() : '';
+      document.getElementById('modalCliEndereco').value = (ORIGEM_CADASTRO_CLIENTE === 'delivery') ? document.getElementById('delEndereco').value.trim() : '';
+      document.getElementById('modalCliReferencia').value = (ORIGEM_CADASTRO_CLIENTE === 'delivery') ? document.getElementById('delReferencia').value.trim() : '';
+      document.getElementById('modalCliObs').value = '';
+
+      document.getElementById('modalNovoCliente').style.display = 'flex';
+      setTimeout(() => document.getElementById('modalCliNome').focus(), 150);
+    }
+
+    function fecharModalNovoCliente() {
+      document.getElementById('modalNovoCliente').style.display = 'none';
+    }
+
+    function salvarNovoClienteModal() {
+      const nome = document.getElementById('modalCliNome').value.trim();
+      if (!nome) {
+        showToast('Informe o nome do cliente!', 'error');
+        document.getElementById('modalCliNome').focus();
+        return;
+      }
+
+      const payload = {
+        nome: nome,
+        telefone: document.getElementById('modalCliTelefone').value.trim(),
+        endereco: document.getElementById('modalCliEndereco').value.trim(),
+        referencia: document.getElementById('modalCliReferencia').value.trim(),
+        obs: document.getElementById('modalCliObs').value.trim()
+      };
+
+      mostrarLoader('Salvando cliente ' + nome + '...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            fecharModalNovoCliente();
+            showToast(res.msg, 'success');
+
+            // Adiciona ou atualiza no cache local
+            if (!DADOS_SISTEMA) DADOS_SISTEMA = {};
+            if (!DADOS_SISTEMA.clientes) DADOS_SISTEMA.clientes = [];
+            const idx = DADOS_SISTEMA.clientes.findIndex(c => c.nome.toUpperCase() === nome.toUpperCase());
+            if (idx >= 0) {
+              DADOS_SISTEMA.clientes[idx] = res.cliente;
+            } else {
+              DADOS_SISTEMA.clientes.push(res.cliente);
+            }
+            DADOS_SISTEMA.clientes.sort((a, b) => a.nome.localeCompare(b.nome));
+
+            // Atualiza datalists
+            renderizarClientesDatalist();
+
+            // Seta no campo chamador
+            if (ORIGEM_CADASTRO_CLIENTE === 'pdv') {
+              document.getElementById('pdvCliente').value = res.cliente.nome;
+            } else {
+              document.getElementById('delCliente').value = res.cliente.nome;
+              if (res.cliente.telefone) document.getElementById('delTelefone').value = res.cliente.telefone;
+              if (res.cliente.endereco) document.getElementById('delEndereco').value = res.cliente.endereco;
+              if (res.cliente.referencia) document.getElementById('delReferencia').value = res.cliente.referencia;
+            }
+          } else {
+            showToast(res ? res.erro : 'Erro ao cadastrar cliente', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro ao salvar: ' + err.message, 'error');
+        })
+        .cadastrarCliente360(payload);
+    }
+
+    function renderizarClientesDatalist() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.clientes) return;
+      const dl = document.getElementById('clientesDatalist');
+      dl.innerHTML = DADOS_SISTEMA.clientes.map(c => {
+        const info = [c.telefone, c.endereco].filter(Boolean).join(' | ');
+        return `<option value="${c.nome}">${info ? ' - ' + info : ''}</option>`;
+      }).join('');
+    }
+
+    function autocompletarClienteDelivery(nome) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.clientes || !nome) return;
+      const cli = DADOS_SISTEMA.clientes.find(c => c.nome.toUpperCase() === nome.trim().toUpperCase());
+      if (cli) {
+        if (cli.telefone) document.getElementById('delTelefone').value = cli.telefone;
+        if (cli.endereco) document.getElementById('delEndereco').value = cli.endereco;
+        if (cli.referencia) document.getElementById('delReferencia').value = cli.referencia;
+      }
+    }
+
+    function renderizarSelectProdutosDelivery() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const sel = document.getElementById('delSelectProduto');
+      sel.innerHTML = '<option value="">Selecione um produto...</option>' + 
+        DADOS_SISTEMA.produtos.map(p => `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)}</option>`).join('');
+    }
+
+    function adicionarItemDelivery() {
+      const sel = document.getElementById('delSelectProduto');
+      const prodNome = sel.value;
+      if (!prodNome) return;
+
+      const opt = sel.options[sel.selectedIndex];
+      const preco = Number(opt.getAttribute('data-preco')) || 0;
+      const qtd = Number(document.getElementById('delQtdItem').value) || 1;
+
+      const exist = ITENS_DELIVERY.find(i => i.produto === prodNome);
+      if (exist) {
+        exist.qtd += qtd;
+        exist.total = exist.qtd * exist.unit;
+      } else {
+        ITENS_DELIVERY.push({
+          produto: prodNome,
+          unit: preco,
+          qtd: qtd,
+          total: qtd * preco
+        });
+      }
+
+      sel.value = '';
+      document.getElementById('delQtdItem').value = 1;
+      atualizarTabelaItensDelivery();
+    }
+
+    function removerItemDelivery(idx) {
+      ITENS_DELIVERY.splice(idx, 1);
+      atualizarTabelaItensDelivery();
+    }
+
+    function atualizarTabelaItensDelivery() {
+      const tbody = document.getElementById('corpoItensDelivery');
+      if (ITENS_DELIVERY.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Nenhum item adicionado</td></tr>`;
+        atualizarTotalDelivery();
+        return;
+      }
+
+      tbody.innerHTML = ITENS_DELIVERY.map((item, idx) => `
+        <tr>
+          <td>${item.produto}</td>
+          <td>${item.qtd}</td>
+          <td style="color:#34d399; font-weight:700;">${formatMoeda(item.total)}</td>
+          <td><button class="btn-remove-item" onclick="removerItemDelivery(${idx})">🗑️</button></td>
+        </tr>
+      `).join('');
+
+      atualizarTotalDelivery();
+    }
+
+    function atualizarTotalDelivery() {
+      const subtotal = ITENS_DELIVERY.reduce((acc, i) => acc + i.total, 0);
+      const taxa = Number(document.getElementById('delTaxa').value) || 0;
+      document.getElementById('delTotalDisplay').innerText = formatMoeda(subtotal + taxa);
+    }
+
+    function enviarPedidoDelivery() {
+      const cliente = document.getElementById('delCliente').value.trim();
+      if (!cliente) {
+        showToast('Preencha o nome do cliente!', 'error');
+        return;
+      }
+      if (ITENS_DELIVERY.length === 0) {
+        showToast('Adicione pelo menos 1 item ao pedido!', 'error');
+        return;
+      }
+
+      const payload = {
+        cliente: cliente,
+        telefone: document.getElementById('delTelefone').value.trim(),
+        endereco: document.getElementById('delEndereco').value.trim(),
+        referencia: document.getElementById('delReferencia').value.trim(),
+        entregador: document.getElementById('delEntregador').value.trim(),
+        taxaEntrega: Number(document.getElementById('delTaxa').value) || 0,
+        formaPgto: document.getElementById('delFormaPgto').value,
+        itens: ITENS_DELIVERY
+      };
+
+      mostrarLoader('Enviando pedido de Delivery...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast(res.msg, 'success');
+            document.getElementById('delCliente').value = '';
+            document.getElementById('delTelefone').value = '';
+            document.getElementById('delEndereco').value = '';
+            document.getElementById('delReferencia').value = '';
+            document.getElementById('delEntregador').value = '';
+            document.getElementById('delTaxa').value = '0.00';
+            ITENS_DELIVERY = [];
+            atualizarTabelaItensDelivery();
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao criar delivery', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .executarVendaDelivery360(payload);
+    }
+
+    function renderizarDeliverys(filtro) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.deliverys) return;
+      const container = document.getElementById('delCardsList');
+      const dels = DADOS_SISTEMA.deliverys;
+      document.getElementById('totalDeliverysBadge').innerText = dels.length;
+
+      const filtrados = dels.filter(d => {
+        if (filtro === 'PENDENTES') {
+          return d.status !== 'ENTREGUE' && d.status !== 'FINALIZADO' && d.status !== 'CANCELADO';
+        }
+        return true;
+      });
+
+      if (filtrados.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:30px;">Nenhum pedido delivery na fila.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtrados.map(d => {
+        let badgeClass = 'feito';
+        if (d.status.includes('ROTA') || d.status.includes('CAMINHO')) badgeClass = 'rota';
+        else if (d.status.includes('ENTREGUE') || d.status.includes('FINALIZADO')) badgeClass = 'entregue';
+        else if (d.status.includes('CANCEL')) badgeClass = 'cancelado';
+
+        return `
+          <div class="del-item-card">
+            <div class="del-header">
+              <span class="del-id">Pedido #${d.pedido} (${d.dataHora || 'Hoje'})</span>
+              <span class="del-status-badge ${badgeClass}">${d.status}</span>
+            </div>
+            <div class="del-client-info">
+              <strong>${d.cliente}</strong> &bull; Total: <span style="color:#34d399; font-weight:700;">${formatMoeda(d.total)}</span> (${d.pagamento})
+            </div>
+            ${d.endereco ? `<div class="del-address">📍 ${d.endereco}</div>` : ''}
+            ${d.entregador ? `<div class="del-address">🛵 Entregador: <strong>${d.entregador}</strong></div>` : ''}
+            <div class="del-actions">
+              ${d.status === 'PEDIDO FEITO' ? `<button class="btn-sm-action blue" onclick="alterarStatusDelivery(${d.pedido}, 'SAIU P/ ENTREGA')">▶️ Despachar</button>` : ''}
+              ${d.status === 'SAIU P/ ENTREGA' || d.status === 'PEDIDO FEITO' ? `<button class="btn-sm-action green" onclick="alterarStatusDelivery(${d.pedido}, 'ENTREGUE')">✅ Entregue</button>` : ''}
+              ${d.status !== 'ENTREGUE' && d.status !== 'CANCELADO' ? `<button class="btn-sm-action" onclick="alterarStatusDelivery(${d.pedido}, 'CANCELADO')">❌ Cancelar</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function alterarStatusDelivery(pedido, status) {
+      let entregador = '';
+      if (status === 'SAIU P/ ENTREGA') {
+        entregador = prompt('Informe o nome do entregador para o pedido #' + pedido + ':', '') || '';
+      }
+      mostrarLoader('Atualizando status do pedido #' + pedido + '...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast(res.msg);
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao atualizar', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .atualizarStatusDelivery360(pedido, status, entregador);
+    }
+
+    // ========================================================
+    // PANORAMA 360° DASHBOARD
+    // ========================================================
+    function renderizarFeedVendas() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.ultimasVendas) return;
+      const tbody = document.getElementById('tabelaFeedVendas');
+      if (DADOS_SISTEMA.ultimasVendas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Nenhuma venda registrada recentemente.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = DADOS_SISTEMA.ultimasVendas.map(v => `
+        <tr>
+          <td>${v.data}</td>
+          <td><strong>${v.produto}</strong></td>
+          <td>${v.qtd}</td>
+          <td style="color:#34d399; font-weight:700;">${formatMoeda(v.valor)}</td>
+          <td>${v.pagamento}</td>
+          <td>${v.origem}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderizarRankingTop() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.topProdutos) return;
+      const container = document.getElementById('rankingTopContainer');
+      if (DADOS_SISTEMA.topProdutos.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-muted); font-size:12px;">Sem dados de ranking.</div>`;
+        return;
+      }
+
+      container.innerHTML = DADOS_SISTEMA.topProdutos.map((p, idx) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); padding:8px 12px; border-radius:8px; border:1px solid var(--border);">
+          <span style="font-size:13px; font-weight:600;">${idx + 1}º ${p.produto}</span>
+          <span style="font-size:12px; color:#38bdf8; font-weight:700;">${p.qtd} un vendidas</span>
+        </div>
+      `).join('');
+    }
+
+    function renderizarFormasPgto() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.formasPgtoHoje) return;
+      const container = document.getElementById('formasPgtoContainer');
+      const f = DADOS_SISTEMA.formasPgtoHoje;
+
+      const keys = Object.keys(f);
+      container.innerHTML = keys.map(k => `
+        <div style="background:var(--bg-card); padding:10px 12px; border-radius:8px; border:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">${k}</div>
+          <div style="font-size:16px; font-weight:700; color:#34d399; margin-top:2px;">${formatMoeda(f[k])}</div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================================
+    // TABELA ESTOQUE
+    // ========================================================
+    function renderizarTabelaEstoque() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const prods = DADOS_SISTEMA.produtos;
+      document.getElementById('lblTotalProdutosContador').innerText = prods.length + ' produtos cadastrados';
+      filtrarTabelaEstoque();
+    }
+
+    function filtrarTabelaEstoque() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const termo = document.getElementById('buscaEstoqueTabela').value.toUpperCase().trim();
+      const tbody = document.getElementById('tabelaEstoqueCompleta');
+
+      const filtrados = DADOS_SISTEMA.produtos.filter(p => {
+        return !termo || p.nome.toUpperCase().includes(termo) || p.categoria.toUpperCase().includes(termo) || String(p.id).includes(termo);
+      });
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">Nenhum produto encontrado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtrados.map(p => {
+        let badge = '<span style="background:rgba(16,185,129,0.2); color:#34d399; padding:2px 8px; border-radius:4px; font-weight:600;">OK</span>';
+        if (p.status === 'CRITICO') {
+          badge = '<span style="background:rgba(239,68,68,0.2); color:#f87171; padding:2px 8px; border-radius:4px; font-weight:600;">CRÍTICO</span>';
+        } else if (p.status === 'BAIXO') {
+          badge = '<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:2px 8px; border-radius:4px; font-weight:600;">BAIXO</span>';
+        }
+
+        return `
+          <tr>
+            <td><code>${p.id}</code></td>
+            <td><strong>${p.nome}</strong></td>
+            <td>${p.categoria}</td>
+            <td style="color:#34d399; font-weight:700;">${formatMoeda(p.preco)}</td>
+            <td>${formatMoeda(p.custo)}</td>
+            <td style="font-weight:700;">${p.estoque} un</td>
+            <td>${p.minimo} un</td>
+            <td>${badge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ========================================================
+    // CONFIGURAÇÕES GERAIS
+    // ========================================================
+    function carregarConfiguracoesNaTela() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.configs) return;
+      const c = DADOS_SISTEMA.configs;
+      if (c.nome) document.getElementById('cfgNome').value = c.nome;
+      if (c.dono) document.getElementById('cfgDono').value = c.dono;
+      if (c.cnpj) document.getElementById('cfgCnpj').value = c.cnpj;
+      if (c.telefone) document.getElementById('cfgTelefone').value = c.telefone;
+      if (c.cidade) document.getElementById('cfgCidade').value = c.cidade;
+      if (c.chave_pix) document.getElementById('cfgChavePix').value = c.chave_pix;
+      if (c.telegram_token) document.getElementById('cfgTelegramToken').value = c.telegram_token;
+      if (c.telegram_chat_id) document.getElementById('cfgTelegramChatId').value = c.telegram_chat_id;
+    }
+
+    function salvarConfiguracoesGerais() {
+      const payload = {
+        nome: document.getElementById('cfgNome').value.trim(),
+        dono: document.getElementById('cfgDono').value.trim(),
+        cnpj: document.getElementById('cfgCnpj').value.trim(),
+        telefone: document.getElementById('cfgTelefone').value.trim(),
+        cidade: document.getElementById('cfgCidade').value.trim(),
+        chave_pix: document.getElementById('cfgChavePix').value.trim(),
+        telegram_token: document.getElementById('cfgTelegramToken').value.trim(),
+        telegram_chat_id: document.getElementById('cfgTelegramChatId').value.trim()
+      };
+
+      mostrarLoader('Salvando configurações gerais...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            showToast(res.msg, 'success');
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao salvar', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .salvarConfiguracoesGerais360(payload);
+    }
+
+    function abrirPlanilhaUrl() {
+      if (DADOS_SISTEMA && DADOS_SISTEMA.spreadsheetUrl) {
+        window.open(DADOS_SISTEMA.spreadsheetUrl, '_blank');
+      }
+    }
+
+    // ATALHOS DE TECLADO
+    function configurarAtalhosTeclado() {
+      window.addEventListener('keydown', e => {
+        if (e.key === 'F2') {
+          e.preventDefault();
+          trocarAba('tabPdv');
+          document.getElementById('buscaProdutoPdv').focus();
+        } else if (e.key === 'F8') {
+          e.preventDefault();
+          finalizarVendaBalcao();
+        } else if (e.key === 'Escape') {
+          document.getElementById('buscaProdutoPdv').value = '';
+          filtrarCatalogoPdv();
+        }
+      });
+    }
+
+    // BEEP AUDIO FEEDBACK
+    function beep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.value = 0.08;
+        osc.start();
+        setTimeout(() => { osc.stop(); ctx.close(); }, 70);
+      } catch (e) {}
+    }
+
+    function abrirExterno() {
+      window.open('https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec', '_blank');
+    }
+  </script>
+</body>
+</html>

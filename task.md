@@ -1,0 +1,7 @@
+- `[x]` 1. Corrigir os popups de cadastro (`popupCliente`) e busca (`popupBuscarCliente`) em `Datasheet_DEV_2_0.gs`
+- `[x]` 2. Implementar a rotina `normalizarFormulasProdutos` e atualizar `salvarProdutoNovoSistema` para usar fórmulas automáticas
+- `[x]` 3. Criar a rotina `atualizarTodosOsRelatoriosSilencioso` e os correspondentes métodos silenciosos de relatórios
+- `[x]` 4. Conectar a atualização silenciosa nos fluxos de venda/compra e no gatilho simples `onEdit` da planilha
+- `[x]` 5. Reestruturar a árvore do menu principal na função `onOpen` de `Datasheet_DEV_2_0.gs`
+- `[x]` 6. Fazer backup dos arquivos locais na pasta do Google Drive e implantar via clasp
+- `[x]` 7. Validar o funcionamento de todas as rotinas e gerar o walkthrough final
