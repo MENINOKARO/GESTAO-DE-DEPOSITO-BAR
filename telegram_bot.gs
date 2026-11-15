@@ -3200,6 +3200,8 @@ function doPost(e) {
                                data.startsWith("blk_") ||
                                data.startsWith("cmd_new") ||
                                data.startsWith("cr_do_payall_") ||
+                               data.startsWith("conf_appr_") ||
+                               data.startsWith("conf_rej_") ||
                                data.startsWith("do_backup");
 
       // Trava por 5 segundos para ações críticas ou 3 segundos para navegação geral
@@ -3254,6 +3256,38 @@ function doPost(e) {
         const back = { inline_keyboard: [[{ text: "❌ Cancelar", callback_data: "menu" }]] };
         editarMensagemTelegram(messageId, msgLogin, back, chatId);
         responderCallbackQuery(queryId);
+      }
+
+      // =============================================
+      // 🔒 APROVAÇÃO INTERATIVA DE CONFERÊNCIA DE CAIXA
+      // =============================================
+      else if (data.startsWith("conf_appr_")) {
+        const idConf = data.replace("conf_appr_", "");
+        if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'GERENCIAL' && perfil !== 'ADMIN') {
+          responderCallbackQuery(queryId, "⛔ Apenas Dono e Gerentes podem aprovar conferência!");
+          return HtmlService.createHtmlOutput("OK");
+        }
+        const nomeGestor = usuario ? usuario.nome : 'Gestor';
+        const resAprov = processarAprovacaoConferenciaTelegram(idConf, nomeGestor, true);
+        responderCallbackQuery(queryId, resAprov.msg);
+        if (resAprov.ok) {
+          editarMensagemTelegram(messageId, resAprov.novoTexto, null, chatId);
+        }
+        return HtmlService.createHtmlOutput("OK");
+      }
+      else if (data.startsWith("conf_rej_")) {
+        const idConf = data.replace("conf_rej_", "");
+        if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'GERENCIAL' && perfil !== 'ADMIN') {
+          responderCallbackQuery(queryId, "⛔ Apenas Dono e Gerentes podem rejeitar conferência!");
+          return HtmlService.createHtmlOutput("OK");
+        }
+        const nomeGestor = usuario ? usuario.nome : 'Gestor';
+        const resRej = processarAprovacaoConferenciaTelegram(idConf, nomeGestor, false);
+        responderCallbackQuery(queryId, resRej.msg);
+        if (resRej.ok) {
+          editarMensagemTelegram(messageId, resRej.novoTexto, null, chatId);
+        }
+        return HtmlService.createHtmlOutput("OK");
       }
 
       // =============================================
@@ -7458,5 +7492,141 @@ function verificarStatusTelegram() {
     }
   } catch(e) {
     ui.alert("❌ Falha ao obter dados do Telegram: " + e.message);
+  }
+}
+
+/**
+ * Envia notificação interativa no Telegram com botões de aprovação/rejeição de conferência de caixa.
+ */
+function enviarSolicitacaoConferenciaTelegram(dadosConf) {
+  try {
+    const token = typeof getConfig === 'function' ? getConfig('TELEGRAM_BOT_TOKEN') : '';
+    if (!token) return { ok: false, msg: 'Token do Telegram não configurado.' };
+
+    const targetChatId = dadosConf.chatIdDestino || (typeof getConfig === 'function' ? getConfig('TELEGRAM_DONO_CHAT_ID') : '');
+    if (!targetChatId) return { ok: false, msg: 'Chat ID do gestor não encontrado.' };
+
+    const dif = Number(dadosConf.valorGaveta || 0) - Number(dadosConf.saldo || 0);
+    let difTexto = 'Sem divergência (Bateu)';
+    if (dif > 0) difTexto = `+ R$ ${dif.toFixed(2).replace('.', ',')} (Sobra em Caixa)`;
+    else if (dif < 0) difTexto = `- R$ ${Math.abs(dif).toFixed(2).replace('.', ',')} (Falta em Caixa)`;
+
+    const texto = 
+      `🔔 <b>NOVA CONFERÊNCIA DE CAIXA PARA APROVAÇÃO!</b>\n\n` +
+      `🆔 <b>Protocolo:</b> ${dadosConf.idConf}\n` +
+      `👤 <b>Operador:</b> ${dadosConf.nomeOperador}\n` +
+      `📅 <b>Data/Hora:</b> ${Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}\n\n` +
+      `💵 <b>Entradas Hoje:</b> R$ ${(Number(dadosConf.entradas) || 0).toFixed(2).replace('.', ',')}\n` +
+      `💸 <b>Saídas Hoje:</b> R$ ${(Number(dadosConf.saidas) || 0).toFixed(2).replace('.', ',')}\n` +
+      `💰 <b>Saldo Sistema:</b> R$ ${(Number(dadosConf.saldo) || 0).toFixed(2).replace('.', ',')}\n` +
+      `🪙 <b>Contado na Gaveta:</b> R$ ${(Number(dadosConf.valorGaveta) || 0).toFixed(2).replace('.', ',')}\n` +
+      `⚖️ <b>Diferença:</b> ${difTexto}\n` +
+      (dadosConf.obs ? `📝 <b>Observação:</b> ${dadosConf.obs}\n\n` : `\n`) +
+      `<i>Selecione abaixo para concluir o fechamento do caixa:</i>`;
+
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: '✅ Aprovar Conferência', callback_data: `conf_appr_${dadosConf.idConf}` },
+          { text: '❌ Rejeitar / Recontar', callback_data: `conf_rej_${dadosConf.idConf}` }
+        ]
+      ]
+    };
+
+    return enviarMensagemTelegram(texto, replyMarkup, targetChatId);
+  } catch(e) {
+    console.error('Erro em enviarSolicitacaoConferenciaTelegram:', e);
+    return false;
+  }
+}
+
+/**
+ * Processa a decisão de aprovação ou rejeição da conferência de caixa tomada no Telegram pelo gestor.
+ */
+function processarAprovacaoConferenciaTelegram(idConf, nomeGestor, aprovado) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = typeof obterAbaConferenciaCaixa === 'function' ? obterAbaConferenciaCaixa(ss) : (ss.getSheetByName('CONFERENCIA_CAIXA') || ss.getSheetByName('CAIXA_FECHAMENTO'));
+    if (!sh) return { ok: false, msg: 'Aba CONFERENCIA_CAIXA não encontrada.' };
+
+    const dados = sh.getDataRange().getValues();
+    let rowIndex = -1;
+    let confRow = null;
+
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]).trim() === String(idConf).trim()) {
+        rowIndex = i + 1;
+        confRow = dados[i];
+        break;
+      }
+    }
+
+    if (rowIndex === -1 || !confRow) {
+      return { ok: false, msg: `Conferência ID #${idConf} não encontrada.` };
+    }
+
+    const statusAtual = String(confRow[7] || '').toUpperCase();
+    if (statusAtual === 'APROVADO' || statusAtual === 'REJEITADO') {
+      return { ok: false, msg: `Esta conferência já foi processada anteriormente (${statusAtual}).` };
+    }
+
+    const agora = new Date();
+    const agoraFmt = Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss');
+    const nomeOperador = confRow[8] || 'Operador';
+    const saldoSistema = Number(confRow[4]) || 0;
+    const valorGaveta = Number(confRow[5]) || 0;
+    const dif = Number(confRow[6]) || (valorGaveta - saldoSistema);
+
+    let difTexto = 'Sem divergência (Bateu)';
+    if (dif > 0) difTexto = `+ R$ ${dif.toFixed(2).replace('.', ',')} (Sobra em Caixa)`;
+    else if (dif < 0) difTexto = `- R$ ${Math.abs(dif).toFixed(2).replace('.', ',')} (Falta em Caixa)`;
+
+    if (aprovado) {
+      // 1. Atualiza Status = APROVADO, Gestor Aprovador = nomeGestor, Data = agora
+      sh.getRange(rowIndex, 8).setValue('APROVADO');
+      sh.getRange(rowIndex, 10).setValue(nomeGestor);
+      sh.getRange(rowIndex, 11).setValue(agora);
+
+      // 2. Insere linha separadora no CAIXA
+      try {
+        if (typeof inserirLinhaSeparadoraCaixa === 'function') {
+          inserirLinhaSeparadoraCaixa(`CONFERÊNCIA DE CAIXA [APROVADA POR ${nomeGestor.toUpperCase()}]`, saldoSistema);
+        }
+      } catch(e) {}
+
+      const novoTexto = 
+        `✅ <b>CONFERÊNCIA DE CAIXA APROVADA COM SUCESSO!</b>\n\n` +
+        `🆔 <b>Protocolo:</b> ${idConf}\n` +
+        `👤 <b>Operador:</b> ${nomeOperador}\n` +
+        `💰 <b>Saldo Sistema:</b> R$ ${saldoSistema.toFixed(2).replace('.', ',')}\n` +
+        `🪙 <b>Contado na Gaveta:</b> R$ ${valorGaveta.toFixed(2).replace('.', ',')}\n` +
+        `⚖️ <b>Diferença:</b> ${difTexto}\n` +
+        `✍️ <b>Aprovado por:</b> ${nomeGestor}\n` +
+        `⏰ <b>Concluído em:</b> ${agoraFmt}\n\n` +
+        `🔒 <i>O caixa do turno foi oficialmente conciliado no sistema.</i>`;
+
+      return { ok: true, msg: 'Conferência aprovada com sucesso!', novoTexto: novoTexto };
+    } else {
+      // Rejeitado
+      sh.getRange(rowIndex, 8).setValue('REJEITADO');
+      sh.getRange(rowIndex, 10).setValue(nomeGestor);
+      sh.getRange(rowIndex, 11).setValue(agora);
+
+      const novoTexto = 
+        `❌ <b>CONFERÊNCIA DE CAIXA REJEITADA!</b>\n\n` +
+        `🆔 <b>Protocolo:</b> ${idConf}\n` +
+        `👤 <b>Operador:</b> ${nomeOperador}\n` +
+        `💰 <b>Saldo Sistema:</b> R$ ${saldoSistema.toFixed(2).replace('.', ',')}\n` +
+        `🪙 <b>Contado na Gaveta:</b> R$ ${valorGaveta.toFixed(2).replace('.', ',')}\n` +
+        `⚖️ <b>Diferença:</b> ${difTexto}\n` +
+        `🚫 <b>Rejeitado por:</b> ${nomeGestor}\n` +
+        `⏰ <b>Horário:</b> ${agoraFmt}\n\n` +
+        `⚠️ <i>Atenção: O operador deve recontar o caixa físico e realizar novo envio.</i>`;
+
+      return { ok: true, msg: 'Conferência rejeitada.', novoTexto: novoTexto };
+    }
+  } catch(err) {
+    console.error('Erro em processarAprovacaoConferenciaTelegram:', err);
+    return { ok: false, msg: 'Erro ao processar aprovação: ' + err.message };
   }
 }

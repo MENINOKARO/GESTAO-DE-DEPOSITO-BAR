@@ -1993,7 +1993,7 @@
             <span id="bannerAlertaFiscalDesc" style="font-size: 12px; color: #fecaca;">Recomendamos realizar o fechamento fiscal diário, semanal ou mensal.</span>
           </div>
         </div>
-        <button type="button" class="btn-action" style="background: #ef4444; border-color: #dc2626; color: #fff; font-weight: 700; white-space: nowrap; padding: 8px 16px;" onclick="acionarFuncaoInteligente('exec', 'fecharFiscalDia')">
+        <button type="button" class="btn-action" style="background: #ef4444; border-color: #dc2626; color: #fff; font-weight: 700; white-space: nowrap; padding: 8px 16px;" onclick="abrirModalPreviaFechamentoFiscal()">
           📑 Fazer Fechamento Fiscal Agora
         </button>
       </div>
@@ -2287,14 +2287,14 @@
         <div class="pi-secao">
           <div class="pi-secao-titulo">🛅 Controle & Auditoria</div>
           <div class="pi-grid">
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'fecharCaixaDia')">
+            <div class="pi-card" onclick="abrirModalPreviaConferenciaCaixa()">
               <span class="pi-icon">🔒</span>
               <div class="pi-info">
                 <strong>Conferência de Caixa</strong>
                 <span>Conferência física do operador para bater o caixa do turno/gaveta</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'fecharFiscalDia')">
+            <div class="pi-card" onclick="abrirModalPreviaFechamentoFiscal()">
               <span class="pi-icon">📑</span>
               <div class="pi-info">
                 <strong>Fechamento Fiscal</strong>
@@ -2871,6 +2871,20 @@
         <!-- Injetado dinamicamente -->
       </div>
 
+      <!-- Slot para Link do Google Drive -->
+      <div id="relatorioModalDriveBox" style="display: none; background: rgba(2, 132, 199, 0.15); border: 1px solid rgba(2, 132, 199, 0.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #38bdf8; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">📁</span>
+          <div>
+            <strong>Arquivo arquivado no Google Drive:</strong>
+            <span id="relatorioModalDriveNome" style="color: #cbd5e1; display: block; font-size: 11px;"></span>
+          </div>
+        </div>
+        <a href="#" target="_blank" id="relatorioModalDriveLink" class="btn-sm-action blue" style="text-decoration: none; padding: 6px 12px; font-weight: 700;">
+          Abrir no Google Drive ↗
+        </a>
+      </div>
+
       <!-- Tabela com Prévia -->
       <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px;">
         <table class="table-responsive" id="relatorioModalTabela">
@@ -2892,6 +2906,144 @@
             🖨️ / 📄 Imprimir ou Salvar PDF
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 🔒 MODAL DE PRÉVIA & APROVAÇÃO: CONFERÊNCIA DE CAIXA -->
+  <!-- ======================================================== -->
+  <div id="modalPreviaConferenciaCaixa" class="modal-backdrop" style="display: none; z-index: 9999;">
+    <div class="modal-content-comanda" style="max-width: 520px; width: 94%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
+        <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🔒</span> Conferência de Caixa (Turno)
+        </h3>
+        <button type="button" class="btn-remove-item" onclick="fecharModalPreviaConferencia()" style="font-size: 18px; width: 32px; height: 32px;">✕</button>
+      </div>
+
+      <!-- Resumo do Caixa Calculado -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">ENTRADAS HOJE</span>
+          <strong id="prevConfEntradas" style="font-size: 15px; color: #34d399;">R$ 0,00</strong>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">SAÍDAS HOJE</span>
+          <strong id="prevConfSaidas" style="font-size: 15px; color: #ef4444;">R$ 0,00</strong>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">SALDO SISTEMA</span>
+          <strong id="prevConfSaldoSistema" style="font-size: 15px; color: #38bdf8;">R$ 0,00</strong>
+        </div>
+      </div>
+
+      <!-- Contagem Física do Dinheiro -->
+      <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+        <label style="font-size: 12px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 6px;">
+          🪙 DINHEIRO FÍSICO CONTADO NA GAVETA (R$)
+        </label>
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+          <div class="stepper-box" style="flex: 1; display: flex;">
+            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', -10, 0, null, calcularDiferencaConferencia)">-10</button>
+            <input type="number" id="prevConfValorGaveta" class="stepper-input" value="0.00" step="0.50" min="0" style="flex: 1; font-size: 18px; color: #34d399;" oninput="calcularDiferencaConferencia()">
+            <button type="button" class="stepper-btn" style="width: 44px;" onclick="ajustarValorInput('prevConfValorGaveta', 10, 0, null, calcularDiferencaConferencia)">+10</button>
+          </div>
+        </div>
+        <div id="prevConfDiferencaBox" style="font-size: 12px; font-weight: 700; padding: 8px 12px; border-radius: 6px; text-align: center; background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3);">
+          ⚖️ Sem divergência (Caixa bateu)
+        </div>
+      </div>
+
+      <!-- Destinatário da Aprovação (Gestor / Telegram) -->
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 12px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">
+          📱 Enviar para Aprovação de (Gestor):
+        </label>
+        <select id="prevConfSelectGestor" class="cart-select" style="width: 100%;">
+          <option value="">Carregando gestores...</option>
+        </select>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+          O gestor receberá a notificação com os botões [✅ Aprovar] e [❌ Rejeitar] no Telegram.
+        </div>
+      </div>
+
+      <!-- Observações Opcionais -->
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 12px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">
+          📝 Observações do Caixa (opcional):
+        </label>
+        <input type="text" id="prevConfObs" class="cart-input" placeholder="Ex: R$ 50 deixado de troco para amanhã..." style="width: 100%;">
+      </div>
+
+      <!-- Opção de Auto-Aprovação (Dono/Gerente) -->
+      <div id="prevConfAutoAprovarBox" style="display: none; margin-bottom: 14px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 10px 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #93c5fd; font-weight: 600;">
+          <input type="checkbox" id="prevConfAutoAprovar" style="width: 16px; height: 16px;">
+          Sou Gestor (Dono/Gerente) e desejo auto-aprovar e fechar agora
+        </label>
+      </div>
+
+      <!-- Rodapé de Ações -->
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px;">
+        <button type="button" class="btn-clear-cart" onclick="fecharModalPreviaConferencia()">Cancelar</button>
+        <button type="button" id="btnConfirmarEnvioConferencia" class="btn-action" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; font-weight: 700; padding: 10px 18px;" onclick="confirmarEnvioConferenciaCaixa()">
+          🔒 Enviar para Aprovação do Gestor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 📑 MODAL DE PRÉVIA & EXECUÇÃO: FECHAMENTO FISCAL -->
+  <!-- ======================================================== -->
+  <div id="modalPreviaFechamentoFiscal" class="modal-backdrop" style="display: none; z-index: 9999;">
+    <div class="modal-content-comanda" style="max-width: 540px; width: 94%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
+        <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>📑</span> Fechamento Fiscal Consolidado
+        </h3>
+        <button type="button" class="btn-remove-item" onclick="fecharModalPreviaFiscal()" style="font-size: 18px; width: 32px; height: 32px;">✕</button>
+      </div>
+
+      <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #fbbf24;">
+        🛡️ <strong>Exclusivo para Gerente e Dono:</strong> Esta ação consolidará todas as vendas e despesas desde o último fechamento fiscal e registrará a linha oficial na aba <strong>FECHAMENTO_FISCAL</strong>.
+      </div>
+
+      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+        📅 <strong>Período de Referência:</strong> <span id="prevFiscPeriodo" style="color: #fff; font-weight: 600;"></span>
+      </div>
+
+      <!-- Indicadores Fiscais -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">ENTRADAS FISCAIS</span>
+          <strong id="prevFiscEntradas" style="font-size: 17px; color: #34d399;">R$ 0,00</strong>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">SAÍDAS FISCAIS</span>
+          <strong id="prevFiscSaidas" style="font-size: 17px; color: #ef4444;">R$ 0,00</strong>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">SALDO FISCAL DO PERÍODO</span>
+          <strong id="prevFiscSaldo" style="font-size: 17px; color: #38bdf8;">R$ 0,00</strong>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">LANÇAMENTOS ENVOLVIDOS</span>
+          <strong id="prevFiscQtd" style="font-size: 17px; color: #fff;">0</strong>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 16px;">
+        ✍️ Responsável pela consolidação: <strong id="prevFiscResponsavel"></strong>
+      </div>
+
+      <!-- Rodapé de Ações -->
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px;">
+        <button type="button" class="btn-clear-cart" onclick="fecharModalPreviaFiscal()">Cancelar</button>
+        <button type="button" id="btnConfirmarFechamentoFiscal" class="btn-action" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 18px;" onclick="confirmarExecucaoFechamentoFiscal()">
+          📑 Confirmar e Gravar Fechamento Fiscal
+        </button>
       </div>
     </div>
   </div>
@@ -3076,6 +3228,18 @@
         }).join('');
       }
 
+      // Exibição do Link do Arquivo Arquivado no Drive
+      const driveBox = document.getElementById('relatorioModalDriveBox');
+      const driveNome = document.getElementById('relatorioModalDriveNome');
+      const driveLink = document.getElementById('relatorioModalDriveLink');
+      if (dados.driveInfo && dados.driveInfo.ok) {
+        driveBox.style.display = 'flex';
+        driveNome.innerText = `${dados.driveInfo.nomeArquivo} (Pasta: ${dados.driveInfo.pastaNome})`;
+        driveLink.href = dados.driveInfo.url;
+      } else {
+        driveBox.style.display = 'none';
+      }
+
       document.getElementById('modalCentralRelatorios').style.display = 'flex';
     }
 
@@ -3094,6 +3258,210 @@
         return;
       }
       window.open(DADOS_SISTEMA.spreadsheetUrl, '_blank');
+    }
+
+    // ========================================================
+    // 🔒 CONFERÊNCIA DE CAIXA: PRÉVIA E APROVAÇÃO INTERATIVA
+    // ========================================================
+    let DADOS_PREVIA_CONFERENCIA = null;
+
+    function abrirModalPreviaConferenciaCaixa() {
+      if (!TOKEN_SESSAO) {
+        showToast('Faça login para realizar a conferência.', 'error');
+        return;
+      }
+      mostrarLoader('Carregando prévia da conferência...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            DADOS_PREVIA_CONFERENCIA = res;
+            document.getElementById('prevConfEntradas').innerText = formatMoeda(res.entradas || 0);
+            document.getElementById('prevConfSaidas').innerText = formatMoeda(res.saidas || 0);
+            document.getElementById('prevConfSaldoSistema').innerText = formatMoeda(res.saldo || 0);
+            document.getElementById('prevConfValorGaveta').value = (Number(res.saldo) || 0).toFixed(2);
+            document.getElementById('prevConfObs').value = '';
+
+            // Popula lista de gestores para aprovação
+            const selectGestor = document.getElementById('prevConfSelectGestor');
+            if (res.gestores && res.gestores.length > 0) {
+              selectGestor.innerHTML = res.gestores.map(g => {
+                const labelChat = g.chatId ? '📱 Telegram OK' : '⚠️ Sem Telegram';
+                return `<option value="${g.id}" data-chat="${g.chatId}" data-nome="${escapeHtml(g.nome)}">${escapeHtml(g.nome)} (${g.perfil}) - ${labelChat}</option>`;
+              }).join('');
+            } else {
+              selectGestor.innerHTML = `<option value="">Gestor Geral (Dono Padrão)</option>`;
+            }
+
+            // Se o próprio usuário for DONO ou GERENTE, exibe opção de auto-aprovação
+            const isGestor = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE');
+            document.getElementById('prevConfAutoAprovarBox').style.display = isGestor ? 'block' : 'none';
+            document.getElementById('prevConfAutoAprovar').checked = false;
+
+            calcularDiferencaConferencia();
+            document.getElementById('modalPreviaConferenciaCaixa').style.display = 'flex';
+          } else {
+            showToast(res ? res.msg : 'Erro ao carregar prévia.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .obterPreviaConferenciaCaixa(TOKEN_SESSAO);
+    }
+
+    function calcularDiferencaConferencia() {
+      if (!DADOS_PREVIA_CONFERENCIA) return;
+      const saldoSistema = Number(DADOS_PREVIA_CONFERENCIA.saldo) || 0;
+      const valorGaveta = Number(document.getElementById('prevConfValorGaveta').value) || 0;
+      const dif = valorGaveta - saldoSistema;
+
+      const box = document.getElementById('prevConfDiferencaBox');
+      if (Math.abs(dif) < 0.01) {
+        box.style.background = 'rgba(52, 211, 153, 0.15)';
+        box.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+        box.style.color = '#34d399';
+        box.innerHTML = '⚖️ <strong>Sem divergência:</strong> O dinheiro físico bate exatamente com o sistema!';
+      } else if (dif > 0) {
+        box.style.background = 'rgba(245, 158, 11, 0.15)';
+        box.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        box.style.color = '#fbbf24';
+        box.innerHTML = `⚠️ <strong>Sobra de Caixa:</strong> R$ ${dif.toFixed(2).replace('.', ',')} a mais na gaveta física.`;
+      } else {
+        box.style.background = 'rgba(239, 68, 68, 0.15)';
+        box.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        box.style.color = '#f87171';
+        box.innerHTML = `🚨 <strong>Falta de Caixa:</strong> R$ ${Math.abs(dif).toFixed(2).replace('.', ',')} a menos na gaveta física.`;
+      }
+    }
+
+    function fecharModalPreviaConferencia() {
+      document.getElementById('modalPreviaConferenciaCaixa').style.display = 'none';
+      DADOS_PREVIA_CONFERENCIA = null;
+    }
+
+    function confirmarEnvioConferenciaCaixa() {
+      if (!DADOS_PREVIA_CONFERENCIA) return;
+
+      const valorGaveta = Number(document.getElementById('prevConfValorGaveta').value);
+      if (isNaN(valorGaveta) || valorGaveta < 0) {
+        showToast('Informe o valor físico contado na gaveta!', 'warning');
+        return;
+      }
+
+      const selectGestor = document.getElementById('prevConfSelectGestor');
+      const optSelecionada = selectGestor.options[selectGestor.selectedIndex];
+      const idGestor = selectGestor.value;
+      const nomeGestor = optSelecionada ? optSelecionada.getAttribute('data-nome') : 'Gestor';
+      const chatIdGestor = optSelecionada ? optSelecionada.getAttribute('data-chat') : '';
+      const obs = document.getElementById('prevConfObs').value.trim();
+      const autoAprovar = document.getElementById('prevConfAutoAprovar').checked;
+
+      const payload = {
+        valorGaveta: valorGaveta,
+        saldoSistema: DADOS_PREVIA_CONFERENCIA.saldo,
+        entradas: DADOS_PREVIA_CONFERENCIA.entradas,
+        saidas: DADOS_PREVIA_CONFERENCIA.saidas,
+        idGestor: idGestor,
+        nomeGestor: nomeGestor,
+        chatIdGestor: chatIdGestor,
+        observacao: obs,
+        autoAprovar: autoAprovar
+      };
+
+      mostrarLoader('Registrando conferência de caixa...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            fecharModalPreviaConferencia();
+            abrirDialogHarmonizado({
+              icone: '✅',
+              titulo: 'Conferência Registrada',
+              mensagem: res.msg || 'Conferência enviada com sucesso para validação do gestor!',
+              textoConfirmar: 'OK / Entendido',
+              somenteAviso: true,
+              onConfirm: () => {
+                sincronizarPainel();
+              }
+            });
+          } else {
+            showToast(res ? res.msg : 'Erro ao processar conferência.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .solicitarAprovacaoConferenciaCaixa(TOKEN_SESSAO, payload);
+    }
+
+    // ========================================================
+    // 📑 FECHAMENTO FISCAL: PRÉVIA E CONSOLIDAÇÃO
+    // ========================================================
+    let DADOS_PREVIA_FISCAL = null;
+
+    function abrirModalPreviaFechamentoFiscal() {
+      if (!TOKEN_SESSAO) {
+        showToast('Faça login para realizar o fechamento fiscal.', 'error');
+        return;
+      }
+      mostrarLoader('Calculando movimentações fiscais...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            DADOS_PREVIA_FISCAL = res;
+            document.getElementById('prevFiscPeriodo').innerText = res.periodoReferencia || 'Período atual';
+            document.getElementById('prevFiscEntradas').innerText = formatMoeda(res.entradas || 0);
+            document.getElementById('prevFiscSaidas').innerText = formatMoeda(res.saidas || 0);
+            document.getElementById('prevFiscSaldo').innerText = formatMoeda(res.saldo || 0);
+            document.getElementById('prevFiscQtd').innerText = res.qtdMovimentos || 0;
+            document.getElementById('prevFiscResponsavel').innerText = res.responsavel || 'Gestor Responsável';
+            document.getElementById('modalPreviaFechamentoFiscal').style.display = 'flex';
+          } else {
+            showToast(res ? res.msg : 'Erro ao carregar prévia fiscal.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .obterPreviaFechamentoFiscal(TOKEN_SESSAO);
+    }
+
+    function fecharModalPreviaFiscal() {
+      document.getElementById('modalPreviaFechamentoFiscal').style.display = 'none';
+      DADOS_PREVIA_FISCAL = null;
+    }
+
+    function confirmarExecucaoFechamentoFiscal() {
+      fecharModalPreviaFiscal();
+      mostrarLoader('Consolidando fechamento fiscal...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            abrirDialogHarmonizado({
+              icone: '📑',
+              titulo: 'Fechamento Fiscal Concluído',
+              mensagem: res.msg || 'Fechamento fiscal registrado com sucesso na aba FECHAMENTO_FISCAL!',
+              textoConfirmar: 'OK / Concluir',
+              somenteAviso: true,
+              onConfirm: () => {
+                sincronizarPainel();
+              }
+            });
+          } else {
+            showToast(res ? res.msg : 'Erro ao fechar fiscal.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .executarFuncaoPainelInteligente(TOKEN_SESSAO, 'fecharFiscalDia');
     }
 
     // ========================================================
@@ -3264,6 +3632,12 @@
           textoConfirmar: 'Sim, já conferi e quero Sair',
           textoCancelar: 'Não, voltar ao Caixa',
           onConfirm: () => {
+            const tok = TOKEN_SESSAO || localStorage.getItem('deposito360_token');
+            if (tok) {
+              try {
+                google.script.run.notificarLogoutOperadorSemConferencia(tok);
+              } catch(e) {}
+            }
             executarEncerramentoSessao();
           }
         });

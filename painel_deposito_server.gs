@@ -17,6 +17,10 @@ function obterDadosPainel360() {
     const spreadsheetId = ss.getId();
 
     // 1. Data de Hoje
+    // 1. Sincronização do Fuso Horário e Verificações Iniciais
+    sincronizarFusoHorarioPlanilha();
+    try { verificarENotificarFechamentoFiscalAtrasado(); } catch(e) {}
+
     const hoje = new Date();
     const hojeStr = formatarDataSimples(hoje);
     const mesAtual = hoje.getMonth();
@@ -119,7 +123,7 @@ function obterDadosPainel360() {
 
     // 3.1 Leitura do Último Fechamento Fiscal para Governança e Alertas
     let ultimoFechamentoFiscal = null;
-    const shFiscal = ss.getSheetByName('CAIXA_FISCAL');
+    const shFiscal = obterAbaFechamentoFiscal(ss);
     if (shFiscal && shFiscal.getLastRow() > 1) {
       const valFisc = shFiscal.getRange(shFiscal.getLastRow(), 5).getValue() || shFiscal.getRange(shFiscal.getLastRow(), 1).getValue();
       if (valFisc) {
@@ -2244,6 +2248,7 @@ function ajustarEstoque360(token, produtoNome, quantidade, motivo) {
 
 /**
  * Retorna dados estruturados de prévia de um relatório para exibição e geração de PDF.
+ * Salva automaticamente uma cópia em PDF na pasta de Relatórios do Drive do mês vigente.
  */
 function obterPreviaRelatorio360(token, tipoRelatorio) {
   try {
@@ -2253,7 +2258,9 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sincronizarFusoHorarioPlanilha();
     const tipo = String(tipoRelatorio || '').trim();
+    let resultado = null;
 
     if (tipo === 'valoresEstoque') {
       if (typeof gerarRelatorioEstoqueComValores === 'function') {
@@ -2302,11 +2309,11 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
 
       produtos.sort((a, b) => b.totalVenda - a.totalVenda);
 
-      return {
+      resultado = {
         ok: true,
         tipo: 'valoresEstoque',
         titulo: '📊 Relatório de Valores do Estoque',
-        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
         resumo: {
           totalItens: produtos.length,
           valorEstoqueCusto: totalCusto,
@@ -2353,7 +2360,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
 
           if (ultimos.length < 30 && !isNaN(d.getTime())) {
             ultimos.push([
-              Utilities.formatDate(d, 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+              Utilities.formatDate(d, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
               t,
               'R$ ' + v.toFixed(2).replace('.', ','),
               pgto,
@@ -2363,11 +2370,11 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         }
       }
 
-      return {
+      resultado = {
         ok: true,
         tipo: 'financeiroCompleto',
         titulo: '💰 Relatório Financeiro Consolidado',
-        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
         resumo: {
           totalEntradas: entradas,
           totalSaidas: saidas,
@@ -2397,7 +2404,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           totalCompras += val;
           if (listaCompras.length < 30) {
             listaCompras.push([
-              !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Bahia', 'dd/MM/yyyy') : String(rawData || ''),
+              !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Sao_Paulo', 'dd/MM/yyyy') : String(rawData || ''),
               String(r[1] || ''),
               'R$ ' + val.toFixed(2).replace('.', ','),
               String(r[4] || ''),
@@ -2407,11 +2414,11 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         }
       }
 
-      return {
+      resultado = {
         ok: true,
         tipo: 'compras',
         titulo: '🛒 Relatório de Compras de Fornecedores',
-        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
         resumo: {
           totalRegistros: shCompras ? Math.max(0, shCompras.getLastRow() - 1) : 0,
           valorTotalGasto: totalCompras
@@ -2432,7 +2439,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           const rawData = r[0];
           const dt = rawData instanceof Date ? rawData : new Date(rawData);
           ultimosLogs.push([
-            !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Bahia', 'dd/MM/yyyy HH:mm') : String(rawData || ''),
+            !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm') : String(rawData || ''),
             String(r[1] || ''),
             String(r[2] || ''),
             String(r[3] || '')
@@ -2440,11 +2447,11 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         }
       }
 
-      return {
+      resultado = {
         ok: true,
         tipo: 'logs',
         titulo: '🧾 Relatório de Logs e Auditoria',
-        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
         resumo: {
           totalEventos: shLogs ? Math.max(0, shLogs.getLastRow() - 1) : 0
         },
@@ -2454,9 +2461,544 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
       };
     }
 
+    if (resultado && resultado.ok) {
+      // 📂 Salva arquivo automaticamente na pasta do Drive do mês vigente
+      try {
+        const driveRes = salvarRelatorioNoDriveMes(resultado.titulo, resultado.resumo, resultado.colunas, resultado.linhas);
+        resultado.driveInfo = driveRes;
+      } catch(eDrive) {
+        console.warn('Erro ao salvar relatório no Drive:', eDrive.message);
+      }
+      return resultado;
+    }
+
     return { ok: false, msg: `Tipo de relatório "${tipo}" não suportado.` };
   } catch(err) {
     console.error('Erro em obterPreviaRelatorio360:', err);
     return { ok: false, msg: 'Erro ao gerar prévia do relatório: ' + err.message };
+  }
+}
+
+/**
+ * 📂 Cria e salva o relatório na pasta raiz do Google Drive, dentro de Relatórios / [Mês Atual],
+ * com nomenclatura padrão: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
+ */
+function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const nomeDeposito = (typeof getNomeDeposito === 'function') ? getNomeDeposito() : 'Gestão de Depósito';
+
+    let rootFolder = null;
+    try {
+      const itP = DriveApp.getFileById(ss.getId()).getParents();
+      if (itP.hasNext()) rootFolder = itP.next();
+    } catch(e) {}
+    if (!rootFolder) {
+      const pastas = DriveApp.getFoldersByName(nomeDeposito);
+      if (pastas.hasNext()) rootFolder = pastas.next();
+      else rootFolder = DriveApp.getRootFolder();
+    }
+
+    // Pasta "Relatorios"
+    let pastaRelatorios = null;
+    const itRel = rootFolder.getFoldersByName('Relatorios');
+    if (itRel.hasNext()) {
+      pastaRelatorios = itRel.next();
+    } else {
+      const itRel2 = rootFolder.getFoldersByName('Relatórios');
+      if (itRel2.hasNext()) {
+        pastaRelatorios = itRel2.next();
+      } else {
+        pastaRelatorios = rootFolder.createFolder('Relatorios');
+      }
+    }
+
+    // Subpasta do mês: MM - Mês AAAA
+    const agora = new Date();
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
+    const mesNome = meses[agora.getMonth()];
+    const ano = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy');
+    const nomePastaMes = `${mesNum} - ${mesNome} ${ano}`;
+
+    let pastaMes = null;
+    const itMes = pastaRelatorios.getFoldersByName(nomePastaMes);
+    if (itMes.hasNext()) {
+      pastaMes = itMes.next();
+    } else {
+      pastaMes = pastaRelatorios.createFolder(nomePastaMes);
+    }
+
+    // Nome do arquivo: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
+    const dataHoraStr = Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd-MM-yyyy HH-mm');
+    const nomeLimpo = String(titulo || 'Relatório').replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '').trim();
+    const nomeArquivo = `${nomeLimpo} - ${dataHoraStr}`;
+
+    // Monta HTML elegante para conversão em PDF
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${nomeArquivo}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; color: #1e293b; }
+          .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 20px; }
+          h2 { color: #0f172a; margin: 0 0 6px 0; font-size: 20px; }
+          .meta { font-size: 11px; color: #64748b; }
+          .kpi-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+          .kpi-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 120px; text-align: center; }
+          .kpi-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
+          .kpi-val { font-size: 16px; font-weight: 800; color: #0284c7; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
+          th { background: #0f172a; color: #ffffff; padding: 8px 10px; text-align: left; font-weight: 600; }
+          td { border-bottom: 1px solid #e2e8f0; padding: 7px 10px; color: #334155; }
+          tr:nth-child(even) td { background-color: #f8fafc; }
+          .footer { margin-top: 30px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>${titulo}</h2>
+          <div class="meta">${nomeDeposito} | Solicitado em: ${Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}</div>
+        </div>
+    `;
+
+    if (dadosResumo) {
+      htmlContent += `<div class="kpi-row">`;
+      for (const k in dadosResumo) {
+        let v = dadosResumo[k];
+        if (typeof v === 'number' && !k.toLowerCase().includes('itens') && !k.toLowerCase().includes('totalregistros') && !k.toLowerCase().includes('totaleventos') && !k.toLowerCase().includes('margem')) {
+          v = 'R$ ' + v.toFixed(2).replace('.', ',');
+        } else if (k.toLowerCase().includes('margem')) {
+          v = Number(v).toFixed(1) + '%';
+        }
+        const lbl = k.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+        htmlContent += `<div class="kpi-box"><span class="kpi-lbl">${lbl}</span><div class="kpi-val">${v}</div></div>`;
+      }
+      htmlContent += `</div>`;
+    }
+
+    htmlContent += `<table><thead><tr>`;
+    (colunas || []).forEach(c => { htmlContent += `<th>${c}</th>`; });
+    htmlContent += `</tr></thead><tbody>`;
+    (linhas || []).forEach(r => {
+      htmlContent += `<tr>`;
+      r.forEach(cel => { htmlContent += `<td>${cel}</td>`; });
+      htmlContent += `</tr>`;
+    });
+    htmlContent += `</tbody></table>`;
+    htmlContent += `<div class="footer">Documento corporativo gerado pelo Sistema Executivo Depósito Karo$$</div></body></html>`;
+
+    const blob = Utilities.newBlob(htmlContent, 'text/html').getAs('application/pdf').setName(`${nomeArquivo}.pdf`);
+    const file = pastaMes.createFile(blob);
+
+    return {
+      ok: true,
+      nomeArquivo: `${nomeArquivo}.pdf`,
+      pastaNome: nomePastaMes,
+      fileId: file.getId(),
+      url: file.getUrl()
+    };
+  } catch(err) {
+    console.error('Erro em salvarRelatorioNoDriveMes:', err);
+    return { ok: false, msg: err.message };
+  }
+}
+
+/**
+ * ⏰ Sincroniza o Fuso Horário da Planilha Google para America/Sao_Paulo (UTC-3)
+ */
+function sincronizarFusoHorarioPlanilha() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const fusoAlvo = "America/Sao_Paulo";
+    if (ss.getSpreadsheetTimeZone() !== fusoAlvo) {
+      ss.setSpreadsheetTimeZone(fusoAlvo);
+    }
+  } catch(e) {
+    console.warn("Erro ao sincronizar fuso horário da planilha:", e.message);
+  }
+}
+
+/**
+ * 🔒 Obtém ou renomeia a aba de Conferência de Caixa para o padrão CONFERENCIA_CAIXA
+ */
+function obterAbaConferenciaCaixa(ss) {
+  const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
+  let sh = planilha.getSheetByName('CONFERENCIA_CAIXA') || planilha.getSheetByName('CONFERÊNCIA_CAIXA') || planilha.getSheetByName('CAIXA_FECHAMENTO');
+  if (sh && sh.getName() === 'CAIXA_FECHAMENTO') {
+    try { sh.setName('CONFERENCIA_CAIXA'); } catch(e) {}
+  }
+  if (!sh) {
+    sh = planilha.insertSheet('CONFERENCIA_CAIXA');
+    sh.getRange('A1:L1').setValues([[
+      'ID Protocolo','Data Registro','Entradas','Saídas','Saldo Sistema','Valor Gaveta','Diferença','Status','Operador','Gestor Aprovador','Data Aprovação','Observações'
+    ]]);
+    sh.getRange('A1:L1').setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+  }
+  return sh;
+}
+
+/**
+ * 📑 Obtém ou renomeia a aba de Fechamento Fiscal para o padrão FECHAMENTO_FISCAL
+ */
+function obterAbaFechamentoFiscal(ss) {
+  const planilha = ss || SpreadsheetApp.getActiveSpreadsheet();
+  let sh = planilha.getSheetByName('FECHAMENTO_FISCAL') || planilha.getSheetByName('CAIXA_FISCAL');
+  if (sh && sh.getName() === 'CAIXA_FISCAL') {
+    try { sh.setName('FECHAMENTO_FISCAL'); } catch(e) {}
+  }
+  if (!sh) {
+    sh = planilha.insertSheet('FECHAMENTO_FISCAL');
+    sh.getRange('A1:F1').setValues([[
+      'Data Referência','Entradas','Saídas','Saldo','Fechado em','Responsável'
+    ]]);
+    sh.getRange('A1:F1').setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+  }
+  return sh;
+}
+
+/**
+ * Retorna dados para a prévia da Conferência de Caixa antes do operador enviar/gravar.
+ */
+function obterPreviaConferenciaCaixa(token) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sincronizarFusoHorarioPlanilha();
+
+    let saldoObj = (typeof calcularSaldoHoje === 'function') ? calcularSaldoHoje() : null;
+    let entradas = 0;
+    let saidas = 0;
+    let saldo = 0;
+
+    if (saldoObj && typeof saldoObj === 'object') {
+      entradas = Number(saldoObj.entrada) || 0;
+      saidas = Number(saldoObj.saida) || 0;
+      saldo = Number(saldoObj.saldo) || 0;
+    } else if (typeof saldoObj === 'number') {
+      saldo = saldoObj;
+    }
+
+    if (entradas === 0 && saidas === 0) {
+      const shCaixa = ss.getSheetByName('CAIXA');
+      if (shCaixa && shCaixa.getLastRow() > 1) {
+        const hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyyMMdd');
+        const dCaixa = shCaixa.getRange(2, 1, shCaixa.getLastRow() - 1, 4).getValues();
+        dCaixa.forEach(r => {
+          const dt = converterParaDataValida(r[0]);
+          if (dt && Utilities.formatDate(dt, 'America/Sao_Paulo', 'yyyyMMdd') === hojeStr) {
+            const tipo = String(r[1] || '').toUpperCase().trim();
+            const val = Number(r[2]) || 0;
+            if (tipo === 'ENTRADA') entradas += val;
+            if (tipo === 'SAIDA' || tipo === 'SAÍDA') saidas += val;
+          }
+        });
+        saldo = entradas - saidas;
+      }
+    }
+
+    // Lista gestores disponíveis para seleção de envio
+    const gestores = [];
+    const shUsuarios = ss.getSheetByName('USUARIOS');
+    if (shUsuarios && shUsuarios.getLastRow() > 1) {
+      const dUsers = shUsuarios.getRange(2, 1, shUsuarios.getLastRow() - 1, 9).getValues();
+      dUsers.forEach(u => {
+        const p = String(u[4] || '').toUpperCase().trim();
+        const at = String(u[5] || '').toUpperCase().trim();
+        const chatId = String(u[8] || '').trim().split('.')[0];
+        if (at === 'SIM' && (p === 'DONO' || p === 'GERENTE' || p === 'GERENCIAL' || p === 'ADMIN')) {
+          gestores.push({
+            id: String(u[0]),
+            nome: String(u[1]),
+            perfil: p,
+            chatId: chatId
+          });
+        }
+      });
+    }
+
+    return {
+      ok: true,
+      dataHoje: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+      operadorNome: caller.nome,
+      perfilOperador: caller.perfil,
+      entradas: entradas,
+      saidas: saidas,
+      saldo: saldo,
+      gestores: gestores
+    };
+  } catch(err) {
+    console.error('Erro em obterPreviaConferenciaCaixa:', err);
+    return { ok: false, msg: 'Erro ao gerar prévia da conferência: ' + err.message };
+  }
+}
+
+/**
+ * Registra a Conferência de Caixa e envia notificação com botões interativos no Telegram do Gestor selecionado.
+ */
+function solicitarAprovacaoConferenciaCaixa(token, payload) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sincronizarFusoHorarioPlanilha();
+
+    const shConf = obterAbaConferenciaCaixa(ss);
+    const agora = new Date();
+    const idConf = 'CONF-' + Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyyMMdd-HHmmss');
+
+    const valorGaveta = Number(payload.valorGaveta) || 0;
+    const saldoSistema = Number(payload.saldoSistema) || 0;
+    const entradas = Number(payload.entradas) || 0;
+    const saidas = Number(payload.saidas) || 0;
+    const dif = valorGaveta - saldoSistema;
+    const obs = String(payload.observacao || '').trim();
+    const nomeGestorDestino = String(payload.nomeGestor || 'Gestor');
+    const chatIdGestor = String(payload.chatIdGestor || '');
+
+    const isGestor = (caller.perfil === 'DONO' || caller.perfil === 'GERENTE');
+    const autoAprovar = !!payload.autoAprovar && isGestor;
+
+    const statusInicial = autoAprovar ? 'APROVADO' : 'AGUARDANDO APROVAÇÃO';
+    const aprovador = autoAprovar ? caller.nome : '';
+    const dtAprov = autoAprovar ? agora : '';
+
+    shConf.appendRow([
+      idConf,
+      agora,
+      entradas,
+      saidas,
+      saldoSistema,
+      valorGaveta,
+      dif,
+      statusInicial,
+      caller.nome,
+      aprovador,
+      dtAprov,
+      obs
+    ]);
+
+    if (autoAprovar) {
+      try {
+        if (typeof inserirLinhaSeparadoraCaixa === 'function') {
+          inserirLinhaSeparadoraCaixa(`CONFERÊNCIA DE CAIXA [${caller.nome.toUpperCase()}]`, saldoSistema);
+        }
+      } catch(e) {}
+      return { ok: true, msg: 'Conferência de Caixa registrada e aprovada com sucesso!' };
+    }
+
+    // Dispara para o Telegram do gestor selecionado
+    if (typeof enviarSolicitacaoConferenciaTelegram === 'function') {
+      enviarSolicitacaoConferenciaTelegram({
+        idConf: idConf,
+        chatIdDestino: chatIdGestor,
+        nomeOperador: caller.nome,
+        entradas: entradas,
+        saidas: saidas,
+        saldo: saldoSistema,
+        valorGaveta: valorGaveta,
+        obs: obs
+      });
+    }
+
+    return {
+      ok: true,
+      protocolo: idConf,
+      msg: `Conferência registrada com protocolo #${idConf}! Uma notificação com resumo e botões de aprovação foi enviada para o Telegram de ${nomeGestorDestino}.`
+    };
+  } catch(err) {
+    console.error('Erro em solicitarAprovacaoConferenciaCaixa:', err);
+    return { ok: false, msg: 'Erro ao registrar conferência: ' + err.message };
+  }
+}
+
+/**
+ * Retorna dados para a prévia do Fechamento Fiscal antes de gravar na planilha.
+ */
+function obterPreviaFechamentoFiscal(token) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+    if (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE') {
+      return { ok: false, msg: 'Apenas Donos e Gerentes têm acesso ao Fechamento Fiscal.' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    sincronizarFusoHorarioPlanilha();
+
+    const fiscal = obterAbaFechamentoFiscal(ss);
+    const shCaixa = ss.getSheetByName('CAIXA');
+    if (!shCaixa) return { ok: false, msg: 'Aba CAIXA não encontrada.' };
+
+    const cx = shCaixa.getDataRange().getValues();
+    const dadosFiscal = fiscal.getDataRange().getValues();
+
+    let ultimoFechamento = null;
+    let ultimoFechamentoStr = 'Nenhum fechamento anterior';
+    for (let i = dadosFiscal.length - 1; i >= 1; i--) {
+      const val = dadosFiscal[i][4] || dadosFiscal[i][0];
+      const d = converterParaDataValida(val);
+      if (d) {
+        ultimoFechamento = d;
+        ultimoFechamentoStr = Utilities.formatDate(d, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+        break;
+      }
+    }
+
+    let entrada = 0;
+    let saida = 0;
+    let qtdMovimentos = 0;
+
+    cx.forEach((c, i) => {
+      if (i === 0) return;
+      const dataMov = converterParaDataValida(c[0]);
+      if (!dataMov) return;
+      if (ultimoFechamento && dataMov <= ultimoFechamento) return;
+
+      const tipo = String(c[1] || '').trim().toUpperCase();
+      const val = Number(c[2]) || 0;
+      if (tipo === 'ENTRADA') { entrada += val; qtdMovimentos++; }
+      else if (tipo === 'SAIDA' || tipo === 'SAÍDA') { saida += val; qtdMovimentos++; }
+    });
+
+    if (qtdMovimentos === 0) {
+      const hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyyMMdd');
+      cx.forEach((c, i) => {
+        if (i === 0) return;
+        const dataMov = converterParaDataValida(c[0]);
+        if (!dataMov) return;
+        if (Utilities.formatDate(dataMov, 'America/Sao_Paulo', 'yyyyMMdd') === hojeStr) {
+          const tipo = String(c[1] || '').trim().toUpperCase();
+          const val = Number(c[2]) || 0;
+          if (tipo === 'ENTRADA') { entrada += val; qtdMovimentos++; }
+          else if (tipo === 'SAIDA' || tipo === 'SAÍDA') { saida += val; qtdMovimentos++; }
+        }
+      });
+    }
+
+    return {
+      ok: true,
+      ultimoFechamento: ultimoFechamentoStr,
+      periodoReferencia: `${ultimoFechamentoStr} até HOJE (${Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm')})`,
+      entradas: entrada,
+      saidas: saida,
+      saldo: entrada - saida,
+      qtdMovimentos: qtdMovimentos,
+      responsavel: caller.nome
+    };
+  } catch(err) {
+    console.error('Erro em obterPreviaFechamentoFiscal:', err);
+    return { ok: false, msg: 'Erro ao gerar prévia fiscal: ' + err.message };
+  }
+}
+
+/**
+ * Dispara alerta no Telegram do Dono/Gerentes caso o operador deslogue sem conferir o caixa.
+ */
+function notificarLogoutOperadorSemConferencia(token) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) return { ok: false };
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const shConf = obterAbaConferenciaCaixa(ss);
+    const hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyyMMdd');
+
+    let fezConferenciaHoje = false;
+    if (shConf && shConf.getLastRow() > 1) {
+      const d = shConf.getRange(2, 1, shConf.getLastRow() - 1, 9).getValues();
+      for (let i = d.length - 1; i >= 0; i--) {
+        const dt = converterParaDataValida(d[i][1]);
+        const op = String(d[i][8] || '').trim().toLowerCase();
+        if (dt && Utilities.formatDate(dt, 'America/Sao_Paulo', 'yyyyMMdd') === hojeStr) {
+          if (op === caller.nome.trim().toLowerCase() || op.includes(caller.nome.trim().toLowerCase())) {
+            fezConferenciaHoje = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!fezConferenciaHoje) {
+      const targetIds = (typeof obterChatIdsGerentesEDono === 'function') ? obterChatIdsGerentesEDono() : [];
+      const agoraFmt = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss');
+      const msgAlerta = 
+        `⚠️ <b>ALERTA DE SEGURANÇA: OPERADOR DESLOGOU SEM CONFERÊNCIA!</b>\n\n` +
+        `👤 <b>Operador:</b> ${caller.nome} (${caller.perfil || 'Vendedor'})\n` +
+        `⏰ <b>Horário:</b> ${agoraFmt}\n` +
+        `📌 <b>Status:</b> O operador encerrou a sessão no sistema sem registrar a <b>Conferência de Caixa</b> física do seu turno!\n\n` +
+        `💡 <i>Recomenda-se verificar a gaveta de dinheiro ou contatar o colaborador imediatamente.</i>`;
+
+      targetIds.forEach(chatId => {
+        if (typeof enviarMensagemTelegram === 'function') {
+          enviarMensagemTelegram(msgAlerta, null, chatId);
+        }
+      });
+    }
+    return { ok: true };
+  } catch(e) {
+    console.error('Erro em notificarLogoutOperadorSemConferencia:', e);
+    return { ok: false, msg: e.message };
+  }
+}
+
+/**
+ * Dispara lembrete para Dono e Gerentes no Telegram caso o Fechamento Fiscal esteja atrasado (> 7 dias ou fim do mês).
+ * Limita o envio a no máximo 1 vez a cada 24 horas.
+ */
+function verificarENotificarFechamentoFiscalAtrasado() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const shFiscal = obterAbaFechamentoFiscal(ss);
+    let ultimoFechamento = null;
+
+    if (shFiscal && shFiscal.getLastRow() > 1) {
+      const val = shFiscal.getRange(shFiscal.getLastRow(), 5).getValue() || shFiscal.getRange(shFiscal.getLastRow(), 1).getValue();
+      ultimoFechamento = converterParaDataValida(val);
+    }
+
+    const hoje = new Date();
+    const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+    const diasRestantesMes = ultimoDiaMes - hoje.getDate();
+    const isFimMes = (diasRestantesMes <= 3);
+
+    let diasSemFechar = 999;
+    if (ultimoFechamento) {
+      diasSemFechar = Math.floor((hoje.getTime() - ultimoFechamento.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    if (diasSemFechar > 7 || isFimMes) {
+      const props = PropertiesService.getScriptProperties();
+      const ultimoAviso = props.getProperty('TELEGRAM_ULTIMO_AVISO_FISCAL');
+      const hojeDataStr = Utilities.formatDate(hoje, 'America/Sao_Paulo', 'yyyyMMdd');
+
+      if (ultimoAviso !== hojeDataStr) {
+        props.setProperty('TELEGRAM_ULTIMO_AVISO_FISCAL', hojeDataStr);
+
+        const targetIds = (typeof obterChatIdsGerentesEDono === 'function') ? obterChatIdsGerentesEDono() : [];
+        const motivo = diasSemFechar > 7 
+          ? `O último fechamento fiscal foi realizado há ${diasSemFechar} dias.` 
+          : `O mês corrente está se encerrando (restam apenas ${diasRestantesMes} dias).`;
+
+        const msgFiscal = 
+          `📑 <b>LEMBRETE GERENCIAL: FECHAMENTO FISCAL PENDENTE!</b>\n\n` +
+          `🏢 <b>Depósito Karo$$</b>\n` +
+          `📅 <b>Situação:</b> ${motivo}\n\n` +
+          `⚠️ <b>Ação Necessária:</b> Dono ou Gerente deve acessar o <b>Painel Inteligente -> Fechamento Fiscal</b> para consolidar a escrituração do período.`;
+
+        targetIds.forEach(cId => {
+          if (typeof enviarMensagemTelegram === 'function') {
+            enviarMensagemTelegram(msgFiscal, null, cId);
+          }
+        });
+      }
+    }
+  } catch(e) {
+    console.error('Erro em verificarENotificarFechamentoFiscalAtrasado:', e);
   }
 }

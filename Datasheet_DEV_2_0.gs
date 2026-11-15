@@ -2905,12 +2905,12 @@
       try { ui = SpreadsheetApp.getUi(); } catch(e) { ui = null; }
     }
 
-    // Cria aba se não existir
-    let fechamento = ss.getSheetByName('CAIXA_FECHAMENTO');
+    // Cria ou obtém aba CONFERENCIA_CAIXA (harmonizada)
+    let fechamento = (typeof obterAbaConferenciaCaixa === 'function') ? obterAbaConferenciaCaixa(ss) : (ss.getSheetByName('CONFERENCIA_CAIXA') || ss.getSheetByName('CAIXA_FECHAMENTO'));
     if(!fechamento){
-      fechamento = ss.insertSheet('CAIXA_FECHAMENTO');
-      fechamento.getRange('A1:F1').setValues([[
-        'Data','Entradas','Saídas','Saldo','Status','Fechado em'
+      fechamento = ss.insertSheet('CONFERENCIA_CAIXA');
+      fechamento.getRange('A1:K1').setValues([[
+        'ID','Data Registro','Entradas','Saídas','Saldo Sistema','Valor Gaveta','Diferença','Status','Operador','Gestor Aprovador','Data Aprovação'
       ]]);
     }
 
@@ -2998,9 +2998,9 @@
       try { ui = SpreadsheetApp.getUi(); } catch(e) { ui = null; }
     }
 
-    let fiscal = ss.getSheetByName('CAIXA_FISCAL');
+    let fiscal = (typeof obterAbaFechamentoFiscal === 'function') ? obterAbaFechamentoFiscal(ss) : (ss.getSheetByName('FECHAMENTO_FISCAL') || ss.getSheetByName('CAIXA_FISCAL'));
     if(!fiscal){
-      fiscal = ss.insertSheet('CAIXA_FISCAL');
+      fiscal = ss.insertSheet('FECHAMENTO_FISCAL');
       fiscal.getRange('A1:E1').setValues([[
         'Data Referência','Entradas','Saídas','Saldo','Fechado em'
       ]]);
