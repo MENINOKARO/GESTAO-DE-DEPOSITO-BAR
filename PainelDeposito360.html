@@ -984,6 +984,92 @@
     }
 
     /* ======================================================== */
+    /* 🔢 STEPPERS MODERNOS (+ e -) & OCULTAÇÃO DE SPINNERS */
+    /* ======================================================== */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+    input[type=number] { 
+      -moz-appearance: textfield; 
+    }
+
+    .stepper-box {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stepper-btn {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: none;
+      width: 32px;
+      height: 36px;
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      user-select: none;
+    }
+    .stepper-btn:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+    .stepper-input {
+      border: none !important;
+      background: transparent !important;
+      text-align: center;
+      font-weight: 700;
+      width: 55px !important;
+      padding: 6px 0 !important;
+      margin: 0 !important;
+      color: #fff !important;
+    }
+
+    /* Estilos de Impressão de Relatórios */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #modalCentralRelatorios, #modalCentralRelatorios * {
+        visibility: visible;
+      }
+      #modalCentralRelatorios {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .modal-content-comanda {
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .btn-action, .btn-clear-cart, #btnRelatorioAbrirPlanilha, #btnRelatorioImprimir {
+        display: none !important;
+      }
+      table {
+        color: #000 !important;
+      }
+      th, td {
+        border-color: #ccc !important;
+        color: #000 !important;
+      }
+    }
+
+    /* ======================================================== */
     /* ⚙️ ABA CONFIGURAÇÕES GERAIS */
     /* ======================================================== */
     .config-layout {
@@ -1827,7 +1913,11 @@
               <select id="delSelectProduto" class="cart-select" style="flex:1;">
                 <option value="">Selecione um produto...</option>
               </select>
-              <input type="number" id="delQtdItem" class="cart-input" value="1" min="1" style="width:65px;">
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="ajustarValorInput('delQtdItem', -1, 1)">-</button>
+                <input type="number" id="delQtdItem" class="stepper-input" value="1" min="1">
+                <button type="button" class="stepper-btn" onclick="ajustarValorInput('delQtdItem', 1, 1)">+</button>
+              </div>
               <button class="btn-action btn-sync" type="button" onclick="adicionarItemDelivery()">+ Add</button>
             </div>
           </div>
@@ -1894,6 +1984,20 @@
     <!-- ABA 4: 📊 PANORAMA 360° -->
     <!-- ======================================================== -->
     <div id="tabVisao360" class="tab-pane">
+      <!-- ⚠️ ALERTA DE FECHAMENTO FISCAL EM ATRASO / FIM DE MÊS -->
+      <div id="bannerAlertaFiscal" style="display: none; margin-bottom: 16px; padding: 14px 18px; border-radius: 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 26px;">⚠️</span>
+          <div>
+            <strong id="bannerAlertaFiscalTitulo" style="color: #fff; font-size: 14px; display: block;">Atenção: Fechamento Fiscal Necessário</strong>
+            <span id="bannerAlertaFiscalDesc" style="font-size: 12px; color: #fecaca;">Recomendamos realizar o fechamento fiscal diário, semanal ou mensal.</span>
+          </div>
+        </div>
+        <button type="button" class="btn-action" style="background: #ef4444; border-color: #dc2626; color: #fff; font-weight: 700; white-space: nowrap; padding: 8px 16px;" onclick="acionarFuncaoInteligente('exec', 'fecharFiscalDia')">
+          📑 Fazer Fechamento Fiscal Agora
+        </button>
+      </div>
+
       <div class="dash-grid">
         
         <!-- Feed de Últimas Vendas -->
@@ -2169,25 +2273,11 @@
                 <span>Acompanhar pedidos e entregas</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabVisao360')">
-              <span class="pi-icon">📊</span>
-              <div class="pi-info">
-                <strong>Panorama Financeiro</strong>
-                <span>Fluxo de caixa, vendas e saldos</span>
-              </div>
-            </div>
             <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabPdv')">
               <span class="pi-icon">⚡</span>
               <div class="pi-info">
                 <strong>Caixa Rápido (PDV)</strong>
                 <span>Venda balcão express com baixa direta</span>
-              </div>
-            </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEstoque')">
-              <span class="pi-icon">📦</span>
-              <div class="pi-info">
-                <strong>Estoque & Preços</strong>
-                <span>Consulta de produtos e quantidades</span>
               </div>
             </div>
           </div>
@@ -2201,14 +2291,21 @@
               <span class="pi-icon">🔒</span>
               <div class="pi-info">
                 <strong>Conferência de Caixa</strong>
-                <span>Registra fechamento/conferência em CAIXA_FECHAMENTO</span>
+                <span>Conferência física do operador para bater o caixa do turno/gaveta</span>
               </div>
             </div>
             <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'fecharFiscalDia')">
               <span class="pi-icon">📑</span>
               <div class="pi-info">
                 <strong>Fechamento Fiscal</strong>
-                <span>Registra conferência fiscal em CAIXA_FISCAL</span>
+                <span>Exclusivo para Gerente e Dono: fechamento diário, semanal ou mensal consolidado</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabVisao360')">
+              <span class="pi-icon">📊</span>
+              <div class="pi-info">
+                <strong>Panorama Financeiro</strong>
+                <span>Fluxo de caixa, vendas e saldos</span>
               </div>
             </div>
             <div class="pi-card" onclick="abrirModalNovoCliente('pdv')">
@@ -2232,6 +2329,13 @@
         <div class="pi-secao">
           <div class="pi-secao-titulo">📦 Estoque Financeiro & Produtos</div>
           <div class="pi-grid">
+            <div class="pi-card" onclick="acionarFuncaoInteligente('nav', 'tabEstoque')">
+              <span class="pi-icon">📦</span>
+              <div class="pi-info">
+                <strong>Estoque & Preços</strong>
+                <span>Consulta de produtos, quantidades e valores</span>
+              </div>
+            </div>
             <div class="pi-card" onclick="abrirModalGestaoProduto()">
               <span class="pi-icon">🏷️</span>
               <div class="pi-info">
@@ -2253,13 +2357,6 @@
                 <span>Atualiza valores de custo e venda</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioValoresEstoque')">
-              <span class="pi-icon">📊</span>
-              <div class="pi-info">
-                <strong>Relatório Valores Estoque</strong>
-                <span>Gera aba com valorização de mercadorias</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -2267,21 +2364,28 @@
         <div class="pi-secao">
           <div class="pi-secao-titulo">📚 Relatórios Gerenciais</div>
           <div class="pi-grid">
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioFinanceiroCompleto')">
+            <div class="pi-card" onclick="abrirRelatorioComResumo('valoresEstoque')">
+              <span class="pi-icon">📊</span>
+              <div class="pi-info">
+                <strong>Relatório Valores Estoque</strong>
+                <span>Resumo e prévia de mercadorias, custos e margem</span>
+              </div>
+            </div>
+            <div class="pi-card" onclick="abrirRelatorioComResumo('financeiroCompleto')">
               <span class="pi-icon">💰</span>
               <div class="pi-info">
                 <strong>Relatório Financeiro Completo</strong>
                 <span>Extrato consolidado de receitas e despesas</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioCompras')">
+            <div class="pi-card" onclick="abrirRelatorioComResumo('compras')">
               <span class="pi-icon">🛒</span>
               <div class="pi-info">
                 <strong>Relatório de Compras</strong>
                 <span>Histórico e notas de fornecedores</span>
               </div>
             </div>
-            <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'gerarRelatorioLogsSistema')">
+            <div class="pi-card" onclick="abrirRelatorioComResumo('logs')">
               <span class="pi-icon">🧾</span>
               <div class="pi-info">
                 <strong>Relatório de Logs e Auditoria</strong>
@@ -2354,7 +2458,11 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Quantidade</label>
-          <input type="number" id="modalAddQtd" class="cart-input" value="1" min="1" oninput="atualizarPrecoModalAdd()">
+          <div class="stepper-box" style="width: 100%; display: flex; justify-content: space-between;">
+            <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', -1, 1, null, atualizarPrecoModalAdd)">-</button>
+            <input type="number" id="modalAddQtd" class="stepper-input" value="1" min="1" style="flex: 1;" oninput="atualizarPrecoModalAdd()">
+            <button type="button" class="stepper-btn" style="width: 40px;" onclick="ajustarValorInput('modalAddQtd', 1, 1, null, atualizarPrecoModalAdd)">+</button>
+          </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Valor Unitário (R$)</label>
@@ -2697,9 +2805,13 @@
           </div>
           <div id="secaoAjusteEstoqueModal">
             <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">AJUSTE RÁPIDO (+ ou -)</label>
-            <div style="display: flex; gap: 6px;">
-              <input type="number" id="gestaoProdAjusteQtd" class="cart-input" placeholder="Qtd" style="width: 80px;">
-              <button type="button" id="btnAplicarAjusteEstoque" class="btn-action" style="background: #3b82f6; border-color: #2563eb; color: #fff; font-size: 11px; white-space: nowrap; flex: 1;" onclick="executarAjusteEstoqueModal()">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="ajustarValorInput('gestaoProdAjusteQtd', -1)">-</button>
+                <input type="number" id="gestaoProdAjusteQtd" class="stepper-input" value="0" placeholder="0">
+                <button type="button" class="stepper-btn" onclick="ajustarValorInput('gestaoProdAjusteQtd', 1)">+</button>
+              </div>
+              <button type="button" id="btnAplicarAjusteEstoque" class="btn-action" style="background: #3b82f6; border-color: #2563eb; color: #fff; font-size: 11px; white-space: nowrap; flex: 1; padding: 9px 12px;" onclick="executarAjusteEstoqueModal()">
                 📦 Ajustar Saldo
               </button>
             </div>
@@ -2714,6 +2826,73 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 💬 MODAL DE DIÁLOGO HARMONIZADO (SUBSTITUI ALERT / CONFIRM) -->
+  <!-- ======================================================== -->
+  <div id="modalDialogHarmonizado" class="modal-backdrop" style="display: none; z-index: 10000;">
+    <div class="modal-content-comanda" style="max-width: 440px; width: 92%; text-align: center; padding: 24px;">
+      <div id="dlgHarmonizadoIcone" style="font-size: 40px; margin-bottom: 12px;">🔔</div>
+      <h3 id="dlgHarmonizadoTitulo" style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;">Aviso</h3>
+      <div id="dlgHarmonizadoMensagem" style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 22px;"></div>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" id="dlgHarmonizadoBtnCancelar" class="btn-clear-cart" style="padding: 10px 18px; font-size: 13px;" onclick="fecharDialogHarmonizado(false)">
+          Cancelar
+        </button>
+        <button type="button" id="dlgHarmonizadoBtnConfirmar" class="btn-action" style="padding: 10px 22px; font-size: 13px; font-weight: 700; background: var(--primary);" onclick="fecharDialogHarmonizado(true)">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 📊 MODAL CENTRAL DE PRÉVIA E GERAÇÃO DE RELATÓRIOS -->
+  <!-- ======================================================== -->
+  <div id="modalCentralRelatorios" class="modal-backdrop" style="display: none; z-index: 9999;">
+    <div class="modal-content-comanda" style="max-width: 860px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <!-- Cabeçalho -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px;">
+        <div>
+          <h3 id="relatorioModalTitulo" style="font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>📊</span> Prévia de Relatório
+          </h3>
+          <div id="relatorioModalSubtitulo" style="font-size: 12px; color: var(--text-muted);">
+            Gerado em tempo real
+          </div>
+        </div>
+        <button type="button" class="btn-remove-item" onclick="fecharModalRelatorio()" style="font-size: 18px; width: 32px; height: 32px;">✕</button>
+      </div>
+
+      <!-- Resumo Executivo (Cards) -->
+      <div id="relatorioModalResumo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px;">
+        <!-- Injetado dinamicamente -->
+      </div>
+
+      <!-- Tabela com Prévia -->
+      <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px;">
+        <table class="table-responsive" id="relatorioModalTabela">
+          <thead id="relatorioModalTabelaHead"></thead>
+          <tbody id="relatorioModalTabelaBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Rodapé de Ações -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; flex-wrap: wrap; gap: 10px;">
+        <button type="button" class="btn-clear-cart" onclick="fecharModalRelatorio()">
+          👁️ Apenas Visualizar (Fechar)
+        </button>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" id="btnRelatorioAbrirPlanilha" class="btn-action" style="background: #059669; border-color: #047857; color: #fff;" onclick="abrirPlanilhaAbaRelatorio()">
+            📊 Abrir na Planilha
+          </button>
+          <button type="button" id="btnRelatorioImprimir" class="btn-action" style="background: #2563eb; border-color: #1d4ed8; color: #fff;" onclick="imprimirRelatorioModal()">
+            🖨️ / 📄 Imprimir ou Salvar PDF
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2732,6 +2911,233 @@
     let CATEGORIA_SELECIONADA_PDV = '';
     let TOKEN_SESSAO = null;
     let USUARIO_LOGADO = null;
+    let DIALOG_HARMONIZADO_CALLBACK = null;
+    let RELATORIO_ATUAL_DADOS = null;
+
+    // ========================================================
+    // 🔢 HELPERS DE STEPPER (+ / -)
+    // ========================================================
+    function ajustarValorInput(inputId, delta, min, max, callback) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      let val = Number(el.value) || 0;
+      val += delta;
+      if (min !== undefined && min !== null && val < min) val = min;
+      if (max !== undefined && max !== null && val > max) val = max;
+      el.value = val;
+      if (typeof callback === 'function') {
+        callback();
+      } else {
+        el.dispatchEvent(new Event('input'));
+      }
+    }
+
+    // ========================================================
+    // 💬 DIÁLOGO HARMONIZADO (SUBSTITUTO MODERNO DE ALERT / CONFIRM)
+    // ========================================================
+    function abrirDialogHarmonizado({ icone, titulo, mensagem, textoConfirmar, textoCancelar, onConfirm, onCancel, somenteAviso }) {
+      document.getElementById('dlgHarmonizadoIcone').innerText = icone || '🔔';
+      document.getElementById('dlgHarmonizadoTitulo').innerText = titulo || 'Atenção';
+      document.getElementById('dlgHarmonizadoMensagem').innerHTML = mensagem || '';
+
+      const btnConfirmar = document.getElementById('dlgHarmonizadoBtnConfirmar');
+      const btnCancelar = document.getElementById('dlgHarmonizadoBtnCancelar');
+
+      btnConfirmar.innerText = textoConfirmar || 'Confirmar';
+      btnCancelar.innerText = textoCancelar || 'Cancelar';
+
+      if (somenteAviso) {
+        btnCancelar.style.display = 'none';
+        btnConfirmar.innerText = textoConfirmar || 'OK / Entendido';
+      } else {
+        btnCancelar.style.display = 'inline-block';
+      }
+
+      DIALOG_HARMONIZADO_CALLBACK = { onConfirm, onCancel };
+      document.getElementById('modalDialogHarmonizado').style.display = 'flex';
+    }
+
+    function fecharDialogHarmonizado(confirmado) {
+      document.getElementById('modalDialogHarmonizado').style.display = 'none';
+      if (DIALOG_HARMONIZADO_CALLBACK) {
+        if (confirmado && typeof DIALOG_HARMONIZADO_CALLBACK.onConfirm === 'function') {
+          DIALOG_HARMONIZADO_CALLBACK.onConfirm();
+        } else if (!confirmado && typeof DIALOG_HARMONIZADO_CALLBACK.onCancel === 'function') {
+          DIALOG_HARMONIZADO_CALLBACK.onCancel();
+        }
+      }
+      DIALOG_HARMONIZADO_CALLBACK = null;
+    }
+
+    // ========================================================
+    // 📊 CENTRAL DE RELATÓRIOS (PRÉVIA, RESUMO & IMPRESSÃO PDF)
+    // ========================================================
+    function abrirRelatorioComResumo(tipoRelatorio) {
+      if (!TOKEN_SESSAO) {
+        showToast('Faça login para acessar relatórios.', 'error');
+        return;
+      }
+      mostrarLoader('Gerando prévia do relatório...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            renderizarModalRelatorio(res);
+          } else {
+            showToast(res ? res.msg : 'Não foi possível carregar o relatório.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro ao obter relatório: ' + err.message, 'error');
+        })
+        .obterPreviaRelatorio360(TOKEN_SESSAO, tipoRelatorio);
+    }
+
+    function renderizarModalRelatorio(dados) {
+      RELATORIO_ATUAL_DADOS = dados;
+      document.getElementById('relatorioModalTitulo').innerHTML = `<span>📊</span> ${escapeHtml(dados.titulo || 'Relatório Gerencial')}`;
+      document.getElementById('relatorioModalSubtitulo').innerText = `Gerado em: ${dados.dataGeracao || ''} | Depósito Karo$$`;
+
+      // Monta os cards de resumo
+      const resumoContainer = document.getElementById('relatorioModalResumo');
+      let kpisHtml = '';
+      if (dados.resumo) {
+        if (dados.tipo === 'valoresEstoque') {
+          kpisHtml += `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL ITENS</span>
+              <strong style="font-size:16px;color:#fff;">${dados.resumo.totalItens}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">ESTOQUE (CUSTO)</span>
+              <strong style="font-size:16px;color:#f59e0b;">${formatMoeda(dados.resumo.valorEstoqueCusto)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">ESTOQUE (VENDA)</span>
+              <strong style="font-size:16px;color:#38bdf8;">${formatMoeda(dados.resumo.valorEstoqueVenda)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">LUCRO PROJETADO</span>
+              <strong style="font-size:16px;color:#34d399;">${formatMoeda(dados.resumo.lucroProjetadoTotal)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">MARGEM MÉDIA</span>
+              <strong style="font-size:16px;color:#a855f7;">${Number(dados.resumo.margemMediaGlobal || 0).toFixed(1)}%</strong>
+            </div>
+          `;
+        } else if (dados.tipo === 'financeiroCompleto') {
+          kpisHtml += `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL ENTRADAS</span>
+              <strong style="font-size:16px;color:#34d399;">${formatMoeda(dados.resumo.totalEntradas)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL SAÍDAS</span>
+              <strong style="font-size:16px;color:#ef4444;">${formatMoeda(dados.resumo.totalSaidas)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">SALDO CONSOLIDADO</span>
+              <strong style="font-size:16px;color:${dados.resumo.saldoConsolidado >= 0 ? '#34d399' : '#ef4444'};">${formatMoeda(dados.resumo.saldoConsolidado)}</strong>
+            </div>
+          `;
+        } else if (dados.tipo === 'compras') {
+          kpisHtml += `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">REGISTROS DE COMPRAS</span>
+              <strong style="font-size:16px;color:#fff;">${dados.resumo.totalRegistros}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL GASTO</span>
+              <strong style="font-size:16px;color:#f59e0b;">${formatMoeda(dados.resumo.valorTotalGasto)}</strong>
+            </div>
+          `;
+        } else if (dados.tipo === 'logs') {
+          kpisHtml += `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL EVENTOS AUDITADOS</span>
+              <strong style="font-size:16px;color:#38bdf8;">${dados.resumo.totalEventos}</strong>
+            </div>
+          `;
+        }
+      }
+      resumoContainer.innerHTML = kpisHtml;
+
+      // Monta tabela
+      const thead = document.getElementById('relatorioModalTabelaHead');
+      const tbody = document.getElementById('relatorioModalTabelaBody');
+      thead.innerHTML = `<tr>${(dados.colunas || []).map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+
+      if (!dados.linhas || dados.linhas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${(dados.colunas || []).length || 1}" style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum dado encontrado para exibição.</td></tr>`;
+      } else {
+        tbody.innerHTML = dados.linhas.map(row => {
+          return `<tr>${row.map(cel => `<td>${escapeHtml(String(cel))}</td>`).join('')}</tr>`;
+        }).join('');
+      }
+
+      document.getElementById('modalCentralRelatorios').style.display = 'flex';
+    }
+
+    function fecharModalRelatorio() {
+      document.getElementById('modalCentralRelatorios').style.display = 'none';
+      RELATORIO_ATUAL_DADOS = null;
+    }
+
+    function imprimirRelatorioModal() {
+      window.print();
+    }
+
+    function abrirPlanilhaAbaRelatorio() {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.spreadsheetUrl) {
+        showToast('Link da planilha não disponível.', 'warning');
+        return;
+      }
+      window.open(DADOS_SISTEMA.spreadsheetUrl, '_blank');
+    }
+
+    // ========================================================
+    // ⚠️ GOVERNANÇA: ALERTA DE FECHAMENTO FISCAL ATRASADO / FIM DO MÊS
+    // ========================================================
+    function verificarAlertaFechamentoFiscal() {
+      const banner = document.getElementById('bannerAlertaFiscal');
+      if (!banner) return;
+
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      // Fechamento fiscal é exclusivo para Dono e Gerente
+      if (perfil !== 'DONO' && perfil !== 'GERENTE') {
+        banner.style.display = 'none';
+        return;
+      }
+
+      const hoje = new Date();
+      const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+      const diasRestantesMes = ultimoDiaMes - hoje.getDate();
+      const isFimDeMes = (diasRestantesMes <= 3);
+
+      let diasSemFechamento = 999;
+      if (DADOS_SISTEMA && DADOS_SISTEMA.ultimoFechamentoFiscal) {
+        const dtUltimo = new Date(DADOS_SISTEMA.ultimoFechamentoFiscal);
+        if (!isNaN(dtUltimo.getTime())) {
+          diasSemFechamento = Math.floor((hoje.getTime() - dtUltimo.getTime()) / (1000 * 60 * 60 * 24));
+        }
+      }
+
+      const tituloEl = document.getElementById('bannerAlertaFiscalTitulo');
+      const descEl = document.getElementById('bannerAlertaFiscalDesc');
+
+      if (diasSemFechamento > 7) {
+        banner.style.display = 'flex';
+        tituloEl.innerText = '⚠️ Atenção: Fechamento Fiscal Atrasado!';
+        descEl.innerText = `O último Fechamento Fiscal foi registrado há ${diasSemFechamento >= 999 ? 'mais de 7' : diasSemFechamento} dias. Como Dono/Gerente, mantenha a escrituração em dia realizando o fechamento diário, semanal ou mensal.`;
+      } else if (isFimDeMes) {
+        banner.style.display = 'flex';
+        tituloEl.innerText = '📅 Alerta de Encerramento Mensal: Fechamento Fiscal';
+        descEl.innerText = `O mês corrente está se encerrando (restam ${diasRestantesMes} dias). Não esqueça de consolidar o Fechamento Fiscal do mês!`;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
 
     // INICIALIZAÇÃO
     window.addEventListener('DOMContentLoaded', () => {
@@ -2847,7 +3253,35 @@
     }
 
     function fazerLogoutWeb() {
-      if (!confirm('Deseja realmente sair do sistema?')) return;
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      const isOperador = (perfil === 'VENDEDOR' || perfil === 'OPERADOR');
+
+      if (isOperador) {
+        abrirDialogHarmonizado({
+          icone: '🔒',
+          titulo: 'Conferência de Caixa Pendente?',
+          mensagem: 'Atenção Operador: você já realizou a <strong>Conferência do seu Caixa / Turno</strong> antes de deslogar?<br><br>Se ainda não bateu a gaveta com o dinheiro físico, cancele e faça a conferência no Painel Inteligente.',
+          textoConfirmar: 'Sim, já conferi e quero Sair',
+          textoCancelar: 'Não, voltar ao Caixa',
+          onConfirm: () => {
+            executarEncerramentoSessao();
+          }
+        });
+      } else {
+        abrirDialogHarmonizado({
+          icone: '🚪',
+          titulo: 'Encerrar Sessão',
+          mensagem: 'Deseja realmente sair do sistema Depósito Karo$$?',
+          textoConfirmar: 'Sair Agora',
+          textoCancelar: 'Permanecer Conectado',
+          onConfirm: () => {
+            executarEncerramentoSessao();
+          }
+        });
+      }
+    }
+
+    function executarEncerramentoSessao() {
       mostrarLoader('Encerrando sessão...');
       const token = TOKEN_SESSAO || localStorage.getItem('deposito360_token');
 
@@ -3016,6 +3450,9 @@
       document.getElementById('tabComandasBadge').innerText = k.comandasAbertasCount || 0;
       document.getElementById('kpiDelPendentes').innerText = k.deliverysPendentes;
       document.getElementById('tabDelBadge').innerText = k.deliverysPendentes;
+
+      // 3.1 Alerta de Fechamento Fiscal (Dono e Gerente)
+      verificarAlertaFechamentoFiscal();
 
       // 4. Catálogo PDV & Comandas
       renderizarCategoriasChips();
@@ -3271,30 +3708,38 @@
     }
 
     function alternarStatusUsuario(idUser, novoStatus) {
-      if (!confirm(`Deseja realmente ${novoStatus === 'SIM' ? 'ATIVAR' : 'BLOQUEAR'} este colaborador?`)) return;
-      mostrarLoader('Atualizando status...');
-      google.script.run
-        .withSuccessHandler(res => {
-          esconderLoader();
-          if (res && res.ok) {
-            showToast('Status atualizado!', 'success');
-            carregarListaUsuariosPainel();
-          } else {
-            showToast(res ? res.msg : 'Erro ao atualizar status', 'error');
-          }
-        })
-        .withFailureHandler(err => {
-          esconderLoader();
-          showToast('Erro: ' + err.message, 'error');
-        })
-        .alterarStatusUsuarioPainel(TOKEN_SESSAO, idUser, novoStatus);
+      abrirDialogHarmonizado({
+        icone: novoStatus === 'SIM' ? '✅' : '🚫',
+        titulo: `${novoStatus === 'SIM' ? 'Ativar' : 'Bloquear'} Colaborador`,
+        mensagem: `Deseja realmente <strong>${novoStatus === 'SIM' ? 'ATIVAR' : 'BLOQUEAR'}</strong> o acesso deste colaborador?`,
+        textoConfirmar: 'Sim, Confirmar',
+        textoCancelar: 'Cancelar',
+        onConfirm: () => {
+          mostrarLoader('Atualizando status...');
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.ok) {
+                showToast('Status atualizado!', 'success');
+                carregarListaUsuariosPainel();
+              } else {
+                showToast(res ? res.msg : 'Erro ao atualizar status', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .alterarStatusUsuarioPainel(TOKEN_SESSAO, idUser, novoStatus);
+        }
+      });
     }
 
     function redefinirSenhaUsuarioPrompt(idUser, nome) {
       const nova = prompt(`Digite a nova senha para o colaborador "${nome}":`);
       if (nova === null) return;
       if (nova.trim().length < 3) {
-        alert('A senha deve ter pelo menos 3 caracteres.');
+        showToast('⚠️ A senha deve ter pelo menos 3 caracteres.', 'warning');
         return;
       }
 
@@ -4188,25 +4633,31 @@
           return;
         }
 
-        const confirmar = confirm(`Deseja executar a ação "${nomeAcao}" agora?`);
-        if (!confirmar) return;
-
-        mostrarLoader(`Executando "${nomeAcao}"...`);
-        google.script.run
-          .withSuccessHandler(res => {
-            esconderLoader();
-            if (res && res.ok) {
-              showToast(res.msg || `Ação "${nomeAcao}" concluída com sucesso!`, 'success');
-              sincronizarPainel();
-            } else {
-              showToast(res ? res.msg : `Falha ao executar "${nomeAcao}".`, 'error');
-            }
-          })
-          .withFailureHandler(err => {
-            esconderLoader();
-            showToast('Erro: ' + err.message, 'error');
-          })
-          .executarFuncaoPainelInteligente(TOKEN_SESSAO, param);
+        abrirDialogHarmonizado({
+          icone: '⚡',
+          titulo: 'Executar Rotina',
+          mensagem: `Deseja realmente executar a rotina <strong>"${nomeAcao}"</strong> agora?`,
+          textoConfirmar: 'Sim, Executar',
+          textoCancelar: 'Cancelar',
+          onConfirm: () => {
+            mostrarLoader(`Executando "${nomeAcao}"...`);
+            google.script.run
+              .withSuccessHandler(res => {
+                esconderLoader();
+                if (res && res.ok) {
+                  showToast(res.msg || `Ação "${nomeAcao}" concluída com sucesso!`, 'success');
+                  sincronizarPainel();
+                } else {
+                  showToast(res ? res.msg : `Falha ao executar "${nomeAcao}".`, 'error');
+                }
+              })
+              .withFailureHandler(err => {
+                esconderLoader();
+                showToast('Erro: ' + err.message, 'error');
+              })
+              .executarFuncaoPainelInteligente(TOKEN_SESSAO, param);
+          }
+        });
       }
     }
 
@@ -4790,25 +5241,33 @@
       }
 
       const operacao = qtd > 0 ? `adicionar +${qtd}` : `remover ${qtd}`;
-      if (!confirm(`Confirma ${operacao} unidades no estoque de "${nome}"?`)) return;
 
-      mostrarLoader(`Ajustando estoque de ${nome}...`);
-      google.script.run
-        .withSuccessHandler(res => {
-          esconderLoader();
-          if (res && res.ok) {
-            showToast(res.msg || 'Estoque ajustado com sucesso!', 'success');
-            document.getElementById('gestaoProdAjusteQtd').value = '';
-            sincronizarPainel();
-          } else {
-            showToast(res ? res.msg : 'Erro ao ajustar estoque.', 'error');
-          }
-        })
-        .withFailureHandler(err => {
-          esconderLoader();
-          showToast('Erro: ' + err.message, 'error');
-        })
-        .ajustarEstoque360(TOKEN_SESSAO, nome, qtd, 'AJUSTE_PAINEL_360');
+      abrirDialogHarmonizado({
+        icone: '📦',
+        titulo: 'Confirmar Ajuste de Estoque',
+        mensagem: `Confirma <strong>${operacao} unidades</strong> no estoque do produto <strong>"${escapeHtml(nome)}"</strong>?`,
+        textoConfirmar: 'Sim, Ajustar',
+        textoCancelar: 'Cancelar',
+        onConfirm: () => {
+          mostrarLoader(`Ajustando estoque de ${nome}...`);
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.ok) {
+                showToast(res.msg || 'Estoque ajustado com sucesso!', 'success');
+                document.getElementById('gestaoProdAjusteQtd').value = '0';
+                sincronizarPainel();
+              } else {
+                showToast(res ? res.msg : 'Erro ao ajustar estoque.', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .ajustarEstoque360(TOKEN_SESSAO, nome, qtd, 'AJUSTE_PAINEL_360');
+        }
+      });
     }
 
     // ========================================================

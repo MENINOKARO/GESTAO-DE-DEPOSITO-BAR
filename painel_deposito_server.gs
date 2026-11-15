@@ -117,6 +117,19 @@ function obterDadosPainel360() {
       }
     }
 
+    // 3.1 Leitura do Último Fechamento Fiscal para Governança e Alertas
+    let ultimoFechamentoFiscal = null;
+    const shFiscal = ss.getSheetByName('CAIXA_FISCAL');
+    if (shFiscal && shFiscal.getLastRow() > 1) {
+      const valFisc = shFiscal.getRange(shFiscal.getLastRow(), 5).getValue() || shFiscal.getRange(shFiscal.getLastRow(), 1).getValue();
+      if (valFisc) {
+        const d = valFisc instanceof Date ? valFisc : new Date(valFisc);
+        if (!isNaN(d.getTime())) {
+          ultimoFechamentoFiscal = d.toISOString();
+        }
+      }
+    }
+
     // 4. Leitura de PRODUTOS e ESTOQUE
     const produtos = [];
     const produtosCriticos = [];
@@ -394,6 +407,7 @@ function obterDadosPainel360() {
       ultimasVendas: ultimasVendas,
       produtosCriticos: produtosCriticos.slice(0, 15),
       topProdutos: topProdutos,
+      ultimoFechamentoFiscal: ultimoFechamentoFiscal,
       configs: configs
     };
 
@@ -2225,5 +2239,224 @@ function ajustarEstoque360(token, produtoNome, quantidade, motivo) {
   } catch (err) {
     console.error('Erro em ajustarEstoque360:', err);
     return { ok: false, msg: 'Erro ao ajustar estoque: ' + err.message };
+  }
+}
+
+/**
+ * Retorna dados estruturados de prévia de um relatório para exibição e geração de PDF.
+ */
+function obterPreviaRelatorio360(token, tipoRelatorio) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) {
+      return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tipo = String(tipoRelatorio || '').trim();
+
+    if (tipo === 'valoresEstoque') {
+      if (typeof gerarRelatorioEstoqueComValores === 'function') {
+        try { gerarRelatorioEstoqueComValores(); } catch(e) {}
+      }
+
+      const shProd = ss.getSheetByName('PRODUTOS');
+      const shEst = ss.getSheetByName('ESTOQUE');
+      const produtos = [];
+      let totalCusto = 0;
+      let totalVenda = 0;
+
+      const mapaEst = {};
+      if (shEst && shEst.getLastRow() > 1) {
+        const dEst = shEst.getRange(2, 1, shEst.getLastRow() - 1, 2).getValues();
+        dEst.forEach(r => {
+          const n = String(r[0] || '').trim().toUpperCase();
+          if (n) mapaEst[n] = Number(r[1]) || 0;
+        });
+      }
+
+      if (shProd && shProd.getLastRow() > 1) {
+        const dProd = shProd.getRange(2, 1, shProd.getLastRow() - 1, 8).getValues();
+        dProd.forEach(r => {
+          const nome = String(r[0] || '').trim();
+          if (!nome) return;
+          const preco = Number(r[4]) || 0;
+          const custo = Number(r[6]) || 0;
+          const qtd = mapaEst[nome.toUpperCase()] !== undefined ? mapaEst[nome.toUpperCase()] : (Number(r[7]) || 0);
+          const vCusto = qtd * custo;
+          const vVenda = qtd * preco;
+          totalCusto += vCusto;
+          totalVenda += vVenda;
+          produtos.push({
+            nome: nome,
+            categoria: String(r[1] || 'Geral'),
+            qtd: qtd,
+            custo: custo,
+            preco: preco,
+            totalCusto: vCusto,
+            totalVenda: vVenda,
+            lucroProjetado: vVenda - vCusto
+          });
+        });
+      }
+
+      produtos.sort((a, b) => b.totalVenda - a.totalVenda);
+
+      return {
+        ok: true,
+        tipo: 'valoresEstoque',
+        titulo: '📊 Relatório de Valores do Estoque',
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        resumo: {
+          totalItens: produtos.length,
+          valorEstoqueCusto: totalCusto,
+          valorEstoqueVenda: totalVenda,
+          lucroProjetadoTotal: totalVenda - totalCusto,
+          margemMediaGlobal: totalCusto > 0 ? ((totalVenda - totalCusto) / totalCusto) * 100 : 0
+        },
+        colunas: ['Produto', 'Categoria', 'Estoque', 'Custo Un.', 'Preço Venda', 'Total Custo', 'Total Venda', 'Lucro Proj.'],
+        linhas: produtos.slice(0, 50).map(p => [
+          p.nome, p.categoria, p.qtd + ' un',
+          'R$ ' + p.custo.toFixed(2).replace('.', ','),
+          'R$ ' + p.preco.toFixed(2).replace('.', ','),
+          'R$ ' + p.totalCusto.toFixed(2).replace('.', ','),
+          'R$ ' + p.totalVenda.toFixed(2).replace('.', ','),
+          'R$ ' + p.lucroProjetado.toFixed(2).replace('.', ',')
+        ]),
+        abaNome: 'RELATORIO_VALORES_ESTOQUE'
+      };
+    }
+
+    if (tipo === 'financeiroCompleto') {
+      if (typeof gerarRelatorioFinanceiroCompletoSilencioso === 'function') {
+        try { gerarRelatorioFinanceiroCompletoSilencioso(); } catch(e) {}
+      }
+
+      const shCaixa = ss.getSheetByName('CAIXA');
+      let entradas = 0;
+      let saidas = 0;
+      const ultimos = [];
+
+      if (shCaixa && shCaixa.getLastRow() > 1) {
+        const dCaixa = shCaixa.getRange(2, 1, shCaixa.getLastRow() - 1, 5).getValues();
+        for (let i = dCaixa.length - 1; i >= 0; i--) {
+          const r = dCaixa[i];
+          const rawData = r[0];
+          const d = rawData instanceof Date ? rawData : new Date(rawData);
+          const t = String(r[1] || '').trim().toUpperCase();
+          const v = Number(r[2]) || 0;
+          const pgto = String(r[3] || '');
+          const desc = String(r[4] || '');
+
+          if (t === 'ENTRADA') entradas += v;
+          if (t === 'SAIDA' || t === 'SAÍDA') saidas += v;
+
+          if (ultimos.length < 30 && !isNaN(d.getTime())) {
+            ultimos.push([
+              Utilities.formatDate(d, 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+              t,
+              'R$ ' + v.toFixed(2).replace('.', ','),
+              pgto,
+              desc
+            ]);
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        tipo: 'financeiroCompleto',
+        titulo: '💰 Relatório Financeiro Consolidado',
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        resumo: {
+          totalEntradas: entradas,
+          totalSaidas: saidas,
+          saldoConsolidado: entradas - saidas
+        },
+        colunas: ['Data / Hora', 'Tipo', 'Valor', 'Forma Pgto', 'Descrição'],
+        linhas: ultimos,
+        abaNome: 'RELATORIO_FINANCEIRO'
+      };
+    }
+
+    if (tipo === 'compras') {
+      if (typeof gerarRelatorioComprasSilencioso === 'function') {
+        try { gerarRelatorioComprasSilencioso(); } catch(e) {}
+      }
+      const shCompras = ss.getSheetByName('COMPRAS');
+      let totalCompras = 0;
+      const listaCompras = [];
+
+      if (shCompras && shCompras.getLastRow() > 1) {
+        const d = shCompras.getRange(2, 1, shCompras.getLastRow() - 1, Math.min(shCompras.getLastColumn(), 6)).getValues();
+        for (let i = d.length - 1; i >= 0; i--) {
+          const r = d[i];
+          const rawData = r[0];
+          const dt = rawData instanceof Date ? rawData : new Date(rawData);
+          const val = Number(r[3]) || Number(r[2]) || 0;
+          totalCompras += val;
+          if (listaCompras.length < 30) {
+            listaCompras.push([
+              !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Bahia', 'dd/MM/yyyy') : String(rawData || ''),
+              String(r[1] || ''),
+              'R$ ' + val.toFixed(2).replace('.', ','),
+              String(r[4] || ''),
+              String(r[5] || '')
+            ]);
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        tipo: 'compras',
+        titulo: '🛒 Relatório de Compras de Fornecedores',
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        resumo: {
+          totalRegistros: shCompras ? Math.max(0, shCompras.getLastRow() - 1) : 0,
+          valorTotalGasto: totalCompras
+        },
+        colunas: ['Data', 'Fornecedor / Item', 'Valor', 'Status', 'Nota Fiscal / Obs'],
+        linhas: listaCompras,
+        abaNome: 'RELATORIO_COMPRAS'
+      };
+    }
+
+    if (tipo === 'logs') {
+      const shLogs = ss.getSheetByName('LOGS') || ss.getSheetByName('AUDITORIA');
+      const ultimosLogs = [];
+      if (shLogs && shLogs.getLastRow() > 1) {
+        const d = shLogs.getRange(2, 1, shLogs.getLastRow() - 1, Math.min(shLogs.getLastColumn(), 5)).getValues();
+        for (let i = d.length - 1; i >= Math.max(0, d.length - 40); i--) {
+          const r = d[i];
+          const rawData = r[0];
+          const dt = rawData instanceof Date ? rawData : new Date(rawData);
+          ultimosLogs.push([
+            !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Bahia', 'dd/MM/yyyy HH:mm') : String(rawData || ''),
+            String(r[1] || ''),
+            String(r[2] || ''),
+            String(r[3] || '')
+          ]);
+        }
+      }
+
+      return {
+        ok: true,
+        tipo: 'logs',
+        titulo: '🧾 Relatório de Logs e Auditoria',
+        dataGeracao: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm'),
+        resumo: {
+          totalEventos: shLogs ? Math.max(0, shLogs.getLastRow() - 1) : 0
+        },
+        colunas: ['Data / Hora', 'Ação / Evento', 'Operador', 'Detalhes'],
+        linhas: ultimosLogs,
+        abaNome: 'RELATORIO_LOGS'
+      };
+    }
+
+    return { ok: false, msg: `Tipo de relatório "${tipo}" não suportado.` };
+  } catch(err) {
+    console.error('Erro em obterPreviaRelatorio360:', err);
+    return { ok: false, msg: 'Erro ao gerar prévia do relatório: ' + err.message };
   }
 }
