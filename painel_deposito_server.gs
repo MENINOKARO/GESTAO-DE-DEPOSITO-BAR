@@ -153,6 +153,10 @@ function obterDadosPainel360() {
         const preco = Number(r[4]) || 0;
         const minimo = Number(r[5]) || (mapaEstoque[chave] ? mapaEstoque[chave].minimo : 0);
         const custo = Number(r[6]) || 0;
+        const rawMargem = Number(r[7]) || (custo > 0 ? ((preco - custo) / custo) : 0);
+        const margemPct = rawMargem > 1 ? rawMargem : Number((rawMargem * 100).toFixed(1));
+        const precoSug = Number(r[8]) || (custo > 0 ? Number((custo * (1 + (margemPct / 100))).toFixed(2)) : preco);
+        const statusMargem = String(r[9] || (preco >= precoSug ? '✅ OK' : '🚨 BAIXA')).trim();
         const idProd = String(r[10] || (idx + 1)).trim();
 
         let qtd = 0;
@@ -182,7 +186,10 @@ function obterDadosPainel360() {
           custo: custo,
           minimo: minimo,
           estoque: qtd,
-          status: status
+          status: status,
+          margem: margemPct,
+          precoSugerido: precoSug,
+          statusMargem: statusMargem
         };
 
         produtos.push(prodItem);
@@ -2054,5 +2061,169 @@ function executarFuncaoPainelInteligente(token, nomeFuncao) {
   } catch (err) {
     console.error('Erro em executarFuncaoPainelInteligente:', err);
     return { ok: false, msg: 'Erro ao executar: ' + err.message };
+  }
+}
+
+/**
+ * Salva e atualiza dados do produto (Preço, Custo, Margem %, Estoque Mínimo, etc.)
+ * Exclusivo para perfis DONO e GERENTE. Operadores são estritamente bloqueados.
+ */
+function salvarDadosProduto360(token, payload) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) {
+      return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+    }
+
+    const perfil = String(caller.perfil || '').toUpperCase();
+    if (perfil !== 'DONO' && perfil !== 'GERENTE') {
+      return { ok: false, msg: 'Acesso negado: apenas o Dono e Gerente podem alterar valores e produtos.' };
+    }
+
+    if (!payload || (!payload.id && !payload.produto)) {
+      return { ok: false, msg: 'Dados do produto incompletos para atualização.' };
+    }
+
+    // Normalização numérica
+    const preco = Number(String(payload.preco || 0).replace(',', '.')) || 0;
+    const custo = Number(String(payload.custo || 0).replace(',', '.')) || 0;
+    const margem = Number(String(payload.margem || 0).replace(',', '.')) || 0;
+    const minimo = Number(payload.minimo) || 0;
+
+    const dadosEnvio = {
+      id: payload.id ? String(payload.id).trim() : null,
+      produto: String(payload.produto || '').trim(),
+      categoria: String(payload.categoria || 'Geral').trim(),
+      marca: String(payload.marca || '').trim(),
+      volume: String(payload.volume || '').trim(),
+      preco: preco,
+      custo: custo,
+      margem: margem,
+      minimo: minimo
+    };
+
+    let res = null;
+    if (typeof salvarProdutoNovoSistema === 'function') {
+      res = salvarProdutoNovoSistema(dadosEnvio);
+    } else {
+      // Fallback direto na planilha
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sh = ss.getSheetByName('PRODUTOS');
+      if (!sh) throw new Error('Aba PRODUTOS não encontrada.');
+      const data = sh.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][10] || '').trim() === String(dadosEnvio.id) || String(data[i][0] || '').trim().toUpperCase() === dadosEnvio.produto.toUpperCase()) {
+          const row = i + 1;
+          sh.getRange(row, 1).setValue(dadosEnvio.produto);
+          sh.getRange(row, 2).setValue(dadosEnvio.categoria);
+          sh.getRange(row, 3).setValue(dadosEnvio.marca);
+          sh.getRange(row, 4).setValue(dadosEnvio.volume);
+          sh.getRange(row, 5).setValue(preco);
+          sh.getRange(row, 6).setValue(minimo);
+          sh.getRange(row, 7).setValue(custo);
+          sh.getRange(row, 8).setFormula(`=IF(G${row}>0; (E${row}-G${row})/G${row}; 0)`);
+          sh.getRange(row, 9).setFormula(`=G${row}*(1+H${row})`);
+          sh.getRange(row, 10).setFormula(`=IF(E${row}>=I${row}; "✅ OK"; "🚨 BAIXA")`);
+          res = { ok: true, id: dadosEnvio.id };
+          break;
+        }
+      }
+    }
+
+    // Espelhamento atômico no Supabase
+    try {
+      if (typeof supabaseUpdate === 'function') {
+        const idNum = Number(String(dadosEnvio.id).replace(/\D/g, '')) || dadosEnvio.id;
+        supabaseUpdate('produtos', {
+          nome: dadosEnvio.produto,
+          categoria: dadosEnvio.categoria,
+          marca: dadosEnvio.marca,
+          volume: dadosEnvio.volume,
+          preco: preco,
+          custo: custo,
+          estoque_minimo: minimo,
+          atualizado_em: new Date().toISOString()
+        }, { id: idNum });
+      }
+    } catch (e) {
+      console.warn('Erro ao espelhar produto no Supabase:', e);
+    }
+
+    // Registro em Auditoria
+    if (typeof registrarAuditoria === 'function') {
+      try {
+        registrarAuditoria(caller.id, 'PRODUTO_ATUALIZADO', `Produto ${dadosEnvio.produto} (ID: ${dadosEnvio.id}) atualizado por ${caller.nome}. Preço: R$ ${preco.toFixed(2)}, Custo: R$ ${custo.toFixed(2)}, Margem: ${margem}%.`);
+      } catch (e) {}
+    }
+
+    return {
+      ok: true,
+      msg: `Produto "${dadosEnvio.produto}" e lucratividade atualizados com sucesso!`
+    };
+  } catch (err) {
+    console.error('Erro em salvarDadosProduto360:', err);
+    return { ok: false, msg: 'Erro ao salvar produto: ' + err.message };
+  }
+}
+
+/**
+ * Ajusta o saldo físico de estoque com auditoria.
+ * Exclusivo para perfis DONO e GERENTE.
+ */
+function ajustarEstoque360(token, produtoNome, quantidade, motivo) {
+  try {
+    const caller = obterUsuarioPorToken(token);
+    if (!caller) {
+      return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
+    }
+
+    const perfil = String(caller.perfil || '').toUpperCase();
+    if (perfil !== 'DONO' && perfil !== 'GERENTE') {
+      return { ok: false, msg: 'Acesso negado: apenas o Dono e Gerente podem ajustar estoque.' };
+    }
+
+    const qtd = Number(quantidade);
+    if (isNaN(qtd) || qtd === 0) {
+      return { ok: false, msg: 'Informe uma quantidade válida diferente de zero para ajuste.' };
+    }
+
+    if (typeof ajustarEstoque === 'function') {
+      const res = ajustarEstoque(produtoNome, qtd, motivo || 'AJUSTE_MANUAL_360');
+      if (res && res.ok === false) {
+        return res;
+      }
+    } else {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const shEstoque = ss.getSheetByName('ESTOQUE');
+      if (!shEstoque) throw new Error('Aba ESTOQUE não encontrada.');
+      const data = shEstoque.getDataRange().getValues();
+      let encontrado = false;
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0] || '').trim().toUpperCase() === String(produtoNome || '').trim().toUpperCase()) {
+          const row = i + 1;
+          const atual = Number(data[i][1]) || 0;
+          const novo = atual + qtd;
+          shEstoque.getRange(row, 2).setValue(novo);
+          encontrado = true;
+          break;
+        }
+      }
+      if (!encontrado) return { ok: false, msg: `Produto "${produtoNome}" não encontrado no estoque.` };
+    }
+
+    // Auditoria
+    if (typeof registrarAuditoria === 'function') {
+      try {
+        registrarAuditoria(caller.id, 'AJUSTE_ESTOQUE', `Ajuste manual em ${produtoNome}: ${qtd > 0 ? '+' : ''}${qtd} un (${motivo || 'Manual'}).`);
+      } catch (e) {}
+    }
+
+    return {
+      ok: true,
+      msg: `Estoque de "${produtoNome}" ajustado com sucesso!`
+    };
+  } catch (err) {
+    console.error('Erro em ajustarEstoque360:', err);
+    return { ok: false, msg: 'Erro ao ajustar estoque: ' + err.message };
   }
 }

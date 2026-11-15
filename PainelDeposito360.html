@@ -1970,6 +1970,7 @@
                 <th>Estoque Atual</th>
                 <th>Mínimo</th>
                 <th>Status</th>
+                <th style="text-align: center;">Ações</th>
               </tr>
             </thead>
             <tbody id="tabelaEstoqueCompleta">
@@ -2227,10 +2228,17 @@
           </div>
         </div>
 
-        <!-- Grupo 3: Estoque Financeiro -->
+        <!-- Grupo 3: Estoque Financeiro & Produtos -->
         <div class="pi-secao">
-          <div class="pi-secao-titulo">📦 Estoque Financeiro</div>
+          <div class="pi-secao-titulo">📦 Estoque Financeiro & Produtos</div>
           <div class="pi-grid">
+            <div class="pi-card" onclick="abrirModalGestaoProduto()">
+              <span class="pi-icon">🏷️</span>
+              <div class="pi-info">
+                <strong>Gestão de Produtos</strong>
+                <span>Cadastrar, precificar e ajustar margens</span>
+              </div>
+            </div>
             <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'atualizarEstoque')">
               <span class="pi-icon">🔄</span>
               <div class="pi-info">
@@ -2575,6 +2583,137 @@
           <span>✅</span> Quitar Comanda Integral
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GESTÃO DE PRODUTO & LUCRATIVIDADE -->
+  <div id="modalGestaoProduto" class="modal-backdrop" style="display: none;">
+    <div class="modal-content-comanda" style="max-width: 580px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      
+      <!-- Cabeçalho -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <div>
+          <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+            <span>🏷️</span> Gestão de Produto & Lucratividade
+          </h3>
+          <span style="font-size: 11px; color: var(--text-muted);">Edição cadastral, precificação inteligente e saldo</span>
+        </div>
+        <button type="button" class="btn-clear-cart" onclick="fecharModalGestaoProduto()">✕ Fechar</button>
+      </div>
+
+      <!-- Seletor de Produto Rápido -->
+      <div style="background: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+        <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">SELECIONE OU TROQUE O PRODUTO:</label>
+        <select id="modalGestaoSelectProduto" class="cart-select" onchange="trocarProdutoNoModal(this.value)">
+          <!-- Injetado dinamicamente -->
+        </select>
+        
+        <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+          <span style="font-size: 11px; color: var(--text-muted);">Código: <strong id="lblGestaoId" style="color: #38bdf8;">--</strong></span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: auto;">Estoque Atual: <strong id="lblGestaoEstoque" style="color: #fff;">-- un</strong></span>
+          <span id="lblGestaoStatusMargem" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; background: rgba(16,185,129,0.2); color: #34d399;">STATUS: OK</span>
+        </div>
+      </div>
+
+      <!-- Banner de Restrição para OPERADOR -->
+      <div id="bannerRestricaoOperador" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">
+        🔒 Modo Consulta: Alteração de preços, margens e cadastro é restrita a Gerentes e Donos.
+      </div>
+
+      <!-- Formulário de Edição -->
+      <form id="formGestaoProduto" onsubmit="event.preventDefault(); salvarGestaoProdutoModal();" style="display: flex; flex-direction: column; gap: 12px;">
+        <input type="hidden" id="gestaoProdId">
+
+        <!-- 1. Dados Básicos -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">NOME DO PRODUTO *</label>
+            <input type="text" id="gestaoProdNome" class="cart-input" required placeholder="Nome do produto">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">CATEGORIA</label>
+            <input type="text" id="gestaoProdCategoria" class="cart-input" list="datalistCategoriasProd" placeholder="Categoria">
+            <datalist id="datalistCategoriasProd"></datalist>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">MARCA</label>
+            <input type="text" id="gestaoProdMarca" class="cart-input" placeholder="ex: Ambev, Heineken">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">VOLUME / MEDIDA</label>
+            <input type="text" id="gestaoProdVolume" class="cart-input" placeholder="ex: 350ml, Litrinho, 1L">
+          </div>
+        </div>
+
+        <!-- 2. Precificação & Lucratividade Inteligente -->
+        <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 10px; padding: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #c084fc; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>💰</span> Precificação & Lucratividade Inteligente
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">CUSTO MÉDIO (R$)</label>
+              <input type="number" id="gestaoProdCusto" class="cart-input" step="0.01" min="0" placeholder="0.00" oninput="calcularLucratividadeModal('custo')">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 4px;">MARGEM LUCRO (%)</label>
+              <input type="number" id="gestaoProdMargem" class="cart-input" step="0.1" placeholder="0.0" oninput="calcularLucratividadeModal('margem')" style="font-weight: 700; color: #38bdf8;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: #34d399; display: block; margin-bottom: 4px;">PREÇO VENDA (R$)</label>
+              <input type="number" id="gestaoProdPreco" class="cart-input" step="0.01" min="0" placeholder="0.00" oninput="calcularLucratividadeModal('preco')" style="font-weight: 700; color: #34d399;">
+            </div>
+          </div>
+
+          <!-- Atalhos Rápidos de Margem -->
+          <div id="containerAtalhosMargem" style="margin-top: 8px;">
+            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">ATALHOS RÁPIDOS DE MARGEM:</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(30)">+30%</button>
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(40)">+40%</button>
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(50)">+50%</button>
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(60)">+60%</button>
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(80)">+80%</button>
+              <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px; background: rgba(56,189,248,0.15); border-color: #38bdf8; color: #38bdf8;" onclick="aplicarMargemRapida(100)">+100%</button>
+            </div>
+          </div>
+
+          <!-- Mostrador de Lucro Bruto Estimado -->
+          <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+            <span style="font-size: 12px; color: var(--text-muted);">Lucro Bruto Unitário:</span>
+            <span id="lblGestaoLucroBruto" style="font-size: 13px; font-weight: 700; color: #34d399;">R$ 0,00</span>
+          </div>
+        </div>
+
+        <!-- 3. Parâmetros de Estoque & Ajuste Físico -->
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">ESTOQUE MÍNIMO</label>
+            <input type="number" id="gestaoProdMinimo" class="cart-input" min="0" placeholder="0">
+          </div>
+          <div id="secaoAjusteEstoqueModal">
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">AJUSTE RÁPIDO (+ ou -)</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="number" id="gestaoProdAjusteQtd" class="cart-input" placeholder="Qtd" style="width: 80px;">
+              <button type="button" id="btnAplicarAjusteEstoque" class="btn-action" style="background: #3b82f6; border-color: #2563eb; color: #fff; font-size: 11px; white-space: nowrap; flex: 1;" onclick="executarAjusteEstoqueModal()">
+                📦 Ajustar Saldo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rodapé / Botões de Ação -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-action" onclick="fecharModalGestaoProduto()">Cancelar</button>
+          <button type="submit" id="btnSalvarGestaoProduto" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 20px;">
+            💾 Salvar Produto
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -4420,6 +4559,259 @@
     }
 
     // ========================================================
+    // 🏷️ GESTÃO DE PRODUTO & LUCRATIVIDADE MODAL
+    // ========================================================
+    function abrirModalGestaoProduto(idOuNome) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+
+      const prods = DADOS_SISTEMA.produtos;
+      const sel = document.getElementById('modalGestaoSelectProduto');
+      sel.innerHTML = prods.map(p => `<option value="${p.id}">${p.nome} - ${formatMoeda(p.preco)} (${p.estoque} un)</option>`).join('');
+
+      // Popula datalist de categorias
+      const cats = Array.from(new Set(prods.map(p => p.categoria).filter(Boolean))).sort();
+      const dl = document.getElementById('datalistCategoriasProd');
+      dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+
+      // Encontra produto inicial
+      let prod = null;
+      if (idOuNome) {
+        prod = prods.find(p => String(p.id) === String(idOuNome) || String(p.nome).toUpperCase() === String(idOuNome).toUpperCase());
+      }
+      if (!prod && prods.length > 0) {
+        prod = prods[0];
+      }
+
+      if (prod) {
+        sel.value = prod.id;
+        carregarDadosProdutoNoModal(prod);
+      }
+
+      // Validação de Permissão por Perfil (DONO e GERENTE alteram; OPERADOR somente leitura)
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      const podeEditar = (perfil === 'DONO' || perfil === 'GERENTE');
+
+      const inputsBloqueaveis = [
+        'gestaoProdNome', 'gestaoProdCategoria', 'gestaoProdMarca', 'gestaoProdVolume',
+        'gestaoProdCusto', 'gestaoProdMargem', 'gestaoProdPreco', 'gestaoProdMinimo', 'gestaoProdAjusteQtd'
+      ];
+      inputsBloqueaveis.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !podeEditar;
+      });
+
+      const btnSalvar = document.getElementById('btnSalvarGestaoProduto');
+      const btnAjustar = document.getElementById('btnAplicarAjusteEstoque');
+      const bannerOperador = document.getElementById('bannerRestricaoOperador');
+      const atalhosMargem = document.getElementById('containerAtalhosMargem');
+
+      if (!podeEditar) {
+        if (btnSalvar) btnSalvar.style.display = 'none';
+        if (btnAjustar) btnAjustar.style.display = 'none';
+        if (bannerOperador) bannerOperador.style.display = 'block';
+        if (atalhosMargem) atalhosMargem.style.display = 'none';
+      } else {
+        if (btnSalvar) btnSalvar.style.display = 'inline-flex';
+        if (btnAjustar) btnAjustar.style.display = 'inline-flex';
+        if (bannerOperador) bannerOperador.style.display = 'none';
+        if (atalhosMargem) atalhosMargem.style.display = 'block';
+      }
+
+      document.getElementById('modalGestaoProduto').style.display = 'flex';
+    }
+
+    function trocarProdutoNoModal(id) {
+      if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
+      const prod = DADOS_SISTEMA.produtos.find(p => String(p.id) === String(id));
+      if (prod) {
+        carregarDadosProdutoNoModal(prod);
+      }
+    }
+
+    function carregarDadosProdutoNoModal(p) {
+      document.getElementById('gestaoProdId').value = p.id || '';
+      document.getElementById('gestaoProdNome').value = p.nome || '';
+      document.getElementById('gestaoProdCategoria').value = p.categoria || '';
+      document.getElementById('gestaoProdMarca').value = p.marca || '';
+      document.getElementById('gestaoProdVolume').value = p.volume || '';
+
+      const custo = Number(p.custo) || 0;
+      const preco = Number(p.preco) || 0;
+      const margem = Number(p.margem) || (custo > 0 ? Number((((preco - custo) / custo) * 100).toFixed(1)) : 0);
+
+      document.getElementById('gestaoProdCusto').value = custo.toFixed(2);
+      document.getElementById('gestaoProdMargem').value = margem.toFixed(1);
+      document.getElementById('gestaoProdPreco').value = preco.toFixed(2);
+      document.getElementById('gestaoProdMinimo').value = p.minimo || 0;
+      document.getElementById('gestaoProdAjusteQtd').value = '';
+
+      document.getElementById('lblGestaoId').innerText = p.id || '--';
+      document.getElementById('lblGestaoEstoque').innerText = (p.estoque || 0) + ' un';
+
+      const lucro = preco - custo;
+      document.getElementById('lblGestaoLucroBruto').innerText = formatMoeda(lucro);
+
+      const statusBadge = document.getElementById('lblGestaoStatusMargem');
+      if (p.statusMargem === '🚨 BAIXA' || preco < custo) {
+        statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusBadge.style.color = '#f87171';
+        statusBadge.innerText = 'MARGEM BAIXA';
+      } else {
+        statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+        statusBadge.style.color = '#34d399';
+        statusBadge.innerText = 'MARGEM OK';
+      }
+    }
+
+    function fecharModalGestaoProduto() {
+      document.getElementById('modalGestaoProduto').style.display = 'none';
+    }
+
+    function calcularLucratividadeModal(origem) {
+      const custo = Number(document.getElementById('gestaoProdCusto').value) || 0;
+      let margem = Number(document.getElementById('gestaoProdMargem').value) || 0;
+      let preco = Number(document.getElementById('gestaoProdPreco').value) || 0;
+
+      if (origem === 'margem') {
+        if (custo > 0) {
+          preco = Number((custo * (1 + (margem / 100))).toFixed(2));
+          document.getElementById('gestaoProdPreco').value = preco.toFixed(2);
+        }
+      } else if (origem === 'preco') {
+        if (custo > 0) {
+          margem = Number((((preco - custo) / custo) * 100).toFixed(1));
+          document.getElementById('gestaoProdMargem').value = margem.toFixed(1);
+        }
+      } else if (origem === 'custo') {
+        if (margem > 0) {
+          preco = Number((custo * (1 + (margem / 100))).toFixed(2));
+          document.getElementById('gestaoProdPreco').value = preco.toFixed(2);
+        } else if (preco > 0 && custo > 0) {
+          margem = Number((((preco - custo) / custo) * 100).toFixed(1));
+          document.getElementById('gestaoProdMargem').value = margem.toFixed(1);
+        }
+      }
+
+      const lucro = preco - custo;
+      document.getElementById('lblGestaoLucroBruto').innerText = formatMoeda(lucro);
+
+      const statusBadge = document.getElementById('lblGestaoStatusMargem');
+      if (lucro <= 0 || (custo > 0 && margem < 15)) {
+        statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusBadge.style.color = '#f87171';
+        statusBadge.innerText = lucro < 0 ? 'PREJUÍZO' : 'MARGEM BAIXA';
+      } else {
+        statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+        statusBadge.style.color = '#34d399';
+        statusBadge.innerText = 'MARGEM OK';
+      }
+    }
+
+    function aplicarMargemRapida(pct) {
+      document.getElementById('gestaoProdMargem').value = pct;
+      calcularLucratividadeModal('margem');
+    }
+
+    function salvarGestaoProdutoModal() {
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      if (perfil !== 'DONO' && perfil !== 'GERENTE') {
+        showToast('Apenas Gerentes e Donos podem salvar alterações em produtos!', 'error');
+        return;
+      }
+
+      const id = document.getElementById('gestaoProdId').value;
+      const nome = document.getElementById('gestaoProdNome').value.trim();
+      const categoria = document.getElementById('gestaoProdCategoria').value.trim();
+      const marca = document.getElementById('gestaoProdMarca').value.trim();
+      const volume = document.getElementById('gestaoProdVolume').value.trim();
+      const custo = Number(document.getElementById('gestaoProdCusto').value) || 0;
+      const margem = Number(document.getElementById('gestaoProdMargem').value) || 0;
+      const preco = Number(document.getElementById('gestaoProdPreco').value) || 0;
+      const minimo = Number(document.getElementById('gestaoProdMinimo').value) || 0;
+
+      if (!nome) {
+        showToast('Informe o nome do produto!', 'error');
+        return;
+      }
+
+      const payload = {
+        id: id,
+        produto: nome,
+        categoria: categoria,
+        marca: marca,
+        volume: volume,
+        custo: custo,
+        margem: margem,
+        preco: preco,
+        minimo: minimo
+      };
+
+      const btn = document.getElementById('btnSalvarGestaoProduto');
+      const txtAntigo = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = '⏳ Salvando...';
+      mostrarLoader('Salvando produto e atualizando lucratividade...');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          btn.disabled = false;
+          btn.innerText = txtAntigo;
+          if (res && res.ok) {
+            showToast(res.msg || 'Produto atualizado com sucesso!', 'success');
+            fecharModalGestaoProduto();
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.msg : 'Erro ao salvar produto.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          btn.disabled = false;
+          btn.innerText = txtAntigo;
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .salvarDadosProduto360(TOKEN_SESSAO, payload);
+    }
+
+    function executarAjusteEstoqueModal() {
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      if (perfil !== 'DONO' && perfil !== 'GERENTE') {
+        showToast('Apenas Gerentes e Donos podem ajustar estoque!', 'error');
+        return;
+      }
+
+      const nome = document.getElementById('gestaoProdNome').value.trim();
+      const qtd = Number(document.getElementById('gestaoProdAjusteQtd').value);
+
+      if (!nome || isNaN(qtd) || qtd === 0) {
+        showToast('Informe uma quantidade válida diferente de zero para ajustar!', 'warning');
+        return;
+      }
+
+      const operacao = qtd > 0 ? `adicionar +${qtd}` : `remover ${qtd}`;
+      if (!confirm(`Confirma ${operacao} unidades no estoque de "${nome}"?`)) return;
+
+      mostrarLoader(`Ajustando estoque de ${nome}...`);
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.ok) {
+            showToast(res.msg || 'Estoque ajustado com sucesso!', 'success');
+            document.getElementById('gestaoProdAjusteQtd').value = '';
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.msg : 'Erro ao ajustar estoque.', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .ajustarEstoque360(TOKEN_SESSAO, nome, qtd, 'AJUSTE_PAINEL_360');
+    }
+
+    // ========================================================
     // TABELA ESTOQUE
     // ========================================================
     function renderizarTabelaEstoque() {
@@ -4448,7 +4840,7 @@
       });
 
       if (filtrados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">Nenhum produto encontrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:30px;">Nenhum produto encontrado.</td></tr>`;
         return;
       }
 
@@ -4461,7 +4853,7 @@
         }
 
         return `
-          <tr>
+          <tr style="cursor: pointer;" onclick="abrirModalGestaoProduto('${p.id}')" title="Clique para ver detalhes e ajustar produto">
             <td><code>${p.id}</code></td>
             <td><strong>${p.nome}</strong></td>
             <td>${p.categoria}</td>
@@ -4470,6 +4862,11 @@
             <td style="font-weight:700;">${p.estoque} un</td>
             <td>${p.minimo} un</td>
             <td>${badge}</td>
+            <td style="text-align: center;">
+              <button type="button" class="btn-action" style="padding: 4px 8px; font-size: 11px; background: #3b82f6; border-color: #2563eb; color: #fff;" onclick="event.stopPropagation(); abrirModalGestaoProduto('${p.id}')">
+                ✏️ Ajustar
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
