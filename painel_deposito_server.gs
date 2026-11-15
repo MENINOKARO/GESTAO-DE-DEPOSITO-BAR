@@ -1933,67 +1933,25 @@ function executarFuncaoPainelInteligente(token, nomeFuncao) {
 
     switch (func) {
       case 'fecharCaixaDia': {
-        let fechamento = ss.getSheetByName('CAIXA_FECHAMENTO');
-        if (!fechamento) {
-          fechamento = ss.insertSheet('CAIXA_FECHAMENTO');
-          fechamento.getRange('A1:F1').setValues([[
-            'Data', 'Entradas', 'Saídas', 'Saldo', 'Status', 'Fechado em'
-          ]]);
-        }
-        let r = typeof calcularSaldoHoje === 'function' ? calcularSaldoHoje() : { entrada: 0, saida: 0, saldo: 0 };
-        let entrada = 0, saida = 0, saldo = 0;
-        if (typeof r === 'number') {
-          saldo = Number(r) || 0;
-        } else if (typeof r === 'object' && r !== null) {
-          entrada = Number(r.entrada) || 0;
-          saida = Number(r.saida) || 0;
-          saldo = Number(r.saldo) || (entrada - saida);
-        }
-        let status = saldo < 0 ? 'NEGATIVO' : (saldo > 0 ? 'POSITIVO' : 'OK');
-        fechamento.appendRow([new Date(), entrada, saida, saldo, status, new Date()]);
-
-        try {
-          if (typeof inserirLinhaSeparadoraCaixa === 'function') {
-            inserirLinhaSeparadoraCaixa('CONFERÊNCIA DE CAIXA', saldo);
+        if (typeof fecharCaixaDia === 'function') {
+          const res = fecharCaixaDia(true);
+          if (typeof registrarAuditoria === 'function') {
+            try { registrarAuditoria(caller.id, 'CONFERENCIA_CAIXA', `Saldo conferido: R$ ${(res.saldo || 0).toFixed(2)}`); } catch(e) {}
           }
-        } catch(e) {}
-        try {
-          if (typeof formatarLinhaFechamentoCaixa === 'function') {
-            formatarLinhaFechamentoCaixa(fechamento, fechamento.getLastRow(), 'CONFERENCIA');
-          }
-        } catch(e) {}
-
-        if (typeof registrarAuditoria === 'function') {
-          try { registrarAuditoria(caller.id, 'CONFERENCIA_CAIXA', `Saldo conferido: R$ ${saldo.toFixed(2)}`); } catch(e) {}
+          return res;
         }
-
-        return {
-          ok: true,
-          msg: `Conferência de Caixa registrada! Entradas: R$ ${entrada.toFixed(2).replace('.', ',')}, Saídas: R$ ${saida.toFixed(2).replace('.', ',')}, Saldo Atual: R$ ${saldo.toFixed(2).replace('.', ',')}.`
-        };
+        return { ok: false, msg: 'Função de conferência de caixa não encontrada.' };
       }
 
       case 'fecharFiscalDia': {
-        let fiscal = ss.getSheetByName('CAIXA_FISCAL');
-        if (!fiscal) {
-          fiscal = ss.insertSheet('CAIXA_FISCAL');
-          fiscal.getRange('A1:E1').setValues([[
-            'Data Referência', 'Entradas', 'Saídas', 'Saldo', 'Fechado em'
-          ]]);
+        if (typeof fecharFiscalDia === 'function') {
+          const res = fecharFiscalDia(true);
+          if (typeof registrarAuditoria === 'function') {
+            try { registrarAuditoria(caller.id, 'FECHAMENTO_FISCAL', `Fechamento fiscal registrado. Saldo: R$ ${(res.saldo || 0).toFixed(2)}`); } catch(e) {}
+          }
+          return res;
         }
-        let r = typeof calcularSaldoHoje === 'function' ? calcularSaldoHoje() : { entrada: 0, saida: 0, saldo: 0 };
-        let entrada = Number(r.entrada) || 0;
-        let saida = Number(r.saida) || 0;
-        let saldo = Number(r.saldo) || (entrada - saida);
-
-        fiscal.appendRow([new Date(), entrada, saida, saldo, new Date()]);
-        if (typeof registrarAuditoria === 'function') {
-          try { registrarAuditoria(caller.id, 'FECHAMENTO_FISCAL', `Fechamento fiscal registrado. Saldo: R$ ${saldo.toFixed(2)}`); } catch(e) {}
-        }
-        return {
-          ok: true,
-          msg: `Fechamento Fiscal do dia registrado com sucesso na aba CAIXA_FISCAL!`
-        };
+        return { ok: false, msg: 'Função de fechamento fiscal não encontrada.' };
       }
 
       case 'fazerBackupSistema': {

@@ -2394,73 +2394,63 @@
     function abrirCaixaOpcoes(){
 
       const html = `
-        <div style="text-align:center;font-family:Arial">
+        <div style="text-align:center;font-family:Arial;padding:12px;">
 
-          <p>Escolha a opção:</p>
+          <p style="font-size:15px;font-weight:bold;color:#0f172a;margin-bottom:16px;">Escolha a operação de caixa:</p>
 
-          <button onclick="run('conf')">
-            📋 Conferência
+          <button onclick="run('conf')" style="width:90%;padding:12px;margin:6px;font-size:14px;background:#0f172a;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+            📋 Conferência de Caixa
           </button><br><br>
 
-          <button onclick="run('fech')">
-            🔒 Fechamento
+          <button onclick="run('fech')" style="width:90%;padding:12px;margin:6px;font-size:14px;background:#020617;color:#38bdf8;border:1px solid #38bdf8;border-radius:8px;cursor:pointer;font-weight:bold;">
+            🔒 Fechamento Fiscal
           </button>
+
+          <div id="statusCaixaMsg" style="margin-top:16px;font-size:13px;color:#64748b;"></div>
 
           <script>
             function run(tipo){
+              var opc = tipo === 'fech' ? 'Fechamento Fiscal' : 'Conferência de Caixa';
+              if (!confirm('Deseja realmente executar "' + opc + '" agora?')) return;
 
-              google.script.run.withSuccessHandler(()=>{
-                google.script.host.close();
-              }).executarCaixa(tipo);
+              document.getElementById('statusCaixaMsg').innerText = '⏳ Processando ' + opc + '...';
 
+              google.script.run
+                .withSuccessHandler(function(res){
+                  var msg = (res && res.msg) ? res.msg : 'Operação realizada com sucesso!';
+                  alert(msg);
+                  google.script.host.close();
+                })
+                .withFailureHandler(function(err){
+                  alert('❌ Erro ao executar: ' + err.message);
+                  document.getElementById('statusCaixaMsg').innerText = 'Erro: ' + err.message;
+                })
+                .executarCaixa(tipo);
             }
           </script>
-
-          <style>
-            button{
-              width:90%;
-              padding:12px;
-              margin:6px;
-              font-size:14px;
-              background:#020617;
-              color:white;
-              border:none;
-              border-radius:8px;
-              cursor:pointer;
-            }
-          </style>
 
         </div>
       `;
 
-      abrirPopup('💰 Caixa', html, 350, 300);
+      abrirPopup('💰 Caixa', html, 360, 320);
     }
+
     function executarCaixa(tipo){
-
       if(tipo === 'fech'){
-
         if(typeof fecharFiscalDia === 'function'){
-          fecharFiscalDia();
-          return;
+          return fecharFiscalDia(true);
         }
-
-        SpreadsheetApp.getUi().alert(
-          '⚠️ Função de fechamento não encontrada.'
-        );
+        return { ok: false, msg: '⚠️ Função de fechamento fiscal não encontrada.' };
       }
 
       if(tipo === 'conf'){
-
         if(typeof fecharCaixaDia === 'function'){
-          fecharCaixaDia();
-          return;
+          return fecharCaixaDia(true);
         }
-
-        SpreadsheetApp.getUi().alert(
-          '⚠️ Função de conferência não encontrada.'
-        );
+        return { ok: false, msg: '⚠️ Função de conferência não encontrada.' };
       }
 
+      return { ok: false, msg: 'Opção desconhecida: ' + tipo };
     }
 
 // ===============================
@@ -2886,14 +2876,37 @@
 
     return saldo;
   }
-  function fecharCaixaDia(){
+  // Helper utilitário robusto para conversão de datas (suporta Date, ISO, BR dd/MM/yyyy HH:mm:ss)
+  function converterParaDataValida(val) {
+    if (!val) return null;
+    if (val instanceof Date && !isNaN(val.getTime())) return val;
+    const str = String(val).trim();
+    if (str.startsWith('---')) return null; // Linha separadora
+    const matchBr = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (matchBr) {
+      const dia = parseInt(matchBr[1], 10);
+      const mes = parseInt(matchBr[2], 10) - 1;
+      const ano = parseInt(matchBr[3], 10);
+      const h = matchBr[4] ? parseInt(matchBr[4], 10) : 0;
+      const m = matchBr[5] ? parseInt(matchBr[5], 10) : 0;
+      const s = matchBr[6] ? parseInt(matchBr[6], 10) : 0;
+      const d = new Date(ano, mes, dia, h, m, s);
+      if (!isNaN(d.getTime())) return d;
+    }
+    const dIso = new Date(str);
+    if (!isNaN(dIso.getTime())) return dIso;
+    return null;
+  }
 
+  function fecharCaixaDia(ignorarUi = false){
     const ss = SpreadsheetApp.getActive();
-    const ui = SpreadsheetApp.getUi();
+    let ui = null;
+    if (!ignorarUi) {
+      try { ui = SpreadsheetApp.getUi(); } catch(e) { ui = null; }
+    }
 
     // Cria aba se não existir
     let fechamento = ss.getSheetByName('CAIXA_FECHAMENTO');
-
     if(!fechamento){
       fechamento = ss.insertSheet('CAIXA_FECHAMENTO');
       fechamento.getRange('A1:F1').setValues([[
@@ -2901,103 +2914,89 @@
       ]]);
     }
 
-
-    // =========================
-    // NORMALIZA SALDO
-    // =========================
-
     let r = calcularSaldoHoje();
-
     let entrada = 0;
     let saida   = 0;
     let saldo   = 0;
 
-
-    // Caso antigo (retorna número)
     if(typeof r === 'number'){
-
       saldo = Number(r) || 0;
-
-    }
-    // Caso novo (retorna objeto)
-    else if(typeof r === 'object' && r !== null){
-
+    } else if(typeof r === 'object' && r !== null){
       entrada = Number(r.entrada) || 0;
       saida   = Number(r.saida)   || 0;
       saldo   = Number(r.saldo)   || 0;
-
     }
 
-
-    // =========================
-    // STATUS
-    // =========================
-
     let status = 'OK';
-
     if(saldo < 0) status = 'NEGATIVO';
     if(saldo > 0) status = 'POSITIVO';
 
+    if(ui && !ignorarUi){
+      const resp = ui.alert(
+        'Fechamento de Caixa',
+        `Resumo do caixa neste momento:\n\n` +
+        `Entradas: R$ ${entrada.toFixed(2).replace('.', ',')}\n` +
+        `Saídas: R$ ${saida.toFixed(2).replace('.', ',')}\n` +
+        `Saldo: R$ ${saldo.toFixed(2).replace('.', ',')}\n\n` +
+        `Deseja registrar esta conferência?`,
+        ui.ButtonSet.YES_NO
+      );
+      if(resp !== ui.Button.YES) {
+        return { ok: false, msg: 'Conferência de caixa cancelada.' };
+      }
+    }
 
-    // =========================
-    // POPUP
-    // =========================
-
-    const resp = ui.alert(
-      'Fechamento de Caixa',
-
-      `Resumo do caixa neste momento:\n\n` +
-      `Entradas: R$ ${entrada.toFixed(2)}\n` +
-      `Saídas: R$ ${saida.toFixed(2)}\n` +
-      `Saldo: ${formatarMoeda(saldo)}\n\n` +
-      `Deseja registrar esta conferência?`,
-
-      ui.ButtonSet.YES_NO
-    );
-
-
-    if(resp !== ui.Button.YES) return;
-
-
-    // =========================
-    // SALVAR
-    // =========================
-
+    const agora = new Date();
     fechamento.appendRow([
-      new Date(),
+      agora,
       entrada,
       saida,
       saldo,
       status,
-      new Date()
+      agora
     ]);
 
-
-    inserirLinhaSeparadoraCaixa(
-      'CONFERÊNCIA DE CAIXA',
-      saldo
-    );
-
+    try {
+      inserirLinhaSeparadoraCaixa('CONFERÊNCIA DE CAIXA', saldo);
+    } catch(e) {
+      console.warn('Erro ao inserir linha separadora:', e);
+    }
 
     const row = fechamento.getLastRow();
+    try {
+      formatarLinhaFechamentoCaixa(fechamento, row, 'CONFERENCIA');
+    } catch(e) {
+      console.warn('Erro ao formatar linha:', e);
+    }
 
+    try {
+      bloquearEdicaoAposFechamento();
+    } catch(e) {
+      console.warn('Erro ao bloquear edição pós-fechamento:', e);
+    }
 
-    formatarLinhaFechamentoCaixa(
-      fechamento,
-      row,
-      'CONFERENCIA'
-    );
+    const msgSucesso = `✅ Conferência de caixa registrada com sucesso! Entradas: R$ ${entrada.toFixed(2).replace('.', ',')} | Saídas: R$ ${saida.toFixed(2).replace('.', ',')} | Saldo: R$ ${saldo.toFixed(2).replace('.', ',')}`;
 
+    if(ui && !ignorarUi){
+      ui.alert(msgSucesso);
+    }
 
-    bloquearEdicaoAposFechamento();
-
-
-    ui.alert('✅ Conferência de caixa registrada com sucesso.');
-
+    return {
+      ok: true,
+      sucesso: true,
+      entrada: entrada,
+      saida: saida,
+      saldo: saldo,
+      msg: msgSucesso
+    };
   }
-  function fecharFiscalDia(){
+
+  function fecharFiscalDia(ignorarUi = false){
     const ss = SpreadsheetApp.getActive();
-    const ui = SpreadsheetApp.getUi();
+    let ui = null;
+    if (!ignorarUi) {
+      try { ui = SpreadsheetApp.getUi(); } catch(e) { ui = null; }
+    }
 
     let fiscal = ss.getSheetByName('CAIXA_FISCAL');
     if(!fiscal){
@@ -3007,80 +3006,162 @@
       ]]);
     }
 
-    const cx = ss.getSheetByName('CAIXA').getDataRange().getValues();
+    const shCaixa = ss.getSheetByName('CAIXA');
+    if (!shCaixa) {
+      return { ok: false, msg: 'Aba CAIXA não encontrada no sistema.' };
+    }
+
+    const cx = shCaixa.getDataRange().getValues();
     const dadosFiscal = fiscal.getDataRange().getValues();
 
-    // 🔑 último fechamento fiscal REAL
+    // 🔑 Obtém a data/hora do último fechamento fiscal registrado
     let ultimoFechamento = null;
-    if(dadosFiscal.length > 1){
-      ultimoFechamento = new Date(
-        dadosFiscal[dadosFiscal.length - 1][4]
-      );
+    for (let i = dadosFiscal.length - 1; i >= 1; i--) {
+      const val = dadosFiscal[i][4] || dadosFiscal[i][0];
+      const d = converterParaDataValida(val);
+      if (d) {
+        ultimoFechamento = d;
+        break;
+      }
     }
 
     let entrada = 0;
     let saida = 0;
+    let qtdMovimentos = 0;
 
-    cx.forEach((c,i)=>{
-      if(i === 0) return;
+    cx.forEach((c, i) => {
+      if (i === 0) return;
 
-      const dataMov = c[0];
+      const dataMov = converterParaDataValida(c[0]);
+      if (!dataMov) return; // ignora linhas sem data válida ou separadores
 
-      // 🔒 ignora linhas sem data válida (separadores)
-      if(!(dataMov instanceof Date)) return;
+      // Se houver fechamento fiscal anterior, considera movimentos após ele
+      if (ultimoFechamento && dataMov <= ultimoFechamento) return;
 
-      // 🔥 só considera após último fechamento fiscal
-      if(ultimoFechamento && dataMov <= ultimoFechamento) return;
+      const tipo = String(c[1] || '').trim().toUpperCase();
+      const val = Number(c[2]) || 0;
 
-      c[1] === 'Entrada'
-        ? entrada += Number(c[2])
-        : saida += Number(c[2]);
+      if (tipo === 'ENTRADA') {
+        entrada += val;
+        qtdMovimentos++;
+      } else if (tipo === 'SAIDA' || tipo === 'SAÍDA') {
+        saida += val;
+        qtdMovimentos++;
+      }
     });
+
+    // Se não encontrou novos movimentos estritamente após o timestamp do último fechamento,
+    // consolida os lançamentos de HOJE para fechar o fiscal da data
+    if (qtdMovimentos === 0) {
+      const hojeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
+      cx.forEach((c, i) => {
+        if (i === 0) return;
+        const dataMov = converterParaDataValida(c[0]);
+        if (!dataMov) return;
+        const dStr = Utilities.formatDate(dataMov, Session.getScriptTimeZone(), 'yyyyMMdd');
+        if (dStr === hojeStr) {
+          const tipo = String(c[1] || '').trim().toUpperCase();
+          const val = Number(c[2]) || 0;
+          if (tipo === 'ENTRADA') {
+            entrada += val;
+            qtdMovimentos++;
+          } else if (tipo === 'SAIDA' || tipo === 'SAÍDA') {
+            saida += val;
+            qtdMovimentos++;
+          }
+        }
+      });
+    }
 
     const saldo = entrada - saida;
 
-    if(entrada === 0 && saida === 0){
-      ui.alert('Nenhuma movimentação nova desde o último fechamento fiscal.');
-      return;
+    if(ui && !ignorarUi){
+      const resp = ui.alert(
+        '📑 Fechamento Fiscal',
+        `Resumo do Fechamento Fiscal:\n\n` +
+        `Movimentações computadas: ${qtdMovimentos}\n` +
+        `Entradas: R$ ${entrada.toFixed(2).replace('.', ',')}\n` +
+        `Saídas: R$ ${saida.toFixed(2).replace('.', ',')}\n` +
+        `Saldo Fiscal: R$ ${saldo.toFixed(2).replace('.', ',')}\n\n` +
+        `Confirmar registro do fechamento fiscal agora?`,
+        ui.ButtonSet.YES_NO
+      );
+      if(resp !== ui.Button.YES) {
+        return { ok: false, msg: 'Fechamento fiscal cancelado.' };
+      }
     }
 
-    const resp = ui.alert(
-      'Fechamento Fiscal',
-      `Resumo desde o último fechamento fiscal:\n\n` +
-      `Entradas: R$ ${entrada.toFixed(2)}\n` +
-      `Saídas: R$ ${saida.toFixed(2)}\n` +
-      `Saldo: ${formatarMoeda(saldo)}\n\n` +
-      `Confirmar fechamento fiscal?`,
-      ui.ButtonSet.YES_NO
-    );
+    const agora = new Date();
 
-    if(resp !== ui.Button.YES) return;
-
+    // 1. Grava na aba CAIXA_FISCAL
     fiscal.appendRow([
-      new Date(),
+      agora,
       entrada,
       saida,
       saldo,
-      new Date()
+      agora
     ]);
-
-    inserirLinhaSeparadoraCaixa(
-      'FECHAMENTO DE CAIXA FISCAL',
-      saldo
-    );
 
     const r = fiscal.getLastRow();
 
-    // 🎨 visual padrão de fechamento fiscal
-    formatarLinhaFechamentoCaixa(
-      fiscal,
-      r,
-      'FISCAL'
-    );
+    // 2. Insere a linha separadora na aba CAIXA
+    try {
+      inserirLinhaSeparadoraCaixa(
+        'FECHAMENTO DE CAIXA FISCAL',
+        saldo
+      );
+    } catch(e) {
+      console.warn('Erro ao inserir separador no caixa:', e);
+    }
 
-    bloquearEdicaoAposFechamento();
+    // 3. Formata visualmente a linha no CAIXA_FISCAL
+    try {
+      formatarLinhaFechamentoCaixa(
+        fiscal,
+        r,
+        'FISCAL'
+      );
+    } catch(e) {
+      console.warn('Erro ao formatar linha fiscal:', e);
+    }
 
-    ui.alert('📑 Fechamento fiscal realizado com sucesso.');
+    // 4. Bloqueia edições anteriores de forma segura
+    try {
+      bloquearEdicaoAposFechamento();
+    } catch(e) {
+      console.warn('Erro ao bloquear edição pós-fechamento:', e);
+    }
+
+    // 5. Espelha no Supabase (se configurado)
+    try {
+      if (typeof supabaseInsert === 'function') {
+        supabaseInsert('caixa', {
+          tipo: 'FECHAMENTO_FISCAL',
+          valor: saldo,
+          forma_pagamento: 'Fechamento',
+          descricao: `Fechamento Fiscal - Movimentos: ${qtdMovimentos} | Entradas: R$ ${entrada.toFixed(2)} | Saídas: R$ ${saida.toFixed(2)} | Saldo: R$ ${saldo.toFixed(2)}`,
+          origem: 'Fiscal'
+        });
+      }
+    } catch(e) {
+      console.warn('Erro ao espelhar fechamento fiscal no Supabase:', e);
+    }
+
+    const msgSucesso = `📑 Fechamento Fiscal registrado com sucesso na aba CAIXA_FISCAL!\nMovimentações: ${qtdMovimentos} | Entradas: R$ ${entrada.toFixed(2).replace('.', ',')} | Saídas: R$ ${saida.toFixed(2).replace('.', ',')} | Saldo: R$ ${saldo.toFixed(2).replace('.', ',')}`;
+
+    if(ui && !ignorarUi){
+      ui.alert(msgSucesso);
+    }
+
+    return {
+      ok: true,
+      sucesso: true,
+      entrada: entrada,
+      saida: saida,
+      saldo: saldo,
+      qtdMovimentos: qtdMovimentos,
+      msg: msgSucesso
+    };
   }
   function inserirLinhaSeparadoraCaixa(texto, valorPeriodo){
       const cx = SpreadsheetApp.getActive().getSheetByName('CAIXA');
@@ -3110,7 +3191,9 @@
       }
   }
   function formatarLinhaFechamentoCaixa(sh, row, tipo = 'CONFERENCIA'){
-    const range = sh.getRange(row, 1, 1, sh.getLastColumn());
+    if (!sh || row < 2) return;
+    const lastCol = sh.getLastColumn();
+    const range = sh.getRange(row, 1, 1, lastCol);
 
     // 🎨 cores padrão
     let bg = '#0f172a'; // azul escuro elegante
@@ -3128,58 +3211,74 @@
 
     // 📅 datas reais
     sh.getRange(row, 1).setNumberFormat('dd/MM/yyyy');
-    sh.getRange(row, 6).setNumberFormat('dd/MM/yyyy HH:mm');
+    if (tipo === 'FISCAL') {
+      sh.getRange(row, 5).setNumberFormat('dd/MM/yyyy HH:mm');
+    } else {
+      if (lastCol >= 6) {
+        sh.getRange(row, 6).setNumberFormat('dd/MM/yyyy HH:mm');
+      }
+    }
 
     // 💰 valores
     sh.getRange(row, 2, 1, 3)
       .setNumberFormat('R$ #,##0.00');
   }
   function bloquearEdicaoAposFechamento(){
-    const ss = SpreadsheetApp.getActive();
-    const limite = getUltimoFechamentoFiscal();
-    if(!limite) return;
+    try {
+      const ss = SpreadsheetApp.getActive();
+      const limite = getUltimoFechamentoFiscal();
+      if(!limite) return;
 
-    ['CAIXA','VENDAS','COMPRAS'].forEach(nome=>{
-      const sh = ss.getSheetByName(nome);
-      if(!sh) return;
+      ['CAIXA','VENDAS','COMPRAS'].forEach(nome=>{
+        try {
+          const sh = ss.getSheetByName(nome);
+          if(!sh) return;
 
-      const dados = sh.getDataRange().getValues();
-      let ultimaLinha = 0;
+          const dados = sh.getDataRange().getValues();
+          let ultimaLinha = 0;
 
-      dados.forEach((l,i)=>{
-        if(i===0) return;
-        if(new Date(l[0]) <= limite){
-          ultimaLinha = i+1;
-        }
+          dados.forEach((l,i)=>{
+            if(i===0) return;
+            const d = converterParaDataValida(l[0]);
+            if(d && d <= limite){
+              ultimaLinha = i+1;
+            }
+          });
+
+          if(ultimaLinha > 1){
+            const range = sh.getRange(
+              2,1,
+              ultimaLinha-1,
+              sh.getLastColumn()
+            );
+            const prot = range.protect();
+            prot.setDescription(
+              `Bloqueado até ${Utilities.formatDate(
+                limite,
+                Session.getScriptTimeZone(),
+                'dd/MM/yyyy HH:mm'
+              )}`
+            );
+            try {
+              prot.removeEditors(prot.getEditors());
+            } catch(e) {}
+            try {
+              if(prot.canDomainEdit()) prot.setDomainEdit(false);
+            } catch(e) {}
+          }
+        } catch(e) {}
       });
-
-      if(ultimaLinha > 1){
-        const range = sh.getRange(
-          2,1,
-          ultimaLinha-1,
-          sh.getLastColumn()
-        );
-        const prot = range.protect();
-        prot.setDescription(
-          `Bloqueado até ${Utilities.formatDate(
-            limite,
-            Session.getScriptTimeZone(),
-            'dd/MM/yyyy HH:mm'
-          )}`
-        );
-        prot.removeEditors(prot.getEditors());
-        if(prot.canDomainEdit()) prot.setDomainEdit(false);
-      }
-    });
+    } catch(e) {
+      console.warn('Erro ao bloquear edição pós-fechamento:', e);
+    }
   }
   function getUltimoFechamentoFiscal(){
     const ss = SpreadsheetApp.getActive();
     const sh = ss.getSheetByName('CAIXA_FISCAL');
     if(!sh || sh.getLastRow() < 2) return null;
 
-    return new Date(
-      sh.getRange(sh.getLastRow(), 5).getValue()
-    );
+    const val = sh.getRange(sh.getLastRow(), 5).getValue();
+    return converterParaDataValida(val);
   }
   function getDataUltimaConferenciaCaixa(){
 
@@ -3192,9 +3291,7 @@
     if(dados.length <= 1) return null;
 
     const ultimaLinha = dados[dados.length - 1];
-    const data = ultimaLinha[0];
-
-    return (data instanceof Date) ? data : null;
+    return converterParaDataValida(ultimaLinha[0]);
   }
   function calcularSaldoHoje(){
 
@@ -3210,16 +3307,17 @@
     dados.forEach((l,i)=>{
 
       if(i === 0) return;
-      if(!(l[0] instanceof Date)) return;
+      const dataMov = converterParaDataValida(l[0]);
+      if(!dataMov) return;
 
       // 🔥 ignora lançamentos ANTES da última conferência
-      if(dataInicio && l[0] <= dataInicio) return;
+      if(dataInicio && dataMov <= dataInicio) return;
 
-      const tipo = String(l[1] || '').toUpperCase();
+      const tipo = String(l[1] || '').trim().toUpperCase();
       const valor = Number(l[2]) || 0;
 
       if(tipo === 'ENTRADA') entrada += valor;
-      if(tipo === 'SAIDA')   saida   += valor;
+      if(tipo === 'SAIDA' || tipo === 'SAÍDA') saida += valor;
     });
 
     return {
