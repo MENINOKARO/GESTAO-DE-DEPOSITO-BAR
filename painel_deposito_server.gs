@@ -193,7 +193,17 @@ function obterDadosPainel360() {
       });
     }
 
-    produtos.sort((a, b) => a.nome.localeCompare(b.nome));
+    // Ordenação: Produtos com estoque (> 0) primeiro, esgotados depois; dentro do grupo, ordem alfabética
+    produtos.sort((a, b) => {
+      const estA = Number(a.estoque) || 0;
+      const estB = Number(b.estoque) || 0;
+      const hasA = estA > 0 ? 1 : 0;
+      const hasB = estB > 0 ? 1 : 0;
+      if (hasA !== hasB) {
+        return hasB - hasA;
+      }
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
 
     // 5. Leitura de CLIENTES
     const clientes = [];

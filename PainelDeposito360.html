@@ -3212,6 +3212,18 @@
         return matchCat && matchTermo;
       });
 
+      // 📌 Ordenação: Produtos com estoque (> 0) primeiro, esgotados depois; dentro do grupo, ordem alfabética
+      filtrados.sort((a, b) => {
+        const estA = Number(a.estoque) || 0;
+        const estB = Number(b.estoque) || 0;
+        const hasA = estA > 0 ? 1 : 0;
+        const hasB = estB > 0 ? 1 : 0;
+        if (hasA !== hasB) {
+          return hasB - hasA;
+        }
+        return a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+
       if (filtrados.length === 0) {
         grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">Nenhum produto encontrado.</div>`;
         return;
@@ -3524,8 +3536,20 @@
       // Popula select de produtos se necessário
       const sel = document.getElementById('modalAddSelectProduto');
       if (DADOS_SISTEMA && DADOS_SISTEMA.produtos) {
+        const prodsOrdenados = [...DADOS_SISTEMA.produtos].sort((a, b) => {
+          const estA = Number(a.estoque) || 0;
+          const estB = Number(b.estoque) || 0;
+          const hasA = estA > 0 ? 1 : 0;
+          const hasB = estB > 0 ? 1 : 0;
+          if (hasA !== hasB) return hasB - hasA;
+          return a.nome.localeCompare(b.nome, 'pt-BR');
+        });
         sel.innerHTML = '<option value="">Selecione um produto...</option>' + 
-          DADOS_SISTEMA.produtos.map(p => `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)} (Estoque: ${p.estoque})</option>`).join('');
+          prodsOrdenados.map(p => {
+            const est = Number(p.estoque) || 0;
+            const statusEst = est <= 0 ? ' [🚫 ESGOTADO]' : ` (${est} un)`;
+            return `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)}${statusEst}</option>`;
+          }).join('');
       }
 
       document.getElementById('modalAddQtd').value = 1;
@@ -4152,8 +4176,20 @@
     function renderizarSelectProdutosDelivery() {
       if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
       const sel = document.getElementById('delSelectProduto');
+      const prodsOrdenados = [...DADOS_SISTEMA.produtos].sort((a, b) => {
+        const estA = Number(a.estoque) || 0;
+        const estB = Number(b.estoque) || 0;
+        const hasA = estA > 0 ? 1 : 0;
+        const hasB = estB > 0 ? 1 : 0;
+        if (hasA !== hasB) return hasB - hasA;
+        return a.nome.localeCompare(b.nome, 'pt-BR');
+      });
       sel.innerHTML = '<option value="">Selecione um produto...</option>' + 
-        DADOS_SISTEMA.produtos.map(p => `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)}</option>`).join('');
+        prodsOrdenados.map(p => {
+          const est = Number(p.estoque) || 0;
+          const statusEst = est <= 0 ? ' [🚫 ESGOTADO]' : ` (${est} un)`;
+          return `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} - ${formatMoeda(p.preco)}${statusEst}</option>`;
+        }).join('');
     }
 
     function adicionarItemDelivery() {
@@ -4400,6 +4436,15 @@
 
       const filtrados = DADOS_SISTEMA.produtos.filter(p => {
         return !termo || p.nome.toUpperCase().includes(termo) || p.categoria.toUpperCase().includes(termo) || String(p.id).includes(termo);
+      });
+
+      filtrados.sort((a, b) => {
+        const estA = Number(a.estoque) || 0;
+        const estB = Number(b.estoque) || 0;
+        const hasA = estA > 0 ? 1 : 0;
+        const hasB = estB > 0 ? 1 : 0;
+        if (hasA !== hasB) return hasB - hasA;
+        return a.nome.localeCompare(b.nome, 'pt-BR');
       });
 
       if (filtrados.length === 0) {
