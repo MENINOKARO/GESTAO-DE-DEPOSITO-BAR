@@ -263,12 +263,21 @@ function obterUsuarioPorTelegramChatId(chatId) {
     const chatIdNorm = String(chatId).trim().split('.')[0];
     if (!chatIdNorm) return null;
 
+    // 0. Cache em memória ultra-rápido (CacheService)
+    try {
+      const cache = CacheService.getScriptCache();
+      const cached = cache.get('u_tg_' + chatIdNorm);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (eCache) {}
+
     // 1. Checa se é o Chat ID cadastrado do Dono nas Configurações
     const donoChatId = (typeof getConfig === 'function' ? getConfig('TELEGRAM_DONO_CHAT_ID') : '') || '';
     const donoChatIdNorm = String(donoChatId).trim().split('.')[0];
 
     if (donoChatIdNorm && chatIdNorm === donoChatIdNorm) {
-      return {
+      const uDono = {
         id: 'U-000001',
         nome: 'Dono (Admin)',
         email: 'admin@deposito.com',
@@ -276,9 +285,30 @@ function obterUsuarioPorTelegramChatId(chatId) {
         ativo: 'SIM',
         telegramChatId: chatIdNorm
       };
+      try { CacheService.getScriptCache().put('u_tg_' + chatIdNorm, JSON.stringify(uDono), 1800); } catch (e) {}
+      return uDono;
     }
 
-    // 2. Busca na tabela USUARIOS
+    // 1.5. Busca ultra-rápida no Supabase (se disponível)
+    if (typeof supabaseObterUsuarioPorTelegramChatId === 'function') {
+      try {
+        const uSupa = supabaseObterUsuarioPorTelegramChatId(chatIdNorm);
+        if (uSupa) {
+          const uObj = {
+            id: uSupa.id || uSupa.username,
+            nome: uSupa.nome,
+            email: uSupa.email || '',
+            perfil: (uSupa.perfil || 'VENDEDOR').toUpperCase(),
+            ativo: uSupa.ativo ? 'SIM' : 'NAO',
+            telegramChatId: chatIdNorm
+          };
+          try { CacheService.getScriptCache().put('u_tg_' + chatIdNorm, JSON.stringify(uObj), 1800); } catch (e) {}
+          return uObj;
+        }
+      } catch (eSupa) {}
+    }
+
+    // 2. Busca na tabela USUARIOS da Planilha (Fallback)
     const ss = SpreadsheetApp.getActive();
     let shUsuarios = ss.getSheetByName('USUARIOS');
     if (!shUsuarios) {
@@ -297,7 +327,7 @@ function obterUsuarioPorTelegramChatId(chatId) {
 
       if (userChatId && userChatId === chatIdNorm) {
         if (ativo !== 'SIM') return null;
-        return {
+        const uFound = {
           id: idUser,
           nome: nome,
           email: email,
@@ -306,6 +336,8 @@ function obterUsuarioPorTelegramChatId(chatId) {
           telegramChatId: chatIdNorm,
           linha: i + 1
         };
+        try { CacheService.getScriptCache().put('u_tg_' + chatIdNorm, JSON.stringify(uFound), 1800); } catch (e) {}
+        return uFound;
       }
     }
 

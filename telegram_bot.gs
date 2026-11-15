@@ -556,6 +556,27 @@ function montarMenuPrincipal(usuario, chatId) {
 // =============================================
 
 function obterMapaEstoqueReal() {
+  // 0. Cache em memória temporário (60s)
+  try {
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get('mapa_est_real');
+    if (cached) return JSON.parse(cached);
+  } catch(e) {}
+
+  // 1. Tenta carregar em alta velocidade pelo Supabase
+  if (typeof supabaseObterMapaEstoque === 'function') {
+    try {
+      const mapaSupa = supabaseObterMapaEstoque();
+      if (mapaSupa && Object.keys(mapaSupa).length > 0) {
+        try { CacheService.getScriptCache().put('mapa_est_real', JSON.stringify(mapaSupa), 60); } catch(e) {}
+        return mapaSupa;
+      }
+    } catch(eSupa) {
+      console.warn('Fallback para Sheets em obterMapaEstoqueReal:', eSupa);
+    }
+  }
+
+  // 2. Fallback pela Planilha Google
   const mapa = {};
   try {
     const ss = SpreadsheetApp.getActive();
@@ -576,6 +597,8 @@ function obterMapaEstoqueReal() {
   } catch(e) {
     console.error('Erro em obterMapaEstoqueReal:', e);
   }
+
+  try { CacheService.getScriptCache().put('mapa_est_real', JSON.stringify(mapa), 60); } catch(e) {}
   return mapa;
 }
 

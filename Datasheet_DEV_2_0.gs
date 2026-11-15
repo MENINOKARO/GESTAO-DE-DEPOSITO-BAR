@@ -204,6 +204,11 @@
           .addSubMenu(
             ui.createMenu('🖥️ Configurações & Sistema')
               .addSubMenu(
+                ui.createMenu('⚡ Banco de Dados (Supabase)')
+                  .addItem('🚀 Migrar Dados da Planilha para o Supabase', 'migrarTudoPlanilhaParaSupabase')
+                  .addItem('🧪 Testar Conexão Supabase', 'testarConexaoSupabase')
+              )
+              .addSubMenu(
                 ui.createMenu('📱 Telegram Bot')
                   .addItem('🔌 Configurar Webhook Telegram', 'configurarTelegramWebhook')
                   .addItem('🧪 Testar Conexão Telegram', 'testarEnvioTelegram')
