@@ -740,46 +740,132 @@ function executarVendaBalcao360(payload) {
     const shVendas = ss.getSheetByName('VENDAS');
     if (!shVendas) throw new Error('Aba VENDAS não encontrada.');
 
+    const shEstoque = ss.getSheetByName('ESTOQUE');
+    if (!shEstoque) throw new Error('Aba ESTOQUE não encontrada.');
+
     const cliente = String(payload.cliente || 'Consumidor Final (Balcão)').trim();
     const formaPgto = String(payload.formaPgto || 'Dinheiro').trim();
     const agora = new Date();
     let totalVenda = 0;
 
-    // 1. Validar e Baixar Estoque para cada item
-    payload.itens.forEach(item => {
+    // 0. VERIFICA CONFIGURAÇÃO DE ESTOQUE NEGATIVO
+    const permitirNegativo = (typeof getConfig === 'function' ? getConfig('PERMITIR_ESTOQUE_NEGATIVO') : '') === 'SIM';
+
+    // =========================================================================
+    // 🛡️ FASE 1: PRÉ-VALIDAÇÃO ATÔMICA ("TUDO OU NADA")
+    // Verifica o estoque de TODOS os itens do carrinho ANTES de gravar qualquer linha
+    // =========================================================================
+    const dadosEstoque = shEstoque.getDataRange().getValues();
+    const mapaEstoqueLinhas = {}; // nome_lower -> { rowIdx, atual, nomeOriginal }
+    const safeNorm = str => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').toUpperCase().trim();
+
+    for (let r = 1; r < dadosEstoque.length; r++) {
+      const pNome = String(dadosEstoque[r][0] || '').trim();
+      if (pNome) {
+        mapaEstoqueLinhas[safeNorm(pNome)] = {
+          rowIdx: r + 1,
+          nomeOriginal: pNome,
+          atual: Number(dadosEstoque[r][1]) || 0
+        };
+      }
+    }
+
+    // Se Supabase estiver conectado, obtém mapa de estoque do banco
+    let mapaSupaEstoque = null;
+    if (typeof supabaseObterMapaEstoque === 'function') {
+      try {
+        mapaSupaEstoque = supabaseObterMapaEstoque();
+      } catch (eSupa) {}
+    }
+
+    const itensValidados = [];
+    for (let i = 0; i < payload.itens.length; i++) {
+      const item = payload.itens[i];
       const prodNome = String(item.produto || '').trim();
       const qtd = Number(item.qtd) || 0;
       const unit = Number(item.unit) || 0;
       const subtotal = Number(item.total) || (qtd * unit);
 
       if (!prodNome || qtd <= 0) {
-        throw new Error('Item com dados inválidos no carrinho.');
+        throw new Error('Item com dados inválidos no carrinho: ' + (prodNome || 'Sem nome'));
       }
 
-      try {
-        if (typeof baixarEstoquePorComanda === 'function') {
-          baixarEstoquePorComanda(prodNome, qtd);
-        } else {
-          baixarEstoqueManual(prodNome, qtd);
-        }
-      } catch (eEstoque) {
-        throw new Error('Estoque insuficiente para ' + prodNome + ': ' + eEstoque.message);
+      const keyNorm = safeNorm(prodNome);
+      const estInfo = mapaEstoqueLinhas[keyNorm];
+      const estoquePlanilha = estInfo ? estInfo.atual : 0;
+      const estoqueAtual = (mapaSupaEstoque && mapaSupaEstoque[keyNorm] !== undefined) ? mapaSupaEstoque[keyNorm] : estoquePlanilha;
+
+      // 🚫 BLOQUEIO IMEDIATO: Se algum item não tiver estoque, aborta a transação inteira
+      if (!permitirNegativo && estoqueAtual < qtd) {
+        return {
+          sucesso: false,
+          erro: `❌ Venda não realizada: Estoque insuficiente para "${prodNome}". Disponível: ${estoqueAtual} un, Solicitado: ${qtd} un.`
+        };
       }
 
-      // 2. Registra na aba VENDAS
+      itensValidados.push({
+        produto: prodNome,
+        qtd: qtd,
+        unit: unit,
+        subtotal: subtotal,
+        rowIdxEstoque: estInfo ? estInfo.rowIdx : null,
+        estoqueRestante: estoqueAtual - qtd
+      });
+
+      totalVenda += subtotal;
+    }
+
+    // =========================================================================
+    // 🚀 FASE 2: EXECUÇÃO GARANTIDA (Todos os itens foram 100% validados!)
+    // =========================================================================
+    itensValidados.forEach(item => {
+      // 1. Baixa o estoque na Planilha
+      if (item.rowIdxEstoque) {
+        shEstoque.getRange(item.rowIdxEstoque, 2).setValue(item.estoqueRestante);
+      } else {
+        // Se não estava na aba estoque, tenta função nativa de comanda
+        try {
+          if (typeof baixarEstoquePorComanda === 'function') {
+            baixarEstoquePorComanda(item.produto, item.qtd);
+          }
+        } catch (eB) {}
+      }
+
+      // 2. Sincroniza baixa no Supabase (se conectado)
+      if (typeof supabaseAjustarEstoque === 'function') {
+        try {
+          supabaseAjustarEstoque(item.produto, item.estoqueRestante);
+        } catch (eSupa) {}
+      }
+
+      // 3. Registra na aba VENDAS
       shVendas.appendRow([
         agora,
-        prodNome,
-        qtd,
-        subtotal,
+        item.produto,
+        item.qtd,
+        item.subtotal,
         formaPgto,
         'Balcão'
       ]);
 
-      totalVenda += subtotal;
+      // 4. Registra venda no Supabase (se conectado)
+      if (typeof supabaseRequest === 'function') {
+        try {
+          supabaseRequest('vendas', 'POST', {
+            data_hora: agora.toISOString(),
+            produto_nome: item.produto,
+            quantidade: item.qtd,
+            valor_unitario: item.unit,
+            valor_total: item.subtotal,
+            forma_pagamento: formaPgto,
+            origem: 'Balcão',
+            vendedor: 'Balcão'
+          });
+        } catch (eSupaVenda) {}
+      }
     });
 
-    // 3. Sincroniza Estoque
+    // Sincroniza status visual do estoque se função existir
     try {
       if (typeof atualizarEstoque === 'function') {
         atualizarEstoque();
@@ -793,7 +879,7 @@ function executarVendaBalcao360(payload) {
       } catch (eCad) {}
     }
 
-    // 4. Registra no CAIXA ou CONTAS_A_RECEBER (Fiado)
+    // Registra no CAIXA ou CONTAS_A_RECEBER (Fiado)
     const isFiado = formaPgto.toUpperCase().includes('FIADO');
     if (isFiado) {
       try {
@@ -813,6 +899,21 @@ function executarVendaBalcao360(payload) {
           if (shCaixa) {
             shCaixa.appendRow([agora, 'Entrada', totalVenda, formaPgto, 'Balcão', 'Venda Balcão - ' + cliente]);
           }
+        }
+
+        // Sincroniza Caixa com Supabase
+        if (typeof supabaseRequest === 'function') {
+          try {
+            supabaseRequest('caixa', 'POST', {
+              data_hora: agora.toISOString(),
+              tipo: 'ENTRADA',
+              valor: totalVenda,
+              forma_pagamento: formaPgto,
+              descricao: 'Venda Balcão - ' + cliente,
+              operador: 'Balcão',
+              origem: 'Balcão'
+            });
+          } catch (eSupaCaixa) {}
         }
       } catch (eCaixa) {
         console.warn('Erro ao registrar caixa:', eCaixa.message);

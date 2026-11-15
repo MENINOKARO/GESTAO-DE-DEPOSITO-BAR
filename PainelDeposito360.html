@@ -552,6 +552,25 @@
       border: 1px solid rgba(239, 68, 68, 0.4);
     }
 
+    .prod-card.esgotado {
+      opacity: 0.55;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(30, 41, 59, 0.45);
+      cursor: not-allowed;
+    }
+
+    .prod-stock.esgotado {
+      background: rgba(239, 68, 68, 0.25);
+      color: #ef4444;
+      font-weight: 700;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+
+    .cart-item.sem-estoque {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border-left: 3px solid #ef4444;
+    }
+
     /* CART STYLES */
     .cart-header {
       display: flex;
@@ -3199,16 +3218,20 @@
       }
 
       grid.innerHTML = filtrados.map(p => {
-        const isCritico = p.status === 'CRITICO';
+        const estNum = Number(p.estoque) || 0;
+        const isEsgotado = estNum <= 0;
+        const isCritico = !isEsgotado && p.status === 'CRITICO';
         return `
-          <div class="prod-card" onclick="adicionarAoCarrinho('${p.nome.replace(/'/g, "\\'")}', ${p.preco})">
+          <div class="prod-card ${isEsgotado ? 'esgotado' : ''}" onclick="adicionarAoCarrinho('${p.nome.replace(/'/g, "\\'")}', ${p.preco})">
             <div>
               <div class="prod-name">${p.nome}</div>
               <div class="prod-cat">${p.categoria}</div>
             </div>
             <div class="prod-footer">
               <span class="prod-price">${formatMoeda(p.preco)}</span>
-              <span class="prod-stock ${isCritico ? 'critico' : ''}">${p.estoque} un</span>
+              <span class="prod-stock ${isEsgotado ? 'esgotado' : (isCritico ? 'critico' : '')}">
+                ${isEsgotado ? '🚫 ESGOTADO' : p.estoque + ' un'}
+              </span>
             </div>
           </div>
         `;
@@ -3216,8 +3239,24 @@
     }
 
     function adicionarAoCarrinho(produtoNome, preco) {
+      // 🛡️ Validação de estoque em tempo real antes de adicionar
+      const prodInfo = (DADOS_SISTEMA.produtos || []).find(p => p.nome === produtoNome);
+      const estoqueDisp = prodInfo ? (Number(prodInfo.estoque) || 0) : 0;
+      const permitirNegativo = (DADOS_SISTEMA.config && DADOS_SISTEMA.config.PERMITIR_ESTOQUE_NEGATIVO === 'SIM');
+
+      if (!permitirNegativo && estoqueDisp <= 0) {
+        showToast(`❌ O produto "${produtoNome}" está ESGOTADO no estoque!`, 'error');
+        beepErro();
+        return;
+      }
+
       const itemExistente = CARRINHO.find(i => i.produto === produtoNome);
       if (itemExistente) {
+        if (!permitirNegativo && (itemExistente.qtd + 1) > estoqueDisp) {
+          showToast(`⚠️ Limite de estoque atingido! (${estoqueDisp} un disponíveis de "${produtoNome}")`, 'warning');
+          beepErro();
+          return;
+        }
         itemExistente.qtd++;
         itemExistente.total = itemExistente.qtd * itemExistente.unit;
       } else {
@@ -3234,12 +3273,28 @@
 
     function alterarQtdCarrinho(idx, delta) {
       if (!CARRINHO[idx]) return;
-      CARRINHO[idx].qtd += delta;
-      if (CARRINHO[idx].qtd <= 0) {
+      const item = CARRINHO[idx];
+      const novaQtd = item.qtd + delta;
+      if (novaQtd <= 0) {
         CARRINHO.splice(idx, 1);
-      } else {
-        CARRINHO[idx].total = CARRINHO[idx].qtd * CARRINHO[idx].unit;
+        atualizarCarrinhoVisual();
+        return;
       }
+
+      if (delta > 0) {
+        const prodInfo = (DADOS_SISTEMA.produtos || []).find(p => p.nome === item.produto);
+        const estoqueDisp = prodInfo ? (Number(prodInfo.estoque) || 0) : 0;
+        const permitirNegativo = (DADOS_SISTEMA.config && DADOS_SISTEMA.config.PERMITIR_ESTOQUE_NEGATIVO === 'SIM');
+
+        if (!permitirNegativo && novaQtd > estoqueDisp) {
+          showToast(`⚠️ Limite de estoque atingido! Apenas ${estoqueDisp} un disponíveis.`, 'warning');
+          beepErro();
+          return;
+        }
+      }
+
+      item.qtd = novaQtd;
+      item.total = item.qtd * item.unit;
       atualizarCarrinhoVisual();
     }
 
@@ -3268,17 +3323,26 @@
       }
 
       let total = 0;
+      const permitirNegativo = (DADOS_SISTEMA.config && DADOS_SISTEMA.config.PERMITIR_ESTOQUE_NEGATIVO === 'SIM');
+
       container.innerHTML = CARRINHO.map((item, idx) => {
         total += item.total;
+        const prodInfo = (DADOS_SISTEMA.produtos || []).find(p => p.nome === item.produto);
+        const estoqueDisp = prodInfo ? (Number(prodInfo.estoque) || 0) : 0;
+        const semEstoque = !permitirNegativo && (item.qtd > estoqueDisp);
+
         return `
-          <div class="cart-item">
+          <div class="cart-item ${semEstoque ? 'sem-estoque' : ''}">
             <div class="ci-info">
-              <div class="ci-name">${item.produto}</div>
+              <div class="ci-name">
+                ${item.produto}
+                ${semEstoque ? `<br><span style="color:#ef4444;font-size:11px;font-weight:700;">⚠️ Estoque insuficiente (${estoqueDisp} un)</span>` : ''}
+              </div>
               <div class="ci-unit">${formatMoeda(item.unit)} cada</div>
             </div>
             <div class="ci-qty-control">
               <button type="button" class="btn-qty" onclick="alterarQtdCarrinho(${idx}, -1)">-</button>
-              <span class="ci-qty-val">${item.qtd}</span>
+              <span class="ci-qty-val ${semEstoque ? 'critico' : ''}">${item.qtd}</span>
               <button type="button" class="btn-qty" onclick="alterarQtdCarrinho(${idx}, 1)">+</button>
             </div>
             <div class="ci-total">${formatMoeda(item.total)}</div>
@@ -3311,11 +3375,26 @@
       document.getElementById('lblTrocoResultado').innerText = 'Troco: ' + formatMoeda(troco);
     }
 
-    // FECHA VENDA DIRETA BALCÃO
+    // FECHA VENDA DIRETA BALCÃO COM VALIDAÇÃO ATÔMICA
     function finalizarVendaBalcao() {
       if (CARRINHO.length === 0) {
         showToast('Adicione pelo menos 1 item ao carrinho!', 'error');
         return;
+      }
+
+      // 🛡️ PRÉ-VALIDAÇÃO NO CLIENTE: Impede finalização se houver item sem estoque
+      const permitirNegativo = (DADOS_SISTEMA.config && DADOS_SISTEMA.config.PERMITIR_ESTOQUE_NEGATIVO === 'SIM');
+      if (!permitirNegativo) {
+        for (let i = 0; i < CARRINHO.length; i++) {
+          const item = CARRINHO[i];
+          const prodInfo = (DADOS_SISTEMA.produtos || []).find(p => p.nome === item.produto);
+          const estoqueDisp = prodInfo ? (Number(prodInfo.estoque) || 0) : 0;
+          if (item.qtd > estoqueDisp) {
+            showToast(`❌ Venda bloqueada: "${item.produto}" possui apenas ${estoqueDisp} un em estoque!`, 'error');
+            beepErro();
+            return;
+          }
+        }
       }
 
       const cliente = document.getElementById('pdvCliente').value.trim() || 'Consumidor Final (Balcão)';
@@ -4433,6 +4512,21 @@
         gain.gain.value = 0.08;
         osc.start();
         setTimeout(() => { osc.stop(); ctx.close(); }, 70);
+      } catch (e) {}
+    }
+
+    function beepErro() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.value = 220;
+        gain.gain.value = 0.12;
+        osc.start();
+        setTimeout(() => { osc.stop(); ctx.close(); }, 180);
       } catch (e) {}
     }
 
