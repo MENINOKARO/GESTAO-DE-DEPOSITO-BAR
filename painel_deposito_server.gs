@@ -2913,23 +2913,24 @@ function resolverCategoriaRelatorio(tipoRelatorio, titulo) {
       tit.includes('compra') || tit.includes('forneced') || tit.includes('entrada')) {
     return 'Compras';
   }
-  // 4. Registros
+  // 4. Auditoria e Logs
   if (t === 'logs' || t.includes('log') || t.includes('auditoria') ||
       tit.includes('log') || tit.includes('auditoria') || tit.includes('registro') || tit.includes('evento')) {
-    return 'Registros';
+    return 'Auditoria_Logs';
   }
 
   return 'Financeiro';
 }
 
 /**
- * 🧹 Varre a pasta "Relatorios", identifica pastas de mês que ficaram soltas na raiz de Relatórios
- * (como "11 - Novembro 2026") ou arquivos avulsos, move cada relatório para sua categoria correta:
+ * 🧹 Varre a pasta "Relatorios", identifica pastas soltas na raiz de Relatórios
+ * (como "Registros", pastas soltas de mês "11 - Novembro 2026") ou arquivos avulsos,
+ * move cada relatório para sua categoria e mês corretos:
  *   - Relatorios / Financeiro / [Mês]
  *   - Relatorios / Estoque / [Mês]
  *   - Relatorios / Compras / [Mês]
- *   - Relatorios / Registros / [Mês]
- * E remove a pasta do mês solta que ficou vazia.
+ *   - Relatorios / Auditoria_Logs / [Mês]
+ * E remove permanentemente as pastas duplicadas e vazias.
  */
 function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
   try {
@@ -2963,7 +2964,7 @@ function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
     }
 
     // Garante as 4 subpastas de categoria oficiais
-    const categorias = ['Financeiro', 'Estoque', 'Compras', 'Registros'];
+    const categorias = ['Financeiro', 'Estoque', 'Compras', 'Auditoria_Logs'];
     const pastasCat = {};
     categorias.forEach(cat => {
       const it = pastaRelatorios.getFoldersByName(cat);
@@ -2973,6 +2974,30 @@ function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
         pastasCat[cat] = pastaRelatorios.createFolder(cat);
       }
     });
+
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    function obterNomeMesDeDataOuNome(nomeArq) {
+      const m = String(nomeArq || '').match(/(\d{4})-(\d{2})-\d{2}/);
+      if (m) {
+        const ano = m[1];
+        const mesIdx = parseInt(m[2], 10) - 1;
+        if (mesIdx >= 0 && mesIdx < 12) {
+          return `${m[2]} - ${meses[mesIdx]} ${ano}`;
+        }
+      }
+      const agora = new Date();
+      const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
+      const mesNome = meses[agora.getMonth()];
+      const anoAtual = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy');
+      return `${mesNum} - ${mesNome} ${anoAtual}`;
+    }
+
+    function coletarArquivosRecursivo(pasta, lista) {
+      const files = pasta.getFiles();
+      while (files.hasNext()) lista.push(files.next());
+      const subs = pasta.getFolders();
+      while (subs.hasNext()) coletarArquivosRecursivo(subs.next(), lista);
+    }
 
     let arquivosMovidos = 0;
     const pastasRemovidas = [];
@@ -2990,51 +3015,45 @@ function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
 
     pastasRogue.forEach(sub => {
       const nomeSub = sub.getName();
-      const arquivos = sub.getFiles();
-      while (arquivos.hasNext()) {
-        const arq = arquivos.next();
+      const todosArquivos = [];
+      coletarArquivosRecursivo(sub, todosArquivos);
+
+      todosArquivos.forEach(arq => {
         const nomeArq = arq.getName();
         const catAlvo = resolverCategoriaRelatorio('', nomeArq);
         const pastaCat = pastasCat[catAlvo] || pastasCat['Financeiro'];
 
-        // Garante a pasta do mês (ex: "11 - Novembro 2026") dentro da categoria correta
+        const pastaMesNome = obterNomeMesDeDataOuNome(nomeArq);
         let pastaMesAlvo = null;
-        const itMes = pastaCat.getFoldersByName(nomeSub);
+        const itMes = pastaCat.getFoldersByName(pastaMesNome);
         if (itMes.hasNext()) {
           pastaMesAlvo = itMes.next();
         } else {
-          pastaMesAlvo = pastaCat.createFolder(nomeSub);
+          pastaMesAlvo = pastaCat.createFolder(pastaMesNome);
         }
 
         try {
           arq.moveTo(pastaMesAlvo);
           arquivosMovidos++;
         } catch(eMove) {
-          pastaMesAlvo.addFile(arq);
-          sub.removeFile(arq);
-          arquivosMovidos++;
+          try {
+            pastaMesAlvo.addFile(arq);
+            arq.getParents().next().removeFile(arq);
+            arquivosMovidos++;
+          } catch(eFallback) {}
         }
-      }
+      });
 
-      // Se a pasta agora estiver vazia de arquivos e subpastas, move para a lixeira
+      // Move a pasta anômala/duplicada para a lixeira
       try {
-        if (!sub.getFiles().hasNext() && !sub.getFolders().hasNext()) {
-          sub.setTrashed(true);
-          pastasRemovidas.push(nomeSub);
-        }
+        sub.setTrashed(true);
+        pastasRemovidas.push(nomeSub);
       } catch(eTrash) {
-        console.warn('Erro ao remover pasta solta vazia:', eTrash.message);
+        console.warn('Erro ao remover pasta rogue:', eTrash.message);
       }
     });
 
-    // 2. Se houver arquivos avulsos soltos diretamente em "Relatorios"
-    const agora = new Date();
-    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
-    const mesNome = meses[agora.getMonth()];
-    const ano = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy');
-    const nomePastaMesPadrao = `${mesNum} - ${mesNome} ${ano}`;
-
+    // 2. Se houver arquivos avulsos soltos diretamente na raiz de "Relatorios"
     const arqsAvulsos = pastaRelatorios.getFiles();
     while (arqsAvulsos.hasNext()) {
       const arq = arqsAvulsos.next();
@@ -3042,21 +3061,24 @@ function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
       const catAlvo = resolverCategoriaRelatorio('', nomeArq);
       const pastaCat = pastasCat[catAlvo] || pastasCat['Financeiro'];
 
+      const pastaMesNome = obterNomeMesDeDataOuNome(nomeArq);
       let pastaMesAlvo = null;
-      const itMes = pastaCat.getFoldersByName(nomePastaMesPadrao);
+      const itMes = pastaCat.getFoldersByName(pastaMesNome);
       if (itMes.hasNext()) {
         pastaMesAlvo = itMes.next();
       } else {
-        pastaMesAlvo = pastaCat.createFolder(nomePastaMesPadrao);
+        pastaMesAlvo = pastaCat.createFolder(pastaMesNome);
       }
 
       try {
         arq.moveTo(pastaMesAlvo);
         arquivosMovidos++;
       } catch(eMove) {
-        pastaMesAlvo.addFile(arq);
-        pastaRelatorios.removeFile(arq);
-        arquivosMovidos++;
+        try {
+          pastaMesAlvo.addFile(arq);
+          pastaRelatorios.removeFile(arq);
+          arquivosMovidos++;
+        } catch(eFallback) {}
       }
     }
 

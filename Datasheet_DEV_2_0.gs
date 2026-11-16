@@ -10075,10 +10075,10 @@
     obterOuCriarPastaPorNome(logs, 'PDF', 'CRIAR_PASTA', `${nomeDeposito}/Logs/PDF`);
 
     const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios`);
-    obterOuCriarPastaPorNome(relatorios, 'Financeiro', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Financeiro`);
-    obterOuCriarPastaPorNome(relatorios, 'Estoque',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Estoque`);
-    obterOuCriarPastaPorNome(relatorios, 'Compras',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Compras`);
-    obterOuCriarPastaPorNome(relatorios, 'Registros',  'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Registros`);
+    obterOuCriarPastaPorNome(relatorios, 'Financeiro',     'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Financeiro`);
+    obterOuCriarPastaPorNome(relatorios, 'Estoque',        'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Estoque`);
+    obterOuCriarPastaPorNome(relatorios, 'Compras',        'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Compras`);
+    obterOuCriarPastaPorNome(relatorios, 'Auditoria_Logs', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Auditoria_Logs`);
 
     // Reorganiza automaticamente arquivos e pastas para suas subpastas de categoria corretas
     try {
@@ -10244,22 +10244,28 @@
       const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios`);
       const sub = String(subcategoria || '').trim();
       const subNorm = sub.toLowerCase();
-      if (subNorm === 'financeiro') {
-        return obterOuCriarPastaPorNome(relatorios, 'Financeiro', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Financeiro`);
+
+      let nomeCat = 'Financeiro';
+      if (subNorm === 'estoque' || subNorm.includes('estoque') || subNorm.includes('produto')) {
+        nomeCat = 'Estoque';
+      } else if (subNorm === 'compras' || subNorm === 'compra' || subNorm.includes('compra')) {
+        nomeCat = 'Compras';
+      } else if (subNorm === 'financeiro' || subNorm.includes('financeiro') || subNorm.includes('caixa')) {
+        nomeCat = 'Financeiro';
+      } else if (subNorm.includes('log') || subNorm.includes('auditoria') || subNorm.includes('registro')) {
+        nomeCat = 'Auditoria_Logs';
       }
-      if (subNorm === 'estoque') {
-        return obterOuCriarPastaPorNome(relatorios, 'Estoque', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Estoque`);
-      }
-      if (subNorm === 'compras' || subNorm === 'compra') {
-        return obterOuCriarPastaPorNome(relatorios, 'Compras', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Compras`);
-      }
-      if (subNorm === 'registros' || subNorm === 'registro') {
-        return obterOuCriarPastaPorNome(relatorios, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros`);
-      }
-      const registros = obterOuCriarPastaPorNome(relatorios, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros`);
-      return sub
-        ? obterOuCriarPastaPorNome(registros, sub, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros/${sub}`)
-        : registros;
+
+      const pastaCat = obterOuCriarPastaPorNome(relatorios, nomeCat, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/${nomeCat}`);
+      
+      const dataRel = dataRef || new Date();
+      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      const mesNum = Utilities.formatDate(dataRel, Session.getScriptTimeZone(), 'MM');
+      const mesNome = meses[dataRel.getMonth()];
+      const anoRel = Utilities.formatDate(dataRel, Session.getScriptTimeZone(), 'yyyy');
+      const nomePastaMes = `${mesNum} - ${mesNome} ${anoRel}`;
+
+      return obterOuCriarPastaPorNome(pastaCat, nomePastaMes, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/${nomeCat}/${nomePastaMes}`);
     }
 
     const logs = obterOuCriarPastaPorNome(root, 'Logs', 'CRIAR_PASTA', `${getNomeDeposito()}/Logs`);
