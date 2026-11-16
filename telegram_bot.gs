@@ -7417,49 +7417,65 @@ function testarEnvioTelegram() {
 
 
 /**
- * doGet - Exibe uma página de status para o Web App ao acessar via navegador
+ * doGet - Exibe uma página de status para o Web App ao acessar via navegador ou serve o Painel 360°
  */
 function doGet(e) {
-  if (e && e.parameter && (e.parameter.page === 'analise' || e.parameter.view === 'analise' || e.parameter.app === 'analise')) {
-    return HtmlService.createHtmlOutputFromFile('AnaliseProduto')
-      .setTitle('📊 Análise de Lucratividade')
+  try {
+    if (e && e.parameter && (e.parameter.page === 'analise' || e.parameter.view === 'analise' || e.parameter.app === 'analise')) {
+      return HtmlService.createHtmlOutputFromFile('AnaliseProduto')
+        .setTitle('📊 Análise de Lucratividade')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
+    if (e && e.parameter && e.parameter.page === 'status') {
+      const nomeDeposito = typeof getNomeDeposito === 'function' ? getNomeDeposito() : 'Gestão de Depósito';
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${nomeDeposito} - Telegram Bot Status</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: white; text-align: center; padding: 50px 20px; }
+            .card { background: #1e293b; border-radius: 12px; padding: 40px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            h1 { color: #38bdf8; margin-bottom: 10px; }
+            p { color: #94a3b8; line-height: 1.6; }
+            .status { background: #10b981; color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; display: inline-block; margin-top: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>🤖 ${nomeDeposito} - Telegram Bot</h1>
+            <p>O Webhook do sistema está operando corretamente e pronto para receber notificações do Telegram.</p>
+            <span class="status">🟢 ONLINE</span>
+          </div>
+        </body>
+        </html>
+      `;
+      return HtmlService.createHtmlOutput(html).setTitle(nomeDeposito + " - Status");
+    }
+
+    // Padrão: Carrega o Painel Executivo & PDV 360° diretamente via HtmlOutput (sem template evaluation, prevenindo estouro de buffer e tela branca)
+    let nomeDep = 'Gestão de Depósito';
+    try {
+      if (typeof getNomeDeposito === 'function') {
+        nomeDep = getNomeDeposito() || nomeDep;
+      }
+    } catch(eNome) {}
+
+    return HtmlService.createHtmlOutputFromFile('PainelDeposito360')
+      .setTitle('👑 ' + nomeDep + ' - Painel 360° & PDV')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch(err) {
+    console.error('Erro crítico em doGet:', err);
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;background:#090d16;color:#fff;text-align:center;">' +
+      '<h2 style="color:#ef4444;">⚠️ Erro ao Inicializar o Painel 360°</h2>' +
+      '<p style="color:#94a3b8;font-size:14px;">' + (err.message || err) + '</p>' +
+      '<p><button onclick="location.reload()" style="padding:10px 20px;border-radius:8px;background:#3b82f6;color:#fff;border:none;cursor:pointer;font-weight:bold;">🔄 Recarregar</button></p>' +
+      '</body></html>'
+    ).setTitle('Erro de Inicialização');
   }
-
-  if (e && e.parameter && e.parameter.page === 'status') {
-    const nomeDeposito = typeof getNomeDeposito === 'function' ? getNomeDeposito() : 'Gestão de Depósito';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${nomeDeposito} - Telegram Bot Status</title>
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: white; text-align: center; padding: 50px 20px; }
-          .card { background: #1e293b; border-radius: 12px; padding: 40px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-          h1 { color: #38bdf8; margin-bottom: 10px; }
-          p { color: #94a3b8; line-height: 1.6; }
-          .status { background: #10b981; color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; display: inline-block; margin-top: 15px; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>🤖 ${nomeDeposito} - Telegram Bot</h1>
-          <p>O Webhook do sistema está operando corretamente e pronto para receber notificações do Telegram.</p>
-          <span class="status">🟢 ONLINE</span>
-        </div>
-      </body>
-      </html>
-    `;
-    return HtmlService.createHtmlOutput(html).setTitle(nomeDeposito + " - Status");
-  }
-
-  // Padrão: Carrega o Painel Executivo & PDV 360° em tela cheia / PWA
-  const nomeDep = typeof getNomeDeposito === 'function' ? getNomeDeposito() : 'Gestão de Depósito';
-  return HtmlService.createTemplateFromFile('PainelDeposito360')
-    .evaluate()
-    .setTitle('👑 ' + nomeDep + ' - Painel 360° & PDV')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 

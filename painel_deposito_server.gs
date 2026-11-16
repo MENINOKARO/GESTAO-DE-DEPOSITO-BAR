@@ -1621,8 +1621,7 @@ function garantirClienteCadastrado(nome, tel, end, ref, obs) {
  * Abre o Painel Executivo & PDV 360° como Modal dentro da Planilha.
  */
 function abrirPainelDeposito360Modal() {
-  const template = HtmlService.createTemplateFromFile('PainelDeposito360');
-  const html = template.evaluate()
+  const html = HtmlService.createHtmlOutputFromFile('PainelDeposito360')
     .setWidth(1280)
     .setHeight(780);
   SpreadsheetApp.getUi().showModalDialog(html, '👑 Painel Executivo & PDV 360°');
