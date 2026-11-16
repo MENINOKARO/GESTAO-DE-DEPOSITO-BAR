@@ -45,6 +45,20 @@ function obterSupabaseKey() {
 }
 
 /**
+ * 🏢 Obtém o identificador exclusivo da empresa para isolamento multi-tenant no Supabase
+ */
+function obterEmpresaId() {
+  try {
+    if (typeof getConfig === 'function') {
+      const empId = getConfig('EMPRESA_ID');
+      if (empId && String(empId).trim()) return String(empId).trim();
+    }
+  } catch(e) {}
+  const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+  return ss ? ('EMP-' + ss.getId().substring(0, 10)) : 'EMP-PADRAO';
+}
+
+/**
  * Grava as credenciais do Supabase no ambiente seguro
  */
 function configurarCredenciaisSupabase(url, key) {
@@ -76,7 +90,34 @@ function configurarCredenciaisSupabase(url, key) {
  * @returns {any} Resposta parseada em JSON ou status
  */
 function supabaseRequest(endpoint, method, payload, headersExtras) {
-  const url = `${obterSupabaseUrl()}/rest/v1/${endpoint}`;
+  const empId = obterEmpresaId();
+  let finalEndpoint = endpoint;
+
+  // Anexa filtro de empresa_id em endpoints de leitura se for tabela de dados
+  if ((!method || method === 'GET') && !finalEndpoint.includes('empresa_id=')) {
+    const tabelasMultiTenant = ['produtos', 'estoque', 'caixa', 'vendas', 'clientes', 'usuarios', 'config'];
+    const tabName = finalEndpoint.split('?')[0].split('/')[0];
+    if (tabelasMultiTenant.includes(tabName)) {
+      finalEndpoint += (finalEndpoint.includes('?') ? '&' : '?') + `empresa_id=eq.${encodeURIComponent(empId)}`;
+    }
+  }
+
+  // Anexa empresa_id no payload de gravação
+  let payloadFinal = payload;
+  if (payload && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+    if (Array.isArray(payload)) {
+      payloadFinal = payload.map(item => {
+        if (item && typeof item === 'object') {
+          return { ...item, empresa_id: item.empresa_id || empId };
+        }
+        return item;
+      });
+    } else if (typeof payload === 'object') {
+      payloadFinal = { ...payload, empresa_id: payload.empresa_id || empId };
+    }
+  }
+
+  const url = `${obterSupabaseUrl()}/rest/v1/${finalEndpoint}`;
   const key = obterSupabaseKey();
 
   const headers = {
@@ -98,8 +139,8 @@ function supabaseRequest(endpoint, method, payload, headersExtras) {
     muteHttpExceptions: true
   };
 
-  if (payload && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
-    options.payload = JSON.stringify(payload);
+  if (payloadFinal && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+    options.payload = JSON.stringify(payloadFinal);
   }
 
   const response = UrlFetchApp.fetch(url, options);
@@ -112,6 +153,22 @@ function supabaseRequest(endpoint, method, payload, headersExtras) {
       return JSON.parse(text);
     } catch (e) {
       return { ok: true, text: text, status: code };
+    }
+  }
+
+  // 🛡️ Fallback gracioso caso o schema da tabela no Supabase ainda não possua a coluna empresa_id criada
+  if (code === 400 && text.toLowerCase().includes('empresa_id')) {
+    console.warn(`Supabase: coluna empresa_id não detectada em ${endpoint}. Executando chamada direta.`);
+    const urlPura = `${obterSupabaseUrl()}/rest/v1/${endpoint}`;
+    const optsPuras = { ...options };
+    if (payload && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+      optsPuras.payload = JSON.stringify(payload);
+    }
+    const resPura = UrlFetchApp.fetch(urlPura, optsPuras);
+    const codePura = resPura.getResponseCode();
+    const textPura = resPura.getContentText();
+    if (codePura >= 200 && codePura < 300) {
+      try { return JSON.parse(textPura); } catch(e) { return { ok: true, text: textPura }; }
     }
   }
 

@@ -81,6 +81,11 @@
         ui.createMenu('📦 GESTÃO DE DEPÓSITO')
           .addItem('🎉 Começar Aqui / Boas-Vindas', 'abrirBoasVindasSetup')
           .addToUi();
+        try {
+          abrirBoasVindasSetup();
+        } catch(eAuto) {
+          console.warn('Modal de setup requer clique no menu:', eAuto.message);
+        }
         return;
       }
 
@@ -212,8 +217,12 @@
             .addItem('📦 Gerar TODOS os Relatórios', 'gerarPacoteRelatoriosGerenciais')
         );
 
-      // 🛡️ CONFIGURAÇÕES & SISTEMA: EXCLUSIVO PARA O DONO / SUPER-ADMIN (Luigi, Icaro, Admin, Dono)
-      if (isDono) {
+      // 🛡️ CONFIGURAÇÕES & SISTEMA: EXCLUSIVO PARA O ADMINISTRADOR TÉCNICO (login 'admin')
+      // O DONO tem acesso à operação e ao botão Config no Painel 360°, mas na planilha o menu técnico fica restrito ao ADMIN.
+      const loginAtual = String(usuarioAtual.login || usuarioAtual.id || usuarioAtual.nome || '').toLowerCase().trim();
+      const isAdminTecnico = (loginAtual === 'admin' || loginAtual === 'administrador');
+
+      if (isAdminTecnico) {
         menuPrincipal.addSeparator()
           .addSubMenu(
             ui.createMenu('🖥️ Configurações & Sistema')
@@ -11898,6 +11907,50 @@
       const copia = fileOrigem.makeCopy(nomeFinal, pastaReplica);
       const ssNova = SpreadsheetApp.openById(copia.getId());
 
+      // =========================================================================
+      // 🚀 CRIA O LANÇADOR DO PAINEL 360° NA PASTA RAIZ DO DRIVE
+      // =========================================================================
+      let webAppUrl = '';
+      try {
+        webAppUrl = ScriptApp.getService().getUrl() || '';
+      } catch(eUrl) {}
+      if (!webAppUrl) {
+        webAppUrl = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
+      }
+
+      const htmlLancador = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Acessar Painel 360 - ${nomeFinal}</title>
+  <meta http-equiv="refresh" content="0; url=${webAppUrl}">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+    .card { background: #1e293b; padding: 32px; border-radius: 12px; border: 1px solid #334155; max-width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h2 { color: #38bdf8; margin-top: 0; font-size: 22px; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; }
+    .btn:hover { background: linear-gradient(135deg, #0369a1, #075985); }
+  </style>
+  <script>
+    window.location.href = "${webAppUrl}";
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>👑 Painel Executivo & PDV 360°</h2>
+    <p>Redirecionando para o sistema da sua empresa...</p>
+    <a class="btn" href="${webAppUrl}" target="_blank">Clique aqui se não abrir sozinho</a>
+  </div>
+</body>
+</html>`;
+
+      try {
+        pastaReplica.createFile('👑 Acessar Painel 360.html', htmlLancador, MimeType.HTML);
+      } catch(eLancador) {
+        console.warn('Aviso ao criar lançador do Painel 360 no Drive:', eLancador.message);
+      }
+
       // 1. Limpa abas transacionais mantendo o cabeçalho (Linha 1)
       const abasParaLimparTotal = [
         'COMANDAS',
@@ -11906,6 +11959,13 @@
         'DELIVERY_ITENS',
         'VENDAS',
         'CAIXA',
+        'CONFERENCIA_CAIXA',
+        'CAIXA_FECHAMENTO',
+        'FECHAMENTO_FISCAL',
+        'CAIXA_FISCAL',
+        'AUDITORIA_USUARIOS',
+        'AUDITORIA',
+        'SESSOES',
         'CONTAS_A_RECEBER',
         'CONTAS_A_PAGAR',
         'COMPRAS',
@@ -11916,7 +11976,10 @@
         'USUARIOS_TELEGRAM',
         'RELATORIO_FINANCEIRO',
         'RELATORIO_COMPRAS',
-        'RELATORIO_ESTOQUE'
+        'RELATORIO_ESTOQUE',
+        'RELATORIO_LOGS',
+        'ESTOQUE_VALORES',
+        'ESTOQUE_INICIAL'
       ];
 
       abasParaLimparTotal.forEach(nomeAba => {
@@ -11963,12 +12026,15 @@
         }
       }
 
-      // 4. Aba CONFIG: Atualiza DRIVE_URL com a pasta dedicada, NOME_DEPOSITO e reseta parâmetros
+      // 4. Aba CONFIG: Atualiza DRIVE_URL com a pasta dedicada, NOME_DEPOSITO, EMPRESA_ID e reseta parâmetros
       const abaConfig = ssNova.getSheetByName('CONFIG');
+      const novoEmpresaId = 'EMP-' + Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'yyyyMMdd') + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+
       if (abaConfig) {
         const dadosCfg = abaConfig.getDataRange().getValues();
         let achouSetup = false;
         let achouDrive = false;
+        let achouEmpresaId = false;
 
         for (let i = 1; i < dadosCfg.length; i++) {
           const chave = String(dadosCfg[i][0] || '').trim().toUpperCase();
@@ -11977,14 +12043,19 @@
           } else if (chave === 'DRIVE_URL') {
             abaConfig.getRange(i + 1, 2).setValue(pastaReplica.getUrl());
             achouDrive = true;
+          } else if (chave === 'EMPRESA_ID') {
+            abaConfig.getRange(i + 1, 2).setValue(novoEmpresaId);
+            achouEmpresaId = true;
           } else if (chave === 'TELEGRAM_WEBHOOK_URL' || chave === 'TELEGRAM_BOT_TOKEN') {
             if (tipo === 'NOVA_EMPRESA' || chave === 'TELEGRAM_WEBHOOK_URL') {
               abaConfig.getRange(i + 1, 2).setValue('');
             }
-          } else if (chave === 'SETUP_CONCLUIDO') {
+          } else if (chave === 'SUPABASE_KEY' || chave === 'SUPABASE_URL') {
             if (tipo === 'NOVA_EMPRESA') {
-              abaConfig.getRange(i + 1, 2).setValue('NAO');
+              abaConfig.getRange(i + 1, 2).setValue('');
             }
+          } else if (chave === 'SETUP_CONCLUIDO') {
+            abaConfig.getRange(i + 1, 2).setValue('NAO');
             achouSetup = true;
           } else if (tipo === 'NOVA_EMPRESA' && (chave === 'DONO' || chave === 'CNPJ' || chave === 'ENDERECO' || chave === 'TELEFONE' || chave === 'CIDADE' || chave === 'CHAVE_PIX' || chave === 'MENSAGEM_RODAPE' || chave === 'TELEGRAM_DONO_CHAT_ID')) {
             abaConfig.getRange(i + 1, 2).setValue('');
@@ -11994,7 +12065,10 @@
         if (!achouDrive) {
           abaConfig.appendRow(['DRIVE_URL', pastaReplica.getUrl(), 'URL da pasta do Drive']);
         }
-        if (tipo === 'NOVA_EMPRESA' && !achouSetup) {
+        if (!achouEmpresaId) {
+          abaConfig.appendRow(['EMPRESA_ID', novoEmpresaId, 'Identificador exclusivo da empresa no banco de dados']);
+        }
+        if (!achouSetup) {
           abaConfig.appendRow(['SETUP_CONCLUIDO', 'NAO', 'Configuração inicial pendente']);
         }
       }
@@ -12029,6 +12103,15 @@
             }
           }
         }
+      }
+
+      // 🎨 Aplica a Padronização Visual Estrita em todas as abas da nova planilha
+      try {
+        if (typeof padronizarVisualECoresAbasSistema === 'function') {
+          padronizarVisualECoresAbasSistema(ssNova);
+        }
+      } catch(ePadNova) {
+        console.warn('Aviso ao padronizar visual na nova planilha:', ePadNova.message);
       }
 
       SpreadsheetApp.flush();

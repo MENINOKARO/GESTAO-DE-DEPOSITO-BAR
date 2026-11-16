@@ -522,7 +522,9 @@ function obterMapaConfiguracoes() {
     chave_pix: '',
     drive_url: '',
     telegram_token: '',
-    telegram_chat_id: ''
+    telegram_chat_id: '',
+    setup_concluido: 'SIM',
+    empresa_id: ''
   };
   if (!sh || sh.getLastRow() <= 1) return mapa;
 
@@ -539,6 +541,8 @@ function obterMapaConfiguracoes() {
     if (k === 'DRIVE_URL') mapa.drive_url = v;
     if (k === 'TELEGRAM_BOT_TOKEN') mapa.telegram_token = v;
     if (k === 'TELEGRAM_DONO_CHAT_ID') mapa.telegram_chat_id = v;
+    if (k === 'SETUP_CONCLUIDO') mapa.setup_concluido = v || 'NAO';
+    if (k === 'EMPRESA_ID') mapa.empresa_id = v;
   });
   return mapa;
 }
@@ -572,7 +576,8 @@ function salvarConfiguracoesGerais360(dados) {
       ['CIDADE', dados.cidade || '', 'Cidade / UF'],
       ['CHAVE_PIX', dados.chave_pix || '', 'Chave Pix para recebimentos'],
       ['TELEGRAM_BOT_TOKEN', dados.telegram_token || '', 'Token do bot do Telegram'],
-      ['TELEGRAM_DONO_CHAT_ID', dados.telegram_chat_id || '', 'ID do chat do Telegram do Dono']
+      ['TELEGRAM_DONO_CHAT_ID', dados.telegram_chat_id || '', 'ID do chat do Telegram do Dono'],
+      ['SETUP_CONCLUIDO', 'SIM', 'Configuração inicial finalizada']
     ];
 
     const plan = sh.getDataRange().getValues();
@@ -589,6 +594,28 @@ function salvarConfiguracoesGerais360(dados) {
         sh.appendRow(cfg);
       }
     });
+
+    // Se informou nome do dono, atualiza na aba USUARIOS
+    if (dados.dono) {
+      try {
+        const shUsers = ss.getSheetByName('USUARIOS');
+        if (shUsers && shUsers.getLastRow() > 1) {
+          const dU = shUsers.getDataRange().getValues();
+          for (let i = 1; i < dU.length; i++) {
+            if (String(dU[i][4] || '').toUpperCase() === 'DONO') {
+              shUsers.getRange(i + 1, 2).setValue(dados.dono.trim());
+              break;
+            }
+          }
+        }
+      } catch(eDono) {}
+    }
+
+    try {
+      if (typeof padronizarVisualECoresAbasSistema === 'function') {
+        padronizarVisualECoresAbasSistema(ss);
+      }
+    } catch(ePad) {}
 
     return { sucesso: true, msg: 'Configurações salvas com sucesso!' };
   } catch (err) {

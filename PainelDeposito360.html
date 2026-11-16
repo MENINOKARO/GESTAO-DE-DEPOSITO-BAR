@@ -2094,6 +2094,16 @@
     <!-- ABA 6: ⚙️ CONFIGURAÇÃO GERAL (CONFIG) -->
     <!-- ======================================================== -->
     <div id="tabConfig" class="tab-pane">
+      <!-- BANNER DE BOAS-VINDAS / SETUP INICIAL PENDENTE -->
+      <div id="bannerSetupPendenteWeb" style="display: none; background: linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(16, 185, 129, 0.25)); border: 1px solid #0284c7; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.15);">
+        <h3 style="color: #38bdf8; margin: 0 0 6px 0; font-size: 17px; font-weight: 700; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>🎉</span> Bem-vindo ao seu novo Sistema de Depósito & PDV 360°!
+        </h3>
+        <p style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.5;">
+          Para concluir a inicialização da sua empresa, preencha os dados do estabelecimento abaixo e clique em <strong>Salvar Configurações Gerais</strong>.
+        </p>
+      </div>
+
       <div class="config-layout">
         
         <!-- Painel 1: Dados do Estabelecimento -->
@@ -2159,6 +2169,19 @@
           <button class="btn-salvar-config" onclick="salvarConfiguracoesGerais()">
             <span>💾</span> Salvar Configurações Gerais
           </button>
+
+          <!-- SEÇÃO EXCLUSIVA DO ADMINISTRADOR TÉCNICO (LOGIN 'admin') -->
+          <div id="secaoAdminReplicacao" style="display: none; margin-top: 24px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.15);">
+            <div class="config-section-title" style="color: #a78bfa; font-size: 13px; margin-bottom: 8px;">
+              <span>🛠️</span> Painel Técnico do Administrador
+            </div>
+            <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px; line-height: 1.4;">
+              Recurso exclusivo do suporte/admin para criar uma nova empresa limpa ou nova filial mantendo catálogo.
+            </p>
+            <button type="button" class="btn-action" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; width: 100%; justify-content: center; padding: 10px; font-weight: 700;" onclick="abrirModalReplicarEmpresa()">
+              <span>📦</span> Replicar Nova Empresa / Planilha Virgem
+            </button>
+          </div>
         </div>
 
       </div>
@@ -3964,6 +3987,13 @@
 
       // 10. Configurações
       carregarConfiguracoesNaTela();
+
+      // 10.1 Alerta de Setup Pendente (Primeiro Acesso / Nova Empresa)
+      if (DADOS_SISTEMA.configs && String(DADOS_SISTEMA.configs.setup_concluido || '').toUpperCase() === 'NAO' && !window._setupAlertado) {
+        window._setupAlertado = true;
+        trocarAba('tabConfig');
+        showToast('🎉 Inicialização Pendente: Configure os dados do seu estabelecimento abaixo e clique em Salvar.', 'info');
+      }
     }
 
     // NAVEGAÇÃO DE ABAS
@@ -6281,7 +6311,7 @@
     }
 
     // ========================================================
-    // CONFIGURAÇÕES GERAIS
+    // CONFIGURAÇÕES GERAIS & SETUP ONBOARDING
     // ========================================================
     function carregarConfiguracoesNaTela() {
       if (!DADOS_SISTEMA || !DADOS_SISTEMA.configs) return;
@@ -6294,6 +6324,27 @@
       if (c.chave_pix) document.getElementById('cfgChavePix').value = c.chave_pix;
       if (c.telegram_token) document.getElementById('cfgTelegramToken').value = c.telegram_token;
       if (c.telegram_chat_id) document.getElementById('cfgTelegramChatId').value = c.telegram_chat_id;
+
+      // Banner de Boas-Vindas / Setup Inicial Pendente
+      const bannerSetup = document.getElementById('bannerSetupPendenteWeb');
+      if (bannerSetup) {
+        if (String(c.setup_concluido || '').toUpperCase() === 'NAO') {
+          bannerSetup.style.display = 'block';
+        } else {
+          bannerSetup.style.display = 'none';
+        }
+      }
+
+      // Seção exclusiva do Administrador Técnico (login 'admin' ou 'administrador')
+      const secaoAdmin = document.getElementById('secaoAdminReplicacao');
+      if (secaoAdmin) {
+        const login = (USUARIO_LOGADO && (USUARIO_LOGADO.login || USUARIO_LOGADO.nome)) ? String(USUARIO_LOGADO.login || USUARIO_LOGADO.nome).toLowerCase().trim() : '';
+        if (login === 'admin' || login === 'administrador') {
+          secaoAdmin.style.display = 'block';
+        } else {
+          secaoAdmin.style.display = 'none';
+        }
+      }
     }
 
     function salvarConfiguracoesGerais() {
@@ -6314,6 +6365,8 @@
           esconderLoader();
           if (res && res.sucesso) {
             showToast(res.msg, 'success');
+            const bannerSetup = document.getElementById('bannerSetupPendenteWeb');
+            if (bannerSetup) bannerSetup.style.display = 'none';
             sincronizarPainel();
           } else {
             showToast(res ? res.erro : 'Erro ao salvar', 'error');
@@ -6330,6 +6383,92 @@
       if (DADOS_SISTEMA && DADOS_SISTEMA.spreadsheetUrl) {
         window.open(DADOS_SISTEMA.spreadsheetUrl, '_blank');
       }
+    }
+
+    /**
+     * 🛠️ Modal Harmonizado exclusivo do Administrador para Replicar Empresa / Filial
+     */
+    function abrirModalReplicarEmpresa() {
+      const login = (USUARIO_LOGADO && (USUARIO_LOGADO.login || USUARIO_LOGADO.nome)) ? String(USUARIO_LOGADO.login || USUARIO_LOGADO.nome).toLowerCase().trim() : '';
+      if (login !== 'admin' && login !== 'administrador') {
+        showToast('Apenas o Administrador Técnico pode replicar o sistema.', 'error');
+        return;
+      }
+
+      const msgHtml = `
+        <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+          <p style="color:#cbd5e1; font-size:13px; margin:0; line-height:1.4;">
+            Esta rotina criará uma pasta dedicada no Google Drive contendo a nova planilha limpa, subpastas estruturadas (<code>Notas</code>, <code>Backup</code>, <code>Relatórios</code>, <code>Logs</code>) e o lançador <strong>👑 Acessar Painel 360.html</strong>.
+          </p>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">TIPO DE REPLICAÇÃO</label>
+            <select id="modalReplicaTipo" class="cart-select" style="width:100%;" onchange="document.getElementById('grupoManterProd').style.display = this.value === 'FILIAL' ? 'block' : 'none';">
+              <option value="NOVA_EMPRESA">🏢 NOVA EMPRESA (Setup do Zero, Novo Dono e Banco Isolado)</option>
+              <option value="FILIAL">🏪 NOVA FILIAL (Mesma Empresa / Nova Unidade)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">NOME DA NOVA EMPRESA / FILIAL *</label>
+            <input type="text" id="modalReplicaNome" class="cart-input" placeholder="Ex: Depósito São Francisco - Filial 2" style="width:100%;">
+          </div>
+          <div id="grupoManterProd" style="display:none;">
+            <label style="font-size:12px; color:#cbd5e1; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="modalReplicaManterProd" checked style="width:16px; height:16px;">
+              Copiar catálogo de produtos (zerando os estoques)
+            </label>
+          </div>
+        </div>
+      `;
+
+      abrirDialogHarmonizado({
+        icone: '📦',
+        titulo: 'Replicar Planilha Virgem & Criar Empresa',
+        mensagem: msgHtml,
+        textoConfirmar: 'Criar Réplica no Drive',
+        textoCancelar: 'Cancelar',
+        onConfirm: () => {
+          const tipoEl = document.getElementById('modalReplicaTipo');
+          const nomeEl = document.getElementById('modalReplicaNome');
+          const manterProdEl = document.getElementById('modalReplicaManterProd');
+
+          const tipo = tipoEl ? tipoEl.value : 'NOVA_EMPRESA';
+          const nome = nomeEl ? nomeEl.value.trim() : '';
+          const manterProd = (tipo === 'FILIAL' && manterProdEl) ? manterProdEl.checked : false;
+
+          if (!nome) {
+            showToast('Informe o nome da nova empresa/filial.', 'warning');
+            return;
+          }
+
+          mostrarLoader('Criando réplica, pastas no Drive e configurando ambiente...');
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.sucesso) {
+                abrirDialogHarmonizado({
+                  icone: '🎉',
+                  titulo: 'Empresa Replicada com Sucesso!',
+                  mensagem: `
+                    A nova empresa foi configurada com sucesso!<br><br>
+                    📊 <strong>Planilha:</strong> <a href="${res.url}" target="_blank" style="color:#38bdf8; font-weight:bold; text-decoration:underline;">Abrir Planilha Replicada</a><br>
+                    📁 <strong>Pasta Drive:</strong> <a href="${res.pastaUrl}" target="_blank" style="color:#34d399; font-weight:bold; text-decoration:underline;">Abrir Pasta no Google Drive</a><br><br>
+                    O lançador <strong>👑 Acessar Painel 360.html</strong> já está pronto na pasta raiz para uso imediato pelo cliente.
+                  `,
+                  textoConfirmar: 'Concluir',
+                  somenteAviso: true,
+                  onConfirm: () => {}
+                });
+              } else {
+                showToast(res ? res.msg : 'Erro ao replicar planilha', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .executarReplicacaoPlanilhaVirgem(nome, manterProd, tipo, false);
+        }
+      });
     }
 
     // ATALHOS DE TECLADO
