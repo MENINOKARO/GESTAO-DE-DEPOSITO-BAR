@@ -1224,16 +1224,24 @@ function popupListarUsuarios(){
   const sh = ss.getSheetByName('USUARIOS');
   const dados = sh.getDataRange().getValues().slice(1);
 
+  const usuarioLogado = (typeof obterUsuarioAtual === 'function') ? obterUsuarioAtual() : null;
+  const isCallerAdmin = usuarioLogado && (usuarioLogado.perfil === 'ADMIN' || (typeof isAdmin === 'function' && isAdmin(usuarioLogado.id)));
+
   let pendentesHtml = '';
   let ativosHtml = '';
   let inativosHtml = '';
 
   dados.forEach(r => {
     const id = r[0];
-    const nome = r[1];
+    const nome = String(r[1] || '').trim();
     const email = r[2] || '';
     const perfil = String(r[4] || 'PENDENTE').toUpperCase().trim();
     const ativo = String(r[5] || 'PENDENTE').toUpperCase().trim();
+
+    // 🛡️ Regra RBAC: quando não for ADMIN, oculta qualquer usuário com perfil ADMIN ou login 'admin'
+    if (!isCallerAdmin && (perfil === 'ADMIN' || nome.toLowerCase() === 'admin')) {
+      return;
+    }
 
     // Formatação de tags de perfil
     let perfilText = perfil;

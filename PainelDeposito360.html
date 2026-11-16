@@ -4374,7 +4374,19 @@
         return;
       }
 
-      tbody.innerHTML = usuarios.map(u => {
+      // 🛡️ Regra RBAC: Usuários com perfil ADMIN ficam sempre ocultos para quem não for ADMIN.
+      // O ADMIN quando entra no sistema vê o de todos.
+      let lista = usuarios;
+      if (perfilSolicitante !== 'ADMIN') {
+        lista = usuarios.filter(u => u.perfil !== 'ADMIN' && String(u.nome || '').toLowerCase() !== 'admin');
+      }
+
+      if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 25px; text-align: center; color: var(--text-muted);">Nenhum colaborador visível para este perfil.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(u => {
         const isAtivo = u.ativo === 'SIM';
         const roleClass = u.perfil ? u.perfil.toLowerCase() : 'vendedor';
         let roleLabel = '🛒 VENDEDOR';
@@ -4448,19 +4460,26 @@
       document.getElementById('editUserStatus').value = (ativo === 'SIM' ? 'SIM' : 'NAO');
       document.getElementById('editUserSenha').value = '';
 
-      // Se o usuário logado for GERENTE, não permite alterar para DONO, GERENTE ou ADMIN
+      // Controle de perfis atribuíveis:
+      // - ADMIN: só o próprio ADMIN técnico pode visualizar e atribuir ADMIN
+      // - GERENTE: só pode atribuir VENDEDOR
+      // - DONO: pode atribuir DONO, GERENTE, VENDEDOR
       const editPerfilSelect = document.getElementById('editUserPerfil');
-      if (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE') {
-        Array.from(editPerfilSelect.options).forEach(opt => {
-          if (opt.value === 'DONO' || opt.value === 'GERENTE' || opt.value === 'ADMIN') {
-            opt.disabled = true;
-          } else {
-            opt.disabled = false;
-          }
-        });
-      } else {
-        Array.from(editPerfilSelect.options).forEach(opt => opt.disabled = false);
-      }
+      const isCallerAdmin = (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'ADMIN');
+      const isCallerGerente = (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE');
+
+      Array.from(editPerfilSelect.options).forEach(opt => {
+        if (opt.value === 'ADMIN') {
+          opt.disabled = !isCallerAdmin;
+          opt.style.display = isCallerAdmin ? 'block' : 'none';
+        } else if (isCallerGerente) {
+          opt.disabled = (opt.value === 'DONO' || opt.value === 'GERENTE');
+          opt.style.display = (opt.value === 'DONO' || opt.value === 'GERENTE') ? 'none' : 'block';
+        } else {
+          opt.disabled = false;
+          opt.style.display = 'block';
+        }
+      });
 
       document.getElementById('modalEditarColaborador').style.display = 'flex';
     }
@@ -4516,13 +4535,28 @@
       box.style.display = box.style.display === 'none' ? 'block' : 'none';
       if (box.style.display === 'block') {
         const select = document.getElementById('novoUserPerfil');
-        if (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE') {
-          Array.from(select.options).forEach(opt => {
+        const isCallerAdmin = (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'ADMIN');
+        const isCallerGerente = (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE');
+
+        Array.from(select.options).forEach(opt => {
+          if (opt.value === 'ADMIN') {
+            opt.disabled = !isCallerAdmin;
+            opt.style.display = isCallerAdmin ? 'block' : 'none';
+          } else if (isCallerGerente) {
             opt.disabled = (opt.value !== 'VENDEDOR');
-          });
+            opt.style.display = (opt.value === 'VENDEDOR') ? 'block' : 'none';
+          } else {
+            opt.disabled = false;
+            opt.style.display = 'block';
+          }
+        });
+
+        if (isCallerGerente) {
+          select.value = 'VENDEDOR';
+        } else if (isCallerAdmin) {
           select.value = 'VENDEDOR';
         } else {
-          Array.from(select.options).forEach(opt => opt.disabled = false);
+          select.value = 'VENDEDOR';
         }
         document.getElementById('novoUserNome').focus();
       }

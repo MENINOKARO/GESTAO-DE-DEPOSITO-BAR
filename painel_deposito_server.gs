@@ -1999,6 +1999,7 @@ function listarUsuariosPainel(token) {
 
     const dados = sh.getDataRange().getValues();
     const lista = [];
+    const isCallerAdmin = (caller.perfil === 'ADMIN');
 
     for (let i = 1; i < dados.length; i++) {
       const id = String(dados[i][0] || '').trim();
@@ -2008,6 +2009,12 @@ function listarUsuariosPainel(token) {
       const ativo = String(dados[i][5] || 'NAO').toUpperCase().trim();
       const dCriacao = dados[i][6] ? formatarDataSimples(new Date(dados[i][6])) : '--';
       const uAcesso = dados[i][7] ? formatarDataSimples(new Date(dados[i][7])) : '--';
+
+      // 🛡️ Regra RBAC: Usuários com perfil ADMIN ficam SEMPRE ocultos para quem não for ADMIN.
+      // O ADMIN quando entra no sistema vê o de todos.
+      if (!isCallerAdmin && (perfil === 'ADMIN' || nome.toLowerCase() === 'admin')) {
+        continue;
+      }
 
       if (id && nome) {
         lista.push({
@@ -2046,6 +2053,11 @@ function salvarNovoUsuarioPainel(token, dadosUser) {
     const email = String(dadosUser.email || '').trim();
     let perfil = String(dadosUser.perfil || 'VENDEDOR').toUpperCase().trim();
     const senha = String(dadosUser.senha).trim();
+
+    // 🛡️ Apenas ADMIN pode cadastrar perfil ADMIN
+    if (caller.perfil !== 'ADMIN' && perfil === 'ADMIN') {
+      return { ok: false, msg: 'Acesso restrito: apenas Administradores podem cadastrar novos Administradores.' };
+    }
 
     // Gerente só pode criar Vendedor
     if (caller.perfil === 'GERENTE' && perfil !== 'VENDEDOR') {
@@ -2120,6 +2132,13 @@ function alterarStatusUsuarioPainel(token, idUser, novoStatus) {
     for (let i = 1; i < dados.length; i++) {
       if (String(dados[i][0]).trim() === String(idUser).trim()) {
         const perfilAlvo = String(dados[i][4] || '').toUpperCase().trim();
+        const nomeAlvo = String(dados[i][1] || '').trim().toLowerCase();
+
+        // 🛡️ Usuários não-ADMIN não podem alterar status de Administrador
+        if (caller.perfil !== 'ADMIN' && (perfilAlvo === 'ADMIN' || nomeAlvo === 'admin')) {
+          return { ok: false, msg: 'Acesso restrito: contas de Administrador só podem ser alteradas por outro Administrador.' };
+        }
+
         if (caller.perfil === 'GERENTE' && (perfilAlvo === 'ADMIN' || perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerentes só podem gerenciar Vendedores.' };
         }
@@ -2160,6 +2179,13 @@ function redefinirSenhaUsuarioPainel(token, idUser, novaSenha) {
     for (let i = 1; i < dados.length; i++) {
       if (String(dados[i][0]).trim() === String(idUser).trim()) {
         const perfilAlvo = String(dados[i][4] || '').toUpperCase().trim();
+        const nomeAlvo = String(dados[i][1] || '').trim().toLowerCase();
+
+        // 🛡️ Usuários não-ADMIN não podem redefinir senha de Administrador
+        if (caller.perfil !== 'ADMIN' && (perfilAlvo === 'ADMIN' || nomeAlvo === 'admin')) {
+          return { ok: false, msg: 'Acesso restrito: senhas de Administrador só podem ser alteradas pelo próprio Administrador.' };
+        }
+
         if (caller.perfil === 'GERENTE' && (perfilAlvo === 'ADMIN' || perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerentes só podem alterar senhas de Vendedores.' };
         }
@@ -2238,6 +2264,18 @@ function editarColaboradorPainel(token, dadosUser) {
       if (uid === idAlvo) {
         linhaAlvo = i + 1;
         const perfilAtualAlvo = String(dados[i][4] || '').toUpperCase().trim();
+        const nomeAtualAlvo = String(dados[i][1] || '').trim().toLowerCase();
+
+        // 🛡️ Usuários não-ADMIN não podem editar cadastro de Administrador
+        if (caller.perfil !== 'ADMIN' && (perfilAtualAlvo === 'ADMIN' || nomeAtualAlvo === 'admin')) {
+          return { ok: false, msg: 'Acesso restrito: contas de Administrador só podem ser editadas por outro Administrador.' };
+        }
+
+        // 🛡️ Usuários não-ADMIN não podem conceder o perfil de Administrador a ninguém
+        if (caller.perfil !== 'ADMIN' && novoPerfil === 'ADMIN') {
+          return { ok: false, msg: 'Acesso restrito: apenas Administradores podem conceder o perfil de Administrador.' };
+        }
+
         if (caller.perfil === 'GERENTE' && (perfilAtualAlvo === 'ADMIN' || perfilAtualAlvo === 'DONO' || perfilAtualAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerente só tem permissão para editar colaboradores Vendedores.' };
         }
