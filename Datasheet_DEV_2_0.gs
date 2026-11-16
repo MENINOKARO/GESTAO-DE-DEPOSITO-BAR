@@ -245,6 +245,7 @@
               .addSubMenu(
                 ui.createMenu('💾 Backup & Manutenção')
                   .addItem('💾 Fazer Backup de Segurança', 'fazerBackupSistema')
+                  .addItem('📁 Sincronizar Arquivos na Pasta Raiz', 'menuSincronizarPastaRaizEmpresa')
                   .addItem('📦 Replicar Planilha Virgem (Template)', 'popupReplicarPlanilhaVirgem')
                   .addItem('🧹 Limpar Duplicatas do Estoque', 'limparDuplicadosEstoque')
                   .addItem('📜 Ver Logs do Sistema', 'abrirAbaLog')
@@ -1672,13 +1673,36 @@
 
   // MODULO DRIVE
     function abrirDriveLink(){
-      const url = getConfig('DRIVE_URL');
+      let url = getConfig('DRIVE_URL');
+      if(!url){
+        try {
+          const res = sincronizarArquivosEPastaRaizEmpresa();
+          url = res.urlPasta;
+        } catch(e) {}
+      }
       if(url){
         const html = HtmlService
-          .createHtmlOutput(`<script>window.open('${url}','_blank');google.script.host.close();</script>`);
+          .createHtmlOutput('<script>window.open("' + url + '","_blank");google.script.host.close();</script>');
         SpreadsheetApp.getUi().showModalDialog(html,'Abrindo Drive...');
       }else{
-        SpreadsheetApp.getUi().alert('🔗 Link do Drive não configurado em CONFIG.');
+        SpreadsheetApp.getUi().alert('🔗 Não foi possível localizar ou criar a pasta do Drive.');
+      }
+    }
+
+    function menuSincronizarPastaRaizEmpresa() {
+      const ui = SpreadsheetApp.getUi();
+      try {
+        const res = sincronizarArquivosEPastaRaizEmpresa();
+        ui.alert(
+          '✅ Pasta Raiz e Arquivos Sincronizados com Sucesso!\n\n' +
+          '📁 Pasta: ' + res.nomePasta + '\n' +
+          '📊 Planilha na Raiz: ' + (res.planilhaNome || 'Sincronizada') + '\n' +
+          '👑 Arquivo Lançador: ' + (res.lancadorCriado ? 'Criado agora' : 'Já existia') + '\n' +
+          '📄 Arquivo Informativo: ' + (res.infoCriado ? 'Criado agora' : 'Já existia') + '\n\n' +
+          '🔗 URL da Pasta: ' + res.urlPasta
+        );
+      } catch(e) {
+        ui.alert('❌ Erro ao sincronizar pasta raiz: ' + e.message);
       }
     }
 
@@ -10256,16 +10280,25 @@
 // DRIVE - ESTRUTURA GERAL DO SISTEMA - BACKUP - LOGS - RELATÓRIOS
 // ===============================
   function garantirEstruturaDriveSistema(dataRef){
+    return sincronizarArquivosEPastaRaizEmpresa(dataRef);
+  }
 
-    const nomeDeposito = getNomeDeposito(); // ✅ fonte única
+  /**
+   * Sincroniza e garante todos os arquivos e pastas na pasta raiz da empresa no Google Drive:
+   * 1. Pasta raiz no Drive com o nome do depósito.
+   * 2. Planilha Google Sheets na pasta raiz (move a planilha ativa ou cria uma nova se não existir).
+   * 3. Arquivo HTML lançador do Painel 360° ('👑 Acessar Painel 360.html').
+   * 4. Arquivo informativo de boas-vindas e acesso ('📄 Informações e Acesso - [Nome].txt').
+   * 5. Todas as subpastas essenciais (Backup, Logs, Relatórios, Compras/Notas).
+   * 6. Atualização automática de CONFIG!DRIVE_URL.
+   */
+  function sincronizarArquivosEPastaRaizEmpresa(dataRef) {
+    const nomeDeposito = getNomeDeposito();
     const data = dataRef || new Date();
-
     const ano = Utilities.formatDate(data, Session.getScriptTimeZone(), 'yyyy');
     const mes = Utilities.formatDate(data, Session.getScriptTimeZone(), 'MM');
 
-    // ===============================
-    // 📁 PASTA RAIZ = NOME DO DEPÓSITO
-    // ===============================
+    // 1. Pasta raiz com o nome do depósito
     const root = obterOuCriarPastaPorNome(
       DriveApp,
       nomeDeposito,
@@ -10273,81 +10306,163 @@
       nomeDeposito
     );
 
-    // ===============================
-    // 📦 BACKUP (compatível com o que você já tem)
-    // ===============================
-    obterOuCriarPastaPorNome(
-      root,
-      'Backup',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Backup`
-    );
+    // Salva URL da pasta na aba CONFIG se estiver vazia ou desatualizada
+    try {
+      const urlAtualConfig = getConfig('DRIVE_URL');
+      if (!urlAtualConfig || urlAtualConfig !== root.getUrl()) {
+        setConfig('DRIVE_URL', root.getUrl());
+      }
+    } catch(eCfg) {}
 
-    // ===============================
-    // 🧾 LOGS
-    // ===============================
-    const logs = obterOuCriarPastaPorNome(
-      root,
-      'Logs',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Logs`
-    );
+    // 2. Subpastas essenciais
+    obterOuCriarPastaPorNome(root, 'Backup', 'CRIAR_PASTA', `${nomeDeposito}/Backup`);
+    const logs = obterOuCriarPastaPorNome(root, 'Logs', 'CRIAR_PASTA', `${nomeDeposito}/Logs`);
+    obterOuCriarPastaPorNome(logs, 'PDF', 'CRIAR_PASTA', `${nomeDeposito}/Logs/PDF`);
 
-    obterOuCriarPastaPorNome(
-      logs,
-      'PDF',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Logs/PDF`
-    );
-
-    // ===============================
-    // 📊 RELATÓRIOS
-    // ===============================
-    const relatorios = obterOuCriarPastaPorNome(
-      root,
-      'Relatorios',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Relatorios`
-    );
-
+    const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios`);
     obterOuCriarPastaPorNome(relatorios, 'Financeiro', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Financeiro`);
     obterOuCriarPastaPorNome(relatorios, 'Estoque',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Estoque`);
     obterOuCriarPastaPorNome(relatorios, 'Compras',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Compras`);
 
-    // ===============================
-    // 🛒 COMPRAS / NOTAS FISCAIS
-    // ===============================
-    const compras = obterOuCriarPastaPorNome(
-      root,
-      'Compras',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Compras`
-    );
+    const compras = obterOuCriarPastaPorNome(root, 'Compras', 'CRIAR_PASTA', `${nomeDeposito}/Compras`);
+    const notas = obterOuCriarPastaPorNome(compras, 'Notas', 'CRIAR_PASTA', `${nomeDeposito}/Compras/Notas`);
+    const anoFolder = obterOuCriarPastaPorNome(notas, ano, 'CRIAR_PASTA', `${nomeDeposito}/Compras/Notas/${ano}`);
+    const mesFolder = obterOuCriarPastaPorNome(anoFolder, mes, 'CRIAR_PASTA', `${nomeDeposito}/Compras/Notas/${ano}/${mes}`);
 
-    const notas = obterOuCriarPastaPorNome(
-      compras,
-      'Notas',
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Compras/Notas`
-    );
+    // 3. Planilha na pasta raiz (garante que há uma planilha do Google Sheets dentro de root)
+    let planilhaNome = '';
+    let planilhaId = '';
+    const planilhasNaRaiz = root.getFilesByType(MimeType.GOOGLE_SHEETS);
+    if (planilhasNaRaiz.hasNext()) {
+      const plExistente = planilhasNaRaiz.next();
+      planilhaNome = plExistente.getName();
+      planilhaId = plExistente.getId();
+    } else {
+      // Não tem planilha na raiz! Aloca a planilha ativa na pasta raiz
+      let planilhaAlocada = false;
+      try {
+        const ssAtiva = SpreadsheetApp.getActiveSpreadsheet();
+        if (ssAtiva) {
+          const fileSS = DriveApp.getFileById(ssAtiva.getId());
+          try {
+            fileSS.moveTo(root);
+            planilhaAlocada = true;
+          } catch(eMove) {
+            root.addFile(fileSS);
+            planilhaAlocada = true;
+          }
+          planilhaNome = fileSS.getName();
+          planilhaId = fileSS.getId();
+          registrarLog('ALOCAR_PLANILHA_RAIZ', 'Planilha ativa alocada na pasta raiz', '', root.getName());
+        }
+      } catch(eSS) {
+        console.warn('Aviso ao mover planilha ativa para a pasta raiz:', eSS);
+      }
 
-    const anoFolder = obterOuCriarPastaPorNome(
-      notas,
-      ano,
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Compras/Notas/${ano}`
-    );
+      // Se ainda não houver planilha na pasta raiz (ex: script desvinculado), cria uma nova
+      if (!planilhaAlocada && !root.getFilesByType(MimeType.GOOGLE_SHEETS).hasNext()) {
+        const novaSS = SpreadsheetApp.create(`GESTÃO DE DEPÓSITO — ${nomeDeposito}`);
+        const fileNova = DriveApp.getFileById(novaSS.getId());
+        try {
+          fileNova.moveTo(root);
+        } catch(eMoveNova) {
+          root.addFile(fileNova);
+        }
+        planilhaNome = novaSS.getName();
+        planilhaId = novaSS.getId();
+        registrarLog('CRIAR_PLANILHA_RAIZ', 'Nova planilha criada na pasta raiz', '', novaSS.getName());
+      }
+    }
 
-    const mesFolder = obterOuCriarPastaPorNome(
-      anoFolder,
-      mes,
-      'CRIAR_PASTA',
-      `${nomeDeposito}/Compras/Notas/${ano}/${mes}`
-    );
+    // 4. Arquivo Lançador do Painel 360° na pasta raiz ('👑 Acessar Painel 360.html')
+    let lancadorCriado = false;
+    const nomeLancador = '👑 Acessar Painel 360.html';
+    const filesLancador = root.getFilesByName(nomeLancador);
+    const webAppUrl = (typeof obterUrlWebAppDeposito === 'function')
+      ? obterUrlWebAppDeposito()
+      : 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
+
+    const htmlLancador = '<!DOCTYPE html>\n' +
+      '<html lang="pt-BR">\n' +
+      '<head>\n' +
+      '  <meta charset="UTF-8">\n' +
+      '  <title>Acessar Painel 360 - ' + nomeDeposito + '</title>\n' +
+      '  <meta http-equiv="refresh" content="0; url=' + webAppUrl + '">\n' +
+      '  <style>\n' +
+      '    body { font-family: "Segoe UI", -apple-system, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }\n' +
+      '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
+      '    h2 { color: #38bdf8; margin-top: 0; font-size: 24px; font-weight: 700; }\n' +
+      '    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }\n' +
+      '    .btn { display: inline-block; background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: 0.2s; }\n' +
+      '    .btn:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
+      '  </style>\n' +
+      '  <script>\n' +
+      '    window.location.href = "' + webAppUrl + '";\n' +
+      '  </script>\n' +
+      '</head>\n' +
+      '<body>\n' +
+      '  <div class="card">\n' +
+      '    <h2>👑 ' + nomeDeposito + '</h2>\n' +
+      '    <h3 style="color:#f8fafc; font-size:16px; margin-bottom:12px;">Painel Executivo & PDV 360°</h3>\n' +
+      '    <p>Redirecionando para o ambiente operacional da sua empresa...</p>\n' +
+      '    <a class="btn" href="' + webAppUrl + '" target="_blank">🚀 Abrir Painel 360°</a>\n' +
+      '  </div>\n' +
+      '</body>\n' +
+      '</html>';
+
+    if (!filesLancador.hasNext()) {
+      root.createFile(nomeLancador, htmlLancador, MimeType.HTML);
+      lancadorCriado = true;
+      registrarLog('CRIAR_ARQUIVO_RAIZ', 'Lançador HTML criado na pasta raiz', '', nomeLancador);
+    }
+
+    // 5. Arquivo Informativo / Boas-Vindas TXT na pasta raiz
+    let infoCriado = false;
+    const nomeInfo = `📄 Informações e Acesso - ${nomeDeposito}.txt`;
+    const filesInfo = root.getFilesByName(nomeInfo);
+    if (!filesInfo.hasNext()) {
+      const dataCriacao = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+      const infoConteudo = [
+        '=============================================================',
+        `👑 SISTEMA DE GESTÃO DE DEPÓSITO 360° & PDV`,
+        '=============================================================',
+        `Empresa: ${nomeDeposito}`,
+        `Data de Sincronização: ${dataCriacao}`,
+        '',
+        '📍 LINKS DE ACESSO OFICIAIS:',
+        '-------------------------------------------------------------',
+        '🌐 Painel 360° Web & PDV:',
+        `   ${webAppUrl}`,
+        '',
+        '📁 Pasta Raiz da Empresa no Google Drive:',
+        `   ${root.getUrl()}`,
+        '',
+        '📊 Planilha de Gestão:',
+        `   ${planilhaNome || 'Planilha do Sistema'} (ID: ${planilhaId || 'N/A'})`,
+        '',
+        '-------------------------------------------------------------',
+        '📌 ESTRUTURA DE ARQUIVOS NA PASTA RAIZ:',
+        `1. '👑 Acessar Painel 360.html' -> Dê dois cliques para abrir o sistema diretamente`,
+        `2. '${planilhaNome || 'Planilha do Sistema'}' -> Planilha de banco de dados e controle interno`,
+        `3. Subpastas: Backup, Logs, Relatórios e Compras/Notas Fiscais`,
+        '============================================================='
+      ].join('\n');
+
+      root.createFile(nomeInfo, infoConteudo, MimeType.PLAIN_TEXT);
+      infoCriado = true;
+      registrarLog('CRIAR_ARQUIVO_RAIZ', 'Arquivo informativo criado na pasta raiz', '', nomeInfo);
+    }
 
     return {
+      ok: true,
       rootId: root.getId(),
-      notasMesId: mesFolder.getId()
+      nomePasta: root.getName(),
+      urlPasta: root.getUrl(),
+      notasMesId: mesFolder.getId(),
+      planilhaNome: planilhaNome,
+      planilhaId: planilhaId,
+      lancadorCriado: lancadorCriado,
+      infoCriado: infoCriado
     };
   }
   function obterOuCriarPastaPorNome(pastaPai, nome, acaoLog, caminho){
@@ -11961,47 +12076,83 @@
       const ssNova = SpreadsheetApp.openById(copia.getId());
 
       // =========================================================================
-      // 🚀 CRIA O LANÇADOR DO PAINEL 360° NA PASTA RAIZ DO DRIVE
+      // 🚀 CRIA O LANÇADOR DO PAINEL 360° E INFORMAÇÕES NA PASTA RAIZ DO DRIVE
       // =========================================================================
       let webAppUrl = '';
       try {
-        webAppUrl = ScriptApp.getService().getUrl() || '';
+        if (typeof obterUrlWebAppDeposito === 'function') {
+          webAppUrl = obterUrlWebAppDeposito();
+        }
       } catch(eUrl) {}
       if (!webAppUrl) {
         webAppUrl = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
       }
 
-      const htmlLancador = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Acessar Painel 360 - ${nomeFinal}</title>
-  <meta http-equiv="refresh" content="0; url=${webAppUrl}">
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
-    .card { background: #1e293b; padding: 32px; border-radius: 12px; border: 1px solid #334155; max-width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    h2 { color: #38bdf8; margin-top: 0; font-size: 22px; }
-    p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
-    .btn { display: inline-block; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; }
-    .btn:hover { background: linear-gradient(135deg, #0369a1, #075985); }
-  </style>
-  <script>
-    window.location.href = "${webAppUrl}";
-  </script>
-</head>
-<body>
-  <div class="card">
-    <h2>👑 Painel Executivo & PDV 360°</h2>
-    <p>Redirecionando para o sistema da sua empresa...</p>
-    <a class="btn" href="${webAppUrl}" target="_blank">Clique aqui se não abrir sozinho</a>
-  </div>
-</body>
-</html>`;
+      const htmlLancador = '<!DOCTYPE html>\n' +
+        '<html lang="pt-BR">\n' +
+        '<head>\n' +
+        '  <meta charset="UTF-8">\n' +
+        '  <title>Acessar Painel 360 - ' + nomeFinal + '</title>\n' +
+        '  <meta http-equiv="refresh" content="0; url=' + webAppUrl + '">\n' +
+        '  <style>\n' +
+        '    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }\n' +
+        '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
+        '    h2 { color: #38bdf8; margin-top: 0; font-size: 24px; font-weight: 700; }\n' +
+        '    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }\n' +
+        '    .btn { display: inline-block; background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: 0.2s; }\n' +
+        '    .btn:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
+        '  </style>\n' +
+        '  <script>\n' +
+        '    window.location.href = "' + webAppUrl + '";\n' +
+        '  </script>\n' +
+        '</head>\n' +
+        '<body>\n' +
+        '  <div class="card">\n' +
+        '    <h2>👑 ' + nomeFinal + '</h2>\n' +
+        '    <h3 style="color:#f8fafc; font-size:16px; margin-bottom:12px;">Painel Executivo & PDV 360°</h3>\n' +
+        '    <p>Redirecionando para o sistema da sua empresa...</p>\n' +
+        '    <a class="btn" href="' + webAppUrl + '" target="_blank">🚀 Abrir Painel 360°</a>\n' +
+        '  </div>\n' +
+        '</body>\n' +
+        '</html>';
 
       try {
         pastaReplica.createFile('👑 Acessar Painel 360.html', htmlLancador, MimeType.HTML);
       } catch(eLancador) {
         console.warn('Aviso ao criar lançador do Painel 360 no Drive:', eLancador.message);
+      }
+
+      // Cria arquivo informativo na pasta raiz da réplica
+      try {
+        const dataReplicacao = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+        const infoConteudoReplica = [
+          '=============================================================',
+          '👑 SISTEMA DE GESTÃO DE DEPÓSITO 360° & PDV',
+          '=============================================================',
+          'Empresa: ' + nomeFinal,
+          'Data de Criação: ' + dataReplicacao,
+          '',
+          '📍 LINKS DE ACESSO OFICIAIS:',
+          '-------------------------------------------------------------',
+          '🌐 Painel 360° Web & PDV:',
+          '   ' + webAppUrl,
+          '',
+          '📁 Pasta Raiz da Empresa no Google Drive:',
+          '   ' + pastaReplica.getUrl(),
+          '',
+          '📊 Planilha de Gestão:',
+          '   ' + copia.getName() + ' (ID: ' + copia.getId() + ')',
+          '',
+          '-------------------------------------------------------------',
+          '📌 ESTRUTURA DE ARQUIVOS NA PASTA RAIZ:',
+          '1. \'👑 Acessar Painel 360.html\' -> Dê dois cliques para abrir o sistema diretamente',
+          '2. \'' + copia.getName() + '\' -> Planilha de banco de dados e controle interno',
+          '3. Subpastas: Backup, Logs, Relatórios e Compras/Notas Fiscais',
+          '============================================================='
+        ].join('\n');
+        pastaReplica.createFile('📄 Informações e Acesso - ' + nomeFinal + '.txt', infoConteudoReplica, MimeType.PLAIN_TEXT);
+      } catch(eInfo) {
+        console.warn('Aviso ao criar arquivo informativo na pasta da réplica:', eInfo.message);
       }
 
       // 1. Limpa abas transacionais mantendo o cabeçalho (Linha 1)

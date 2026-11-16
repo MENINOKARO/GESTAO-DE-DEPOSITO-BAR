@@ -3851,3 +3851,21 @@ function receberFiadoCliente360(token, idFiado, valorRecebido, formaPgto) {
     return { sucesso: false, erro: err.message };
   }
 }
+
+/**
+ * Endpoint para sincronizar pasta raiz e arquivos da empresa a partir do Painel 360
+ */
+function sincronizarPastaRaizEmpresa360(token) {
+  const auth = validarSessaoOuErro(token);
+  if (!auth.ok) return { sucesso: false, erro: auth.erro };
+  try {
+    if (typeof sincronizarArquivosEPastaRaizEmpresa === 'function') {
+      const res = sincronizarArquivosEPastaRaizEmpresa();
+      return { sucesso: true, dados: res };
+    }
+    return { sucesso: false, erro: 'Função de sincronização não carregada.' };
+  } catch(e) {
+    console.error('Erro em sincronizarPastaRaizEmpresa360:', e);
+    return { sucesso: false, erro: e.message };
+  }
+}
