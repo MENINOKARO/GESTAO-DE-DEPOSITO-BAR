@@ -2070,9 +2070,14 @@
     <!-- ======================================================== -->
     <div id="tabEstoque" class="tab-pane">
       <div class="panel-card" style="display:flex; flex-direction:column; height: 100%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <input type="text" id="buscaEstoqueTabela" class="input-search" style="max-width:350px;" placeholder="🔍 Filtrar produtos no estoque..." onkeyup="filtrarTabelaEstoque()">
-          <span style="font-size:12px; color:var(--text-muted);" id="lblTotalProdutosContador">Carregando catálogo...</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap: 10px; flex-wrap: wrap;">
+          <input type="text" id="buscaEstoqueTabela" class="input-search" style="max-width:350px; flex: 1;" placeholder="🔍 Filtrar produtos no estoque..." onkeyup="filtrarTabelaEstoque()">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-size:12px; color:var(--text-muted);" id="lblTotalProdutosContador">Carregando catálogo...</span>
+            <button type="button" class="btn-action" id="btnNovoProdutoEstoque" style="background:#10b981; border-color:#059669; color:#fff; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" onclick="abrirModalNovoProduto()">
+              <span>➕</span> Novo Produto
+            </button>
+          </div>
         </div>
 
         <div style="flex:1; overflow-y:auto;">
@@ -2532,11 +2537,18 @@
                 <span>Consulta de produtos, quantidades e valores</span>
               </div>
             </div>
+            <div class="pi-card" onclick="abrirModalNovoProduto()">
+              <span class="pi-icon">➕</span>
+              <div class="pi-info">
+                <strong>Novo Produto</strong>
+                <span>Cadastrar novo item no catálogo</span>
+              </div>
+            </div>
             <div class="pi-card" onclick="abrirModalGestaoProduto()">
               <span class="pi-icon">🏷️</span>
               <div class="pi-info">
                 <strong>Gestão de Produtos</strong>
-                <span>Cadastrar, precificar e ajustar margens</span>
+                <span>Editar preços, margens e estoque</span>
               </div>
             </div>
             <div class="pi-card" onclick="acionarFuncaoInteligente('exec', 'atualizarEstoque')">
@@ -2961,15 +2973,15 @@
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
         <div>
           <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
-            <span>🏷️</span> Gestão de Produto & Lucratividade
+            <span id="iconeModalGestaoProd">🏷️</span> <span id="tituloModalGestaoProd">Gestão de Produto & Lucratividade</span>
           </h3>
-          <span style="font-size: 11px; color: var(--text-muted);">Edição cadastral, precificação inteligente e saldo</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="subtituloModalGestaoProd">Edição cadastral, precificação inteligente e saldo</span>
         </div>
         <button type="button" class="btn-clear-cart" onclick="fecharModalGestaoProduto()">✕ Fechar</button>
       </div>
 
-      <!-- Seletor de Produto Rápido -->
-      <div style="background: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+      <!-- Seletor de Produto Rápido (Modo Edição) -->
+      <div id="containerSeletorRapidoProduto" style="background: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
         <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">SELECIONE OU TROQUE O PRODUTO:</label>
         <select id="modalGestaoSelectProduto" class="cart-select" onchange="trocarProdutoNoModal(this.value)">
           <!-- Injetado dinamicamente -->
@@ -4152,10 +4164,12 @@
       const btnTabEstoque = document.getElementById('btnTabEstoque');
       const btnTabEquipe = document.getElementById('btnTabEquipe');
       const btnTabConfig = document.getElementById('btnTabConfig');
+      const btnNovoProdutoEstoque = document.getElementById('btnNovoProdutoEstoque');
       if (btnTabVisao360) btnTabVisao360.style.display = isOperador ? 'none' : 'inline-flex';
       if (btnTabEstoque) btnTabEstoque.style.display = isOperador ? 'none' : 'inline-flex';
       if (btnTabEquipe) btnTabEquipe.style.display = isOperador ? 'none' : 'inline-flex';
       if (btnTabConfig) btnTabConfig.style.display = isDono ? 'inline-flex' : 'none';
+      if (btnNovoProdutoEstoque) btnNovoProdutoEstoque.style.display = isOperador ? 'none' : 'inline-flex';
 
       // 4. Cards do Painel Inteligente
       const piCardFechamentoFiscal = document.getElementById('piCardFechamentoFiscal');
@@ -6361,6 +6375,80 @@
     // ========================================================
     // 🏷️ GESTÃO DE PRODUTO & LUCRATIVIDADE MODAL
     // ========================================================
+    function abrirModalNovoProduto() {
+      const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
+      if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN') {
+        showToast('Apenas Gerentes, Donos e Administradores podem cadastrar novos produtos!', 'error');
+        return;
+      }
+
+      // Limpa campos para novo cadastro
+      document.getElementById('gestaoProdId').value = '';
+      document.getElementById('gestaoProdNome').value = '';
+      document.getElementById('gestaoProdCategoria').value = '';
+      document.getElementById('gestaoProdMarca').value = '';
+      document.getElementById('gestaoProdVolume').value = '';
+      document.getElementById('gestaoProdCusto').value = '';
+      document.getElementById('gestaoProdMargem').value = '';
+      document.getElementById('gestaoProdPreco').value = '';
+      document.getElementById('gestaoProdMinimo').value = '5';
+      document.getElementById('gestaoProdAjusteQtd').value = '0';
+      document.getElementById('lblGestaoId').innerText = 'NOVO';
+      document.getElementById('lblGestaoEstoque').innerText = '0 un';
+      document.getElementById('lblGestaoLucroBruto').innerText = 'R$ 0,00';
+      document.getElementById('lblGestaoStatusMargem').innerText = 'NOVO CADASTRO';
+      document.getElementById('lblGestaoStatusMargem').style.background = 'rgba(56, 189, 248, 0.2)';
+      document.getElementById('lblGestaoStatusMargem').style.color = '#38bdf8';
+
+      // Popula datalist de categorias existentes
+      if (DADOS_SISTEMA && DADOS_SISTEMA.produtos) {
+        const cats = Array.from(new Set(DADOS_SISTEMA.produtos.map(p => p.categoria).filter(Boolean))).sort();
+        const dl = document.getElementById('datalistCategoriasProd');
+        if (dl) dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+      }
+
+      // Ajusta cabeçalho e visibilidade para MODO NOVO
+      const icone = document.getElementById('iconeModalGestaoProd');
+      if (icone) icone.innerText = '✨';
+      const tit = document.getElementById('tituloModalGestaoProd');
+      if (tit) tit.innerText = 'Cadastrar Novo Produto';
+      const sub = document.getElementById('subtituloModalGestaoProd');
+      if (sub) sub.innerText = 'Preencha os dados cadastrais, custos e preço de venda';
+
+      const seletor = document.getElementById('containerSeletorRapidoProduto');
+      if (seletor) seletor.style.display = 'none';
+
+      const secaoAjuste = document.getElementById('secaoAjusteEstoqueModal');
+      if (secaoAjuste) secaoAjuste.style.display = 'none';
+
+      const btnSalvar = document.getElementById('btnSalvarGestaoProduto');
+      if (btnSalvar) {
+        btnSalvar.style.display = 'inline-flex';
+        btnSalvar.innerText = '✨ Cadastrar Produto';
+      }
+
+      const inputsBloqueaveis = [
+        'gestaoProdNome', 'gestaoProdCategoria', 'gestaoProdMarca', 'gestaoProdVolume',
+        'gestaoProdCusto', 'gestaoProdMargem', 'gestaoProdPreco', 'gestaoProdMinimo'
+      ];
+      inputsBloqueaveis.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
+      });
+
+      const bannerOperador = document.getElementById('bannerRestricaoOperador');
+      if (bannerOperador) bannerOperador.style.display = 'none';
+
+      const atalhosMargem = document.getElementById('containerAtalhosMargem');
+      if (atalhosMargem) atalhosMargem.style.display = 'block';
+
+      document.getElementById('modalGestaoProduto').style.display = 'flex';
+      setTimeout(() => {
+        const f = document.getElementById('gestaoProdNome');
+        if (f) f.focus();
+      }, 100);
+    }
+
     function abrirModalGestaoProduto(idOuNome) {
       if (!DADOS_SISTEMA || !DADOS_SISTEMA.produtos) return;
 
@@ -6387,6 +6475,20 @@
         carregarDadosProdutoNoModal(prod);
       }
 
+      // Restaura layout de Edição
+      const icone = document.getElementById('iconeModalGestaoProd');
+      if (icone) icone.innerText = '🏷️';
+      const tit = document.getElementById('tituloModalGestaoProd');
+      if (tit) tit.innerText = 'Gestão de Produto & Lucratividade';
+      const sub = document.getElementById('subtituloModalGestaoProd');
+      if (sub) sub.innerText = 'Edição cadastral, precificação inteligente e saldo';
+
+      const seletor = document.getElementById('containerSeletorRapidoProduto');
+      if (seletor) seletor.style.display = 'block';
+
+      const secaoAjuste = document.getElementById('secaoAjusteEstoqueModal');
+      if (secaoAjuste) secaoAjuste.style.display = 'block';
+
       // Validação de Permissão por Perfil (DONO e GERENTE alteram; OPERADOR somente leitura)
       const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
       const podeEditar = (perfil === 'DONO' || perfil === 'GERENTE' || perfil === 'ADMIN');
@@ -6411,7 +6513,10 @@
         if (bannerOperador) bannerOperador.style.display = 'block';
         if (atalhosMargem) atalhosMargem.style.display = 'none';
       } else {
-        if (btnSalvar) btnSalvar.style.display = 'inline-flex';
+        if (btnSalvar) {
+          btnSalvar.style.display = 'inline-flex';
+          btnSalvar.innerText = '💾 Salvar Alterações';
+        }
         if (btnAjustar) btnAjustar.style.display = 'inline-flex';
         if (bannerOperador) bannerOperador.style.display = 'none';
         if (atalhosMargem) atalhosMargem.style.display = 'block';
@@ -6514,12 +6619,12 @@
 
     function salvarGestaoProdutoModal() {
       const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
-      if (perfil !== 'DONO' && perfil !== 'GERENTE') {
-        showToast('Apenas Gerentes e Donos podem salvar alterações em produtos!', 'error');
+      if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN') {
+        showToast('Apenas Gerentes, Donos e Administradores podem salvar alterações em produtos!', 'error');
         return;
       }
 
-      const id = document.getElementById('gestaoProdId').value;
+      const id = document.getElementById('gestaoProdId').value.trim();
       const nome = document.getElementById('gestaoProdNome').value.trim();
       const categoria = document.getElementById('gestaoProdCategoria').value.trim();
       const marca = document.getElementById('gestaoProdMarca').value.trim();
@@ -6535,7 +6640,7 @@
       }
 
       const payload = {
-        id: id,
+        id: id || null,
         produto: nome,
         categoria: categoria,
         marca: marca,
@@ -6550,7 +6655,8 @@
       const txtAntigo = btn.innerText;
       btn.disabled = true;
       btn.innerText = '⏳ Salvando...';
-      mostrarLoader('Salvando produto e atualizando lucratividade...');
+      const isNovo = !id;
+      mostrarLoader(isNovo ? 'Cadastrando novo produto e gerando ID...' : 'Salvando produto e atualizando lucratividade...');
 
       google.script.run
         .withSuccessHandler(res => {
@@ -6558,7 +6664,7 @@
           btn.disabled = false;
           btn.innerText = txtAntigo;
           if (res && res.ok) {
-            showToast(res.msg || 'Produto atualizado com sucesso!', 'success');
+            showToast(res.msg || (isNovo ? 'Produto cadastrado com sucesso!' : 'Produto atualizado com sucesso!'), 'success');
             fecharModalGestaoProduto();
             sincronizarPainel();
           } else {

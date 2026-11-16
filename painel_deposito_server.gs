@@ -2496,8 +2496,8 @@ function salvarDadosProduto360(token, payload) {
     }
 
     const perfil = String(caller.perfil || '').toUpperCase();
-    if (perfil !== 'DONO' && perfil !== 'GERENTE') {
-      return { ok: false, msg: 'Acesso negado: apenas o Dono e Gerente podem alterar valores e produtos.' };
+    if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN') {
+      return { ok: false, msg: 'Acesso negado: apenas o Dono, Gerente e Admin podem cadastrar e alterar produtos.' };
     }
 
     if (!payload || (!payload.id && !payload.produto)) {
@@ -2550,10 +2550,12 @@ function salvarDadosProduto360(token, payload) {
       }
     }
 
+    const idFinal = (res && res.id) ? res.id : dadosEnvio.id;
+
     // Espelhamento atômico no Supabase
     try {
       if (typeof supabaseUpdate === 'function') {
-        const idNum = Number(String(dadosEnvio.id).replace(/\D/g, '')) || dadosEnvio.id;
+        const idNum = Number(String(idFinal).replace(/\D/g, '')) || idFinal;
         supabaseUpdate('produtos', {
           nome: dadosEnvio.produto,
           categoria: dadosEnvio.categoria,
@@ -2572,13 +2574,18 @@ function salvarDadosProduto360(token, payload) {
     // Registro em Auditoria
     if (typeof registrarAuditoria === 'function') {
       try {
-        registrarAuditoria(caller.id, 'PRODUTO_ATUALIZADO', `Produto ${dadosEnvio.produto} (ID: ${dadosEnvio.id}) atualizado por ${caller.nome}. Preço: R$ ${preco.toFixed(2)}, Custo: R$ ${custo.toFixed(2)}, Margem: ${margem}%.`);
+        const acaoAuditoria = (res && res.tipo === 'novo') ? 'PRODUTO_CADASTRADO' : 'PRODUTO_ATUALIZADO';
+        registrarAuditoria(caller.id, acaoAuditoria, `Produto ${dadosEnvio.produto} (ID: ${idFinal}) por ${caller.nome}. Preço: R$ ${preco.toFixed(2)}, Custo: R$ ${custo.toFixed(2)}, Margem: ${margem}%.`);
       } catch (e) {}
     }
 
     return {
       ok: true,
-      msg: `Produto "${dadosEnvio.produto}" e lucratividade atualizados com sucesso!`
+      id: idFinal,
+      tipo: (res && res.tipo) ? res.tipo : 'atualizado',
+      msg: (res && res.tipo === 'novo')
+        ? `Produto "${dadosEnvio.produto}" cadastrado com sucesso! (Código: ${idFinal})`
+        : `Produto "${dadosEnvio.produto}" e lucratividade atualizados com sucesso!`
     };
   } catch (err) {
     console.error('Erro em salvarDadosProduto360:', err);
