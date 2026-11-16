@@ -1659,6 +1659,11 @@
     </div>
 
     <div class="header-actions">
+      <!-- BOTÃO DE OBRIGAÇÕES FINANCEIRAS (DONO / GERENTE) -->
+      <button id="btnHeaderFinanceiro" class="btn-action" style="display: none; background: rgba(234, 88, 12, 0.15); border-color: #ea580c; color: #fdba74;" onclick="trocarAba('tabFinanceiro')" title="Ver Obrigações a Pagar e Fiados a Receber">
+        <span>🪙</span> Obrigações (<span id="headerObrigacoesCount">0</span>)
+      </button>
+
       <!-- BOTÃO DE GESTÃO DE EQUIPE (DONO / GERENTE) -->
       <button id="btnHeaderEquipe" class="btn-action" style="display: none;" onclick="trocarAba('tabEquipe')" title="Gerenciar Equipe e Colaboradores">
         <span>👥</span> Equipe
@@ -1738,7 +1743,10 @@
     <button class="tab-btn" id="btnTabEstoque" onclick="trocarAba('tabEstoque')">
       <span>📦</span> Estoque & Preços
     </button>
-    <!-- BOTÕES DE EQUIPE, PAINEL INTELIGENTE E CONFIGURAÇÃO -->
+    <!-- BOTÕES DE GESTÃO: FINANCEIRO, EQUIPE, PAINEL INTELIGENTE E CONFIGURAÇÃO -->
+    <button class="tab-btn" id="btnTabFinanceiro" onclick="trocarAba('tabFinanceiro')" style="display: none;">
+      <span>🪙</span> Financeiro & Obrigações <span class="tab-badge" id="tabFinanceiroBadge" style="background:#ef4444; color:#fff; display:none;">0</span>
+    </button>
     <button class="tab-btn" id="btnTabEquipe" onclick="trocarAba('tabEquipe')" style="display: none;">
       <span>👥</span> Equipe
     </button>
@@ -2086,6 +2094,165 @@
               <!-- Injetado dinamicamente -->
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ABA: 🪙 FINANCEIRO & OBRIGAÇÕES (DONO / GERENTE) -->
+    <!-- ======================================================== -->
+    <div id="tabFinanceiro" class="tab-pane">
+      <!-- SUB-ABAS CONTAS A PAGAR vs RECEBER -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="btnSubAbaPagar" class="btn-action" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer;" onclick="trocarSubAbaFinanceiro('pagar')">
+            <span>🪙</span> Contas a Pagar (Obrigações)
+          </button>
+          <button type="button" id="btnSubAbaReceber" class="btn-action" style="background: rgba(255,255,255,0.06); color: #94a3b8; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); padding: 10px 18px; border-radius: 8px; cursor: pointer;" onclick="trocarSubAbaFinanceiro('receber')">
+            <span>🧾</span> Contas a Receber (Fiados)
+          </button>
+        </div>
+
+        <button type="button" class="btn-action btn-sync" onclick="carregarDadosFinanceiro()" title="Sincronizar lançamentos financeiros">
+          <span>🔄</span> Atualizar Lançamentos
+        </button>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- SEÇÃO 1: CONTAS A PAGAR -->
+      <!-- ======================================================== -->
+      <div id="secaoFinanceiroPagar">
+        <!-- KPIS CONTAS A PAGAR -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+            <div class="kpi-lbl"><span>Vencidas (Atraso)</span><span>🔴</span></div>
+            <div class="kpi-val" style="color:#ef4444;" id="pagarKpiVencidasVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;" id="pagarKpiVencidasQtd">0 contas</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+            <div class="kpi-lbl"><span>Vencem Hoje</span><span>🟡</span></div>
+            <div class="kpi-val" style="color:#f59e0b;" id="pagarKpiHojeVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;" id="pagarKpiHojeQtd">0 contas</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #10b981;">
+            <div class="kpi-lbl"><span>No Prazo (A Vencer)</span><span>🟢</span></div>
+            <div class="kpi-val" style="color:#10b981;" id="pagarKpiNoPrazoVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;" id="pagarKpiNoPrazoQtd">0 contas</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #3b82f6;">
+            <div class="kpi-lbl"><span>Total Pendente</span><span>💰</span></div>
+            <div class="kpi-val" style="color:#38bdf8;" id="pagarKpiTotalVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;" id="pagarKpiTotalQtd">0 contas em aberto</small>
+          </div>
+        </div>
+
+        <!-- BARRA DE FILTROS & AÇÕES CONTAS A PAGAR -->
+        <div class="panel-card" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:10px; flex:1; min-width:280px; flex-wrap:wrap;">
+              <input type="text" id="buscaContasPagar" class="input-search" style="max-width:320px;" placeholder="🔍 Buscar fornecedor ou ID..." onkeyup="filtrarTabelaContasPagar()">
+              <select id="filtroStatusPagar" class="cart-select" style="max-width:200px;" onchange="filtrarTabelaContasPagar()">
+                <option value="TODAS_PENDENTES">📌 Todas em Aberto</option>
+                <option value="VENCIDAS">🔴 Vencidas</option>
+                <option value="VENCE_HOJE">🟡 Vencem Hoje</option>
+                <option value="NO_PRAZO">🟢 A Vencer</option>
+                <option value="PAGO">✅ Já Pagas</option>
+                <option value="TODAS">📋 Todas as Contas</option>
+              </select>
+            </div>
+            <button type="button" class="btn-action" style="background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:700; border:none;" onclick="abrirModalNovaContaPagar()">
+              <span>➕</span> Nova Conta a Pagar
+            </button>
+          </div>
+
+          <!-- TABELA CONTAS A PAGAR -->
+          <div style="overflow-x:auto;">
+            <table class="table-responsive">
+              <thead>
+                <tr>
+                  <th>ID / Tipo</th>
+                  <th>Fornecedor / Descrição</th>
+                  <th>Valor</th>
+                  <th>Forma</th>
+                  <th>Vencimento</th>
+                  <th>Situação</th>
+                  <th style="text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaContasPagarBody">
+                <tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">Carregando contas a pagar...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- SEÇÃO 2: CONTAS A RECEBER (FIADOS) -->
+      <!-- ======================================================== -->
+      <div id="secaoFinanceiroReceber" style="display: none;">
+        <!-- KPIS CONTAS A RECEBER -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <div class="kpi-card" style="border-left: 4px solid #3b82f6;">
+            <div class="kpi-lbl"><span>Saldo a Receber</span><span>💰</span></div>
+            <div class="kpi-val" style="color:#38bdf8;" id="receberKpiTotalVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;">Créditos pendentes de clientes</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #8b5cf6;">
+            <div class="kpi-lbl"><span>Clientes com Débito</span><span>👥</span></div>
+            <div class="kpi-val" style="color:#c084fc;" id="receberKpiDevedores">0</div>
+            <small style="color:var(--text-muted); font-size:11px;">Clientes únicos com fiado</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+            <div class="kpi-lbl"><span>Fiados em Aberto</span><span>📌</span></div>
+            <div class="kpi-val" style="color:#fbbf24;" id="receberKpiQtd">0</div>
+            <small style="color:var(--text-muted); font-size:11px;">Total de registros pendentes</small>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #10b981;">
+            <div class="kpi-lbl"><span>Total Já Recebido</span><span>💵</span></div>
+            <div class="kpi-val" style="color:#34d399;" id="receberKpiRecebidoVal">R$ 0,00</div>
+            <small style="color:var(--text-muted); font-size:11px;">Entradas recuperadas no Caixa</small>
+          </div>
+        </div>
+
+        <!-- BARRA DE FILTROS & AÇÕES CONTAS A RECEBER -->
+        <div class="panel-card" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:10px; flex:1; min-width:280px; flex-wrap:wrap;">
+              <input type="text" id="buscaContasReceber" class="input-search" style="max-width:320px;" placeholder="🔍 Buscar cliente, ID ou telefone..." onkeyup="filtrarTabelaContasReceber()">
+              <select id="filtroStatusReceber" class="cart-select" style="max-width:200px;" onchange="filtrarTabelaContasReceber()">
+                <option value="TODOS_PENDENTES">📌 Fiados em Aberto (Com Débito)</option>
+                <option value="PARCIAL">🟡 Abatimento Parcial</option>
+                <option value="QUITADO">✅ Quitados</option>
+                <option value="TODOS">📋 Histórico Completo</option>
+              </select>
+            </div>
+            <div style="color:var(--text-muted); font-size:12px;">
+              💡 Clique em <strong>Cobrar WhatsApp</strong> para enviar mensagem com saldo e Pix!
+            </div>
+          </div>
+
+          <!-- TABELA CONTAS A RECEBER -->
+          <div style="overflow-x:auto;">
+            <table class="table-responsive">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cliente</th>
+                  <th>Origem</th>
+                  <th>Total Comanda</th>
+                  <th>Já Pago</th>
+                  <th>Saldo Devedor</th>
+                  <th>Status</th>
+                  <th>Data Registro</th>
+                  <th style="text-align: center;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaContasReceberBody">
+                <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">Carregando contas a receber...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2906,6 +3073,124 @@
           <button type="button" class="btn-action" onclick="fecharModalGestaoProduto()">Cancelar</button>
           <button type="submit" id="btnSalvarGestaoProduto" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 20px;">
             💾 Salvar Produto
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- ➕ MODAL DE NOVA CONTA A PAGAR -->
+  <!-- ======================================================== -->
+  <div id="modalNovaContaPagar" class="modal-backdrop" style="display: none; z-index: 9999;">
+    <div class="modal-content-comanda" style="max-width: 480px; width: 92%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px;">
+        <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🪙</span> Cadastrar Nova Conta a Pagar
+        </h3>
+        <button type="button" class="btn-action" style="padding: 4px 8px;" onclick="fecharModalNovaContaPagar()">✕</button>
+      </div>
+
+      <form id="formNovaContaPagar" onsubmit="salvarNovaContaPagarForm(event)" style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">FORNECEDOR / DESCRIÇÃO DA OBRIGAÇÃO *</label>
+          <input type="text" id="novoPagarFornecedor" class="cart-input" placeholder="Ex: Cervejaria Ambev / Conta de Energia" required maxlength="60">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">VALOR (R$) *</label>
+            <input type="number" id="novoPagarValor" class="cart-input" placeholder="0,00" step="0.01" min="0.01" required>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">DATA VENCIMENTO *</label>
+            <input type="date" id="novoPagarVencimento" class="cart-input" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">FORMA DE PAGAMENTO</label>
+            <select id="novoPagarForma" class="cart-select">
+              <option value="Boleto">Boleto Bancário</option>
+              <option value="Pix">Chave Pix</option>
+              <option value="Transferência">Transferência Bancária</option>
+              <option value="Dinheiro">Dinheiro da Gaveta</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">TIPO DE DESPESA</label>
+            <select id="novoPagarTipo" class="cart-select">
+              <option value="AVULSA">Avulsa (Fornecedor/Mercadorias)</option>
+              <option value="FIXA">Fixa (Aluguel, Luz, Água, Internet)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-clear-cart" onclick="fecharModalNovaContaPagar()">Cancelar</button>
+          <button type="submit" id="btnSalvarNovaConta" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 20px;">
+            💾 Salvar Conta
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 💵 MODAL DE RECEBIMENTO / BAIXA DE FIADO -->
+  <!-- ======================================================== -->
+  <div id="modalReceberFiado" class="modal-backdrop" style="display: none; z-index: 9999;">
+    <div class="modal-content-comanda" style="max-width: 440px; width: 92%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px;">
+        <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>💵</span> Receber / Abater Fiado
+        </h3>
+        <button type="button" class="btn-action" style="padding: 4px 8px;" onclick="fecharModalReceberFiado()">✕</button>
+      </div>
+
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 10px; padding: 14px; margin-bottom: 14px; text-align: center;">
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 2px;">Cliente Devedor:</div>
+        <div id="receberFiadoClienteNome" style="font-size: 16px; font-weight: 700; color: #fff;">-</div>
+        <div style="display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">
+          <div>
+            <div style="font-size: 10px; color: var(--text-muted);">Total Original</div>
+            <div id="receberFiadoTotalOrig" style="font-size: 12px; color: #cbd5e1;">R$ 0,00</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: var(--text-muted);">Saldo Devedor Atual</div>
+            <div id="receberFiadoSaldoAtual" style="font-size: 15px; font-weight: 700; color: #fbbf24;">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <form id="formReceberFiado" onsubmit="salvarRecebimentoFiadoForm(event)" style="display: flex; flex-direction: column; gap: 12px;">
+        <input type="hidden" id="receberFiadoId">
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8;">VALOR A RECEBER (R$) *</label>
+            <button type="button" style="background: none; border: none; color: #38bdf8; font-size: 11px; font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="preencherQuitarTotalFiado()">
+              Quitar Total
+            </button>
+          </div>
+          <input type="number" id="receberFiadoValorInput" class="cart-input" placeholder="0,00" step="0.01" min="0.01" required style="font-size: 16px; font-weight: 700; color: #34d399;">
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">FORMA DE RECEBIMENTO NO CAIXA *</label>
+          <select id="receberFiadoFormaPgto" class="cart-select">
+            <option value="Dinheiro">💵 Dinheiro (Gaveta)</option>
+            <option value="Pix">⚡ Pix</option>
+            <option value="Cartão Débito">💳 Cartão Débito</option>
+            <option value="Cartão Crédito">💳 Cartão Crédito</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-clear-cart" onclick="fecharModalReceberFiado()">Cancelar</button>
+          <button type="submit" id="btnConfirmarReceberFiado" class="btn-action btn-sync" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 10px 20px;">
+            💵 Confirmar Recebimento
           </button>
         </div>
       </form>
@@ -3963,6 +4248,26 @@
       // 3.1 Alerta de Fechamento Fiscal (Dono e Gerente)
       verificarAlertaFechamentoFiscal();
 
+      // 3.2 Indicadores e Visibilidade de Obrigações Financeiras (Contas a Pagar / Receber)
+      const isGestorFin = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE' || String(USUARIO_LOGADO.login || '').toLowerCase() === 'admin');
+      const btnTabFin = document.getElementById('btnTabFinanceiro');
+      const btnHeaderFin = document.getElementById('btnHeaderFinanceiro');
+      if (btnTabFin) btnTabFin.style.display = isGestorFin ? 'inline-flex' : 'none';
+      if (btnHeaderFin) btnHeaderFin.style.display = isGestorFin ? 'inline-flex' : 'none';
+
+      const totalObrigacoesPendentes = (k.contasPagarHojeCount || 0) + (k.contasPagarVencidasCount || 0);
+      const badgeFin = document.getElementById('tabFinanceiroBadge');
+      const countHeaderFin = document.getElementById('headerObrigacoesCount');
+      if (countHeaderFin) countHeaderFin.innerText = totalObrigacoesPendentes;
+      if (badgeFin) {
+        if (totalObrigacoesPendentes > 0) {
+          badgeFin.style.display = 'inline-block';
+          badgeFin.innerText = totalObrigacoesPendentes;
+        } else {
+          badgeFin.style.display = 'none';
+        }
+      }
+
       // 4. Catálogo PDV & Comandas
       renderizarCategoriasChips();
       renderizarCatalogoPdv();
@@ -4002,7 +4307,7 @@
       const isOperador = (perfil === 'VENDEDOR' || perfil === 'OPERADOR');
 
       // Proteção de Rota RBAC para Operador
-      if (isOperador && (abaId === 'tabVisao360' || abaId === 'tabEstoque' || abaId === 'tabEquipe' || abaId === 'tabConfig')) {
+      if (isOperador && (abaId === 'tabVisao360' || abaId === 'tabEstoque' || abaId === 'tabEquipe' || abaId === 'tabConfig' || abaId === 'tabFinanceiro')) {
         showToast('Acesso restrito: Módulo exclusivo para Gerência e Dono.', 'warning');
         abaId = 'tabPdv';
       }
@@ -4024,6 +4329,9 @@
       }
       if (abaId === 'tabEquipe') {
         carregarListaUsuariosPainel();
+      }
+      if (abaId === 'tabFinanceiro') {
+        carregarDadosFinanceiro();
       }
     }
 
@@ -6486,6 +6794,456 @@
           filtrarCatalogoPdv();
         }
       });
+    }
+
+    // ========================================================
+    // 🪙 MÓDULO FINANCEIRO: CONTAS A PAGAR & RECEBER (FIADOS)
+    // ========================================================
+    let DADOS_FINANCEIRO = null;
+    let SUB_ABA_FINANCEIRO_ATIVA = 'pagar';
+
+    function trocarSubAbaFinanceiro(sub) {
+      SUB_ABA_FINANCEIRO_ATIVA = sub;
+      const secPagar = document.getElementById('secaoFinanceiroPagar');
+      const secReceber = document.getElementById('secaoFinanceiroReceber');
+      const btnPagar = document.getElementById('btnSubAbaPagar');
+      const btnReceber = document.getElementById('btnSubAbaReceber');
+
+      if (sub === 'pagar') {
+        if (secPagar) secPagar.style.display = 'block';
+        if (secReceber) secReceber.style.display = 'none';
+        if (btnPagar) {
+          btnPagar.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+          btnPagar.style.color = '#fff';
+          btnPagar.style.border = 'none';
+        }
+        if (btnReceber) {
+          btnReceber.style.background = 'rgba(255,255,255,0.06)';
+          btnReceber.style.color = '#94a3b8';
+          btnReceber.style.border = '1px solid rgba(255,255,255,0.1)';
+        }
+      } else {
+        if (secPagar) secPagar.style.display = 'none';
+        if (secReceber) secReceber.style.display = 'block';
+        if (btnPagar) {
+          btnPagar.style.background = 'rgba(255,255,255,0.06)';
+          btnPagar.style.color = '#94a3b8';
+          btnPagar.style.border = '1px solid rgba(255,255,255,0.1)';
+        }
+        if (btnReceber) {
+          btnReceber.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+          btnReceber.style.color = '#fff';
+          btnReceber.style.border = 'none';
+        }
+      }
+    }
+
+    function carregarDadosFinanceiro() {
+      if (!TOKEN_SESSAO) {
+        showToast('Sessão expirada. Faça login novamente.', 'warning');
+        return;
+      }
+      mostrarLoader('Buscando obrigações e recebíveis...');
+      google.script.run
+        .withSuccessHandler(res => {
+          esconderLoader();
+          if (res && res.sucesso) {
+            DADOS_FINANCEIRO = res;
+            renderizarPainelFinanceiroCompleto();
+          } else {
+            showToast(res ? res.erro : 'Erro ao buscar dados financeiros', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          esconderLoader();
+          showToast('Falha: ' + err.message, 'error');
+        })
+        .obterDadosFinanceiroObrigacoes360(TOKEN_SESSAO);
+    }
+
+    function renderizarPainelFinanceiroCompleto() {
+      if (!DADOS_FINANCEIRO) return;
+
+      // 1. Atualiza KPIs Contas a Pagar
+      const kp = DADOS_FINANCEIRO.kpisPagar || {};
+      document.getElementById('pagarKpiVencidasVal').innerText = formatMoeda(kp.totalVencido || 0);
+      document.getElementById('pagarKpiVencidasQtd').innerText = `${kp.qtdVencidas || 0} conta(s) em atraso`;
+
+      document.getElementById('pagarKpiHojeVal').innerText = formatMoeda(kp.totalHoje || 0);
+      document.getElementById('pagarKpiHojeQtd').innerText = `${kp.qtdHoje || 0} conta(s) expiram hoje`;
+
+      const qtdNoPrazo = Math.max(0, (kp.qtdPendentes || 0) - (kp.qtdVencidas || 0) - (kp.qtdHoje || 0));
+      const valNoPrazo = Math.max(0, (kp.totalPendente || 0) - (kp.totalVencido || 0) - (kp.totalHoje || 0));
+      document.getElementById('pagarKpiNoPrazoVal').innerText = formatMoeda(valNoPrazo);
+      document.getElementById('pagarKpiNoPrazoQtd').innerText = `${qtdNoPrazo} conta(s) a vencer`;
+
+      document.getElementById('pagarKpiTotalVal').innerText = formatMoeda(kp.totalPendente || 0);
+      document.getElementById('pagarKpiTotalQtd').innerText = `${kp.qtdPendentes || 0} conta(s) em aberto`;
+
+      // 2. Atualiza KPIs Contas a Receber
+      const kr = DADOS_FINANCEIRO.kpisReceber || {};
+      document.getElementById('receberKpiTotalVal').innerText = formatMoeda(kr.totalAberto || 0);
+      document.getElementById('receberKpiDevedores').innerText = kr.qtdDevedores || 0;
+      document.getElementById('receberKpiQtd').innerText = `${kr.qtdPendentes || 0} pendência(s)`;
+      document.getElementById('receberKpiRecebidoVal').innerText = formatMoeda(kr.totalRecebido || 0);
+
+      // 3. Atualiza Badges Superiores
+      const totalObrigacoes = (kp.qtdVencidas || 0) + (kp.qtdHoje || 0);
+      const countHeader = document.getElementById('headerObrigacoesCount');
+      if (countHeader) countHeader.innerText = totalObrigacoes;
+      const tabBadge = document.getElementById('tabFinanceiroBadge');
+      if (tabBadge) {
+        if (totalObrigacoes > 0) {
+          tabBadge.style.display = 'inline-block';
+          tabBadge.innerText = totalObrigacoes;
+        } else {
+          tabBadge.style.display = 'none';
+        }
+      }
+
+      // 4. Renderiza Tabelas
+      filtrarTabelaContasPagar();
+      filtrarTabelaContasReceber();
+    }
+
+    function filtrarTabelaContasPagar() {
+      if (!DADOS_FINANCEIRO || !DADOS_FINANCEIRO.contasPagar) return;
+      const termo = (document.getElementById('buscaContasPagar').value || '').toLowerCase().trim();
+      const filtro = document.getElementById('filtroStatusPagar').value;
+      const tbody = document.getElementById('tabelaContasPagarBody');
+
+      let lista = DADOS_FINANCEIRO.contasPagar;
+
+      if (filtro === 'TODAS_PENDENTES') {
+        lista = lista.filter(c => !c.isPago);
+      } else if (filtro === 'VENCIDAS') {
+        lista = lista.filter(c => !c.isPago && c.situacao === 'VENCIDA');
+      } else if (filtro === 'VENCE_HOJE') {
+        lista = lista.filter(c => !c.isPago && c.situacao === 'VENCE_HOJE');
+      } else if (filtro === 'NO_PRAZO') {
+        lista = lista.filter(c => !c.isPago && c.situacao === 'NO_PRAZO');
+      } else if (filtro === 'PAGO') {
+        lista = lista.filter(c => c.isPago);
+      }
+
+      if (termo) {
+        lista = lista.filter(c => 
+          c.id.toLowerCase().includes(termo) ||
+          c.fornecedor.toLowerCase().includes(termo) ||
+          c.forma.toLowerCase().includes(termo)
+        );
+      }
+
+      if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhuma conta a pagar encontrada para este filtro.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(c => {
+        let badgeSituacao = '';
+        if (c.isPago) {
+          badgeSituacao = `<span style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(16,185,129,0.3);">✅ PAGO</span>`;
+        } else if (c.situacao === 'VENCIDA') {
+          const dias = Math.abs(c.diasDiff);
+          badgeSituacao = `<span style="background:rgba(239,68,68,0.2); color:#f87171; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.4);" title="${dias} dia(s) em atraso">🔴 VENCIDA (${dias}d)</span>`;
+        } else if (c.situacao === 'VENCE_HOJE') {
+          badgeSituacao = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(245,158,11,0.4);">🟡 VENCE HOJE</span>`;
+        } else {
+          badgeSituacao = `<span style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px;">🟢 NO PRAZO (${c.diasDiff}d)</span>`;
+        }
+
+        let acaoHtml = '';
+        if (!c.isPago) {
+          acaoHtml = `
+            <button type="button" class="btn-action" style="padding:4px 10px; font-size:11px; background:linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; font-weight:bold;" onclick="confirmarPagarConta('${c.id}', '${c.fornecedor.replace(/'/g, "\\'")}', ${c.valor})">
+              💸 Pagar
+            </button>
+          `;
+        } else {
+          acaoHtml = `<span style="color:var(--text-muted); font-size:11px;">Liquidada</span>`;
+        }
+
+        return `
+          <tr>
+            <td style="font-weight:600; color:#38bdf8; font-size:12px;">${c.id}</td>
+            <td style="font-weight:600;">${c.fornecedor}</td>
+            <td style="color:#f87171; font-weight:700;">${formatMoeda(c.valor)}</td>
+            <td><span style="font-size:11px; color:#cbd5e1;">${c.forma}</span></td>
+            <td>${c.vencimentoFormatado}</td>
+            <td>${badgeSituacao}</td>
+            <td style="text-align:center;">${acaoHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filtrarTabelaContasReceber() {
+      if (!DADOS_FINANCEIRO || !DADOS_FINANCEIRO.contasReceber) return;
+      const termo = (document.getElementById('buscaContasReceber').value || '').toLowerCase().trim();
+      const filtro = document.getElementById('filtroStatusReceber').value;
+      const tbody = document.getElementById('tabelaContasReceberBody');
+
+      let lista = DADOS_FINANCEIRO.contasReceber;
+
+      if (filtro === 'TODOS_PENDENTES') {
+        lista = lista.filter(c => !c.isQuitado);
+      } else if (filtro === 'PARCIAL') {
+        lista = lista.filter(c => !c.isQuitado && c.valorRecebido > 0);
+      } else if (filtro === 'QUITADO') {
+        lista = lista.filter(c => c.isQuitado);
+      }
+
+      if (termo) {
+        lista = lista.filter(c =>
+          c.id.toLowerCase().includes(termo) ||
+          c.cliente.toLowerCase().includes(termo) ||
+          (c.telefone && c.telefone.includes(termo))
+        );
+      }
+
+      if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum fiado encontrado para este filtro.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(c => {
+        let badgeStatus = '';
+        if (c.isQuitado) {
+          badgeStatus = `<span style="background:rgba(16,185,129,0.15); color:#34d399; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(16,185,129,0.3);">✅ QUITADO</span>`;
+        } else if (c.valorRecebido > 0) {
+          badgeStatus = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(245,158,11,0.4);">🟡 PARCIAL</span>`;
+        } else {
+          badgeStatus = `<span style="background:rgba(239,68,68,0.2); color:#f87171; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid rgba(239,68,68,0.4);">🔴 EM ABERTO</span>`;
+        }
+
+        let acoesHtml = '';
+        if (!c.isQuitado) {
+          const cliSafe = c.cliente.replace(/'/g, "\\'");
+          acoesHtml = `
+            <div style="display:flex; gap:6px; justify-content:center;">
+              <button type="button" class="btn-action" style="padding:4px 8px; font-size:11px; background:linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; font-weight:bold;" onclick="abrirModalReceberFiado('${c.id}', '${cliSafe}', ${c.valorTotal}, ${c.valorRecebido}, ${c.saldo})" title="Registrar recebimento ou abatimento">
+                💵 Receber
+              </button>
+              <button type="button" class="btn-action" style="padding:4px 8px; font-size:11px; background:rgba(37,99,235,0.2); border-color:#2563eb; color:#60a5fa;" onclick="cobrarFiadoWhatsApp('${cliSafe}', '${c.telefone || ''}', ${c.saldo})" title="Enviar cobrança pelo WhatsApp">
+                💬 WhatsApp
+              </button>
+            </div>
+          `;
+        } else {
+          acoesHtml = `<span style="color:#34d399; font-size:11px; font-weight:bold;">Quitado</span>`;
+        }
+
+        return `
+          <tr>
+            <td style="font-weight:600; color:#38bdf8; font-size:12px;">${c.id}</td>
+            <td style="font-weight:700;">
+              ${c.cliente}
+              ${c.telefone ? `<div style="font-size:10px; color:var(--text-muted); font-weight:normal;">📞 ${c.telefone}</div>` : ''}
+            </td>
+            <td><span style="font-size:11px; color:#cbd5e1;">${c.origem}</span></td>
+            <td>${formatMoeda(c.valorTotal)}</td>
+            <td style="color:#34d399;">${formatMoeda(c.valorRecebido)}</td>
+            <td style="color:#fbbf24; font-weight:700; font-size:13px;">${formatMoeda(c.saldo)}</td>
+            <td>${badgeStatus}</td>
+            <td style="font-size:11px; color:var(--text-muted);">${c.dataRegistro}</td>
+            <td style="text-align:center;">${acoesHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // GESTÃO DE MODAIS: CONTAS A PAGAR
+    function abrirModalNovaContaPagar() {
+      document.getElementById('novoPagarFornecedor').value = '';
+      document.getElementById('novoPagarValor').value = '';
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('novoPagarVencimento').value = hoje;
+      document.getElementById('novoPagarForma').value = 'Boleto';
+      document.getElementById('novoPagarTipo').value = 'AVULSA';
+      document.getElementById('modalNovaContaPagar').style.display = 'flex';
+      setTimeout(() => document.getElementById('novoPagarFornecedor').focus(), 100);
+    }
+
+    function fecharModalNovaContaPagar() {
+      document.getElementById('modalNovaContaPagar').style.display = 'none';
+    }
+
+    function salvarNovaContaPagarForm(e) {
+      e.preventDefault();
+      const dados = {
+        fornecedor: document.getElementById('novoPagarFornecedor').value.trim(),
+        valor: document.getElementById('novoPagarValor').value,
+        vencimento: document.getElementById('novoPagarVencimento').value,
+        forma: document.getElementById('novoPagarForma').value,
+        tipo: document.getElementById('novoPagarTipo').value
+      };
+
+      const btn = document.getElementById('btnSalvarNovaConta');
+      btn.disabled = true;
+      btn.innerText = '⏳ Salvando...';
+      mostrarLoader('Cadastrando conta a pagar...');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = '💾 Salvar Conta';
+          esconderLoader();
+          if (res && res.sucesso) {
+            fecharModalNovaContaPagar();
+            showToast(res.msg, 'success');
+            carregarDadosFinanceiro();
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao cadastrar conta', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = '💾 Salvar Conta';
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .cadastrarContaPagar360(TOKEN_SESSAO, dados);
+    }
+
+    function confirmarPagarConta(id, fornecedor, valor) {
+      const msgHtml = `
+        <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+          <p style="color:#cbd5e1; font-size:13px; margin:0;">
+            Deseja confirmar a liquidação da conta <strong>${fornecedor}</strong> no valor de <strong style="color:#f87171;">${formatMoeda(valor)}</strong>?
+          </p>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">FORMA DE SAÍDA NO CAIXA</label>
+            <select id="modalPagarFormaCaixa" class="cart-select" style="width:100%;">
+              <option value="Dinheiro">💵 Dinheiro da Gaveta</option>
+              <option value="Pix">⚡ Pix da Empresa</option>
+              <option value="Transferência">🏦 Transferência Bancária</option>
+              <option value="Boleto">📄 Boleto Liquidado</option>
+            </select>
+          </div>
+          <small style="color:var(--text-muted); font-size:11px;">
+            ⚠️ Uma saída de <strong>${formatMoeda(valor)}</strong> será registrada automaticamente na aba CAIXA.
+          </small>
+        </div>
+      `;
+
+      abrirDialogHarmonizado({
+        icone: '💸',
+        titulo: 'Liquidar Conta a Pagar #' + id,
+        mensagem: msgHtml,
+        textoConfirmar: 'Confirmar Pagamento',
+        textoCancelar: 'Cancelar',
+        onConfirm: () => {
+          const formaEl = document.getElementById('modalPagarFormaCaixa');
+          const formaPgto = formaEl ? formaEl.value : 'Dinheiro';
+
+          mostrarLoader('Registrando pagamento e lançando saída no Caixa...');
+          google.script.run
+            .withSuccessHandler(res => {
+              esconderLoader();
+              if (res && res.sucesso) {
+                showToast(res.msg, 'success');
+                carregarDadosFinanceiro();
+                sincronizarPainel();
+              } else {
+                showToast(res ? res.erro : 'Erro ao pagar conta', 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              esconderLoader();
+              showToast('Erro: ' + err.message, 'error');
+            })
+            .pagarContaPagar360(TOKEN_SESSAO, id, formaPgto);
+        }
+      });
+    }
+
+    // GESTÃO DE MODAIS: CONTAS A RECEBER (FIADOS)
+    function abrirModalReceberFiado(id, cliente, totalOrig, jaRecebido, saldoAtual) {
+      document.getElementById('receberFiadoId').value = id;
+      document.getElementById('receberFiadoClienteNome').innerText = cliente;
+      document.getElementById('receberFiadoTotalOrig').innerText = formatMoeda(totalOrig);
+      document.getElementById('receberFiadoSaldoAtual').innerText = formatMoeda(saldoAtual);
+      document.getElementById('receberFiadoValorInput').value = Number(saldoAtual).toFixed(2);
+      document.getElementById('receberFiadoValorInput').max = saldoAtual;
+      document.getElementById('receberFiadoFormaPgto').value = 'Dinheiro';
+      document.getElementById('modalReceberFiado').style.display = 'flex';
+      setTimeout(() => document.getElementById('receberFiadoValorInput').focus(), 100);
+    }
+
+    function fecharModalReceberFiado() {
+      document.getElementById('modalReceberFiado').style.display = 'none';
+    }
+
+    function preencherQuitarTotalFiado() {
+      const saldoTxt = document.getElementById('receberFiadoSaldoAtual').innerText;
+      const num = parseFloat(saldoTxt.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+      if (!isNaN(num) && num > 0) {
+        document.getElementById('receberFiadoValorInput').value = num.toFixed(2);
+      }
+    }
+
+    function salvarRecebimentoFiadoForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('receberFiadoId').value;
+      const valor = Number(document.getElementById('receberFiadoValorInput').value);
+      const forma = document.getElementById('receberFiadoFormaPgto').value;
+
+      if (isNaN(valor) || valor <= 0) {
+        showToast('Informe um valor de recebimento válido.', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btnConfirmarReceberFiado');
+      btn.disabled = true;
+      btn.innerText = '⏳ Registrando...';
+      mostrarLoader('Lançando entrada no Caixa e baixando fiado...');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = '💵 Confirmar Recebimento';
+          esconderLoader();
+          if (res && res.sucesso) {
+            fecharModalReceberFiado();
+            showToast(res.msg, 'success');
+            carregarDadosFinanceiro();
+            sincronizarPainel();
+          } else {
+            showToast(res ? res.erro : 'Erro ao receber fiado', 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = '💵 Confirmar Recebimento';
+          esconderLoader();
+          showToast('Erro: ' + err.message, 'error');
+        })
+        .receberFiadoCliente360(TOKEN_SESSAO, id, valor, forma);
+    }
+
+    function cobrarFiadoWhatsApp(cliente, telefone, saldo) {
+      const chavePix = (DADOS_FINANCEIRO && DADOS_FINANCEIRO.loja && DADOS_FINANCEIRO.loja.chavePix) ? DADOS_FINANCEIRO.loja.chavePix : '';
+      const nomeLoja = (DADOS_FINANCEIRO && DADOS_FINANCEIRO.loja && DADOS_FINANCEIRO.loja.nome) ? DADOS_FINANCEIRO.loja.nome : 'nosso estabelecimento';
+
+      let texto = `Olá *${cliente}*, tudo bem? Espero que sim!\n\n` +
+        `Passando para lembrar que você possui um saldo pendente de *${formatMoeda(saldo)}* no *${nomeLoja}*.\n\n`;
+
+      if (chavePix) {
+        texto += `Se preferir quitar via Pix, nossa chave é:\n🔑 *${chavePix}*\n\n`;
+      }
+      texto += `Qualquer dúvida estamos à disposição. Muito obrigado!`;
+
+      let numLimpo = String(telefone || '').replace(/\D/g, '');
+      if (numLimpo.length >= 10 && !numLimpo.startsWith('55')) {
+        numLimpo = '55' + numLimpo;
+      }
+
+      const url = numLimpo
+        ? `https://wa.me/${numLimpo}?text=${encodeURIComponent(texto)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+
+      window.open(url, '_blank');
     }
 
     // BEEP AUDIO FEEDBACK

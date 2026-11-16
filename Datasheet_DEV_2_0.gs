@@ -7353,6 +7353,13 @@
         } else if (nomeAba === 'COMPRAS') {
           sh.getRange(2, 3, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
           sh.getRange(2, 5, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+        } else if (nomeAba === 'CONTAS_A_PAGAR') {
+          sh.getRange(2, 3, lastRow - 1, 1).setNumberFormat('R$ #,##0.00');
+          sh.getRange(2, 5, lastRow - 1, 1).setNumberFormat('dd/MM/yyyy');
+          sh.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment('center');
+        } else if (nomeAba === 'CONTAS_A_RECEBER') {
+          sh.getRange(2, 5, lastRow - 1, 3).setNumberFormat('R$ #,##0.00');
+          sh.getRange(2, 9, lastRow - 1, 1).setHorizontalAlignment('center');
         }
       }
     });
@@ -9346,17 +9353,21 @@
       });
 
       // 🔹 REGISTRO FINANCEIRO
-      registrarCaixa(
-        data,
-        'Saida',
-        totalGeral,
-        formaPgto,
-        'COMPRA',
-        `COMPRA ${idCompra}`
-      );
+      // Se for BOLETO, CONSIGNADO ou A PRAZO, o valor NÃO sai da gaveta hoje: gera Conta a Pagar e a saída no Caixa ocorrerá na liquidação!
+      const isPrazo = ['BOLETO', 'CONSIGNADO', 'A PRAZO', 'A_PRAZO', 'PRAZO'].includes(String(formaPgto || '').toUpperCase().trim());
+      if (!isPrazo) {
+        registrarCaixa(
+          data,
+          'Saida',
+          totalGeral,
+          formaPgto,
+          'COMPRA',
+          `COMPRA ${idCompra}`
+        );
+      }
 
-      // 🔹 CONTA A PAGAR (SE NECESSÁRIO)
-      if(['BOLETO','CONSIGNADO'].includes(formaPgto.toUpperCase())){
+      // 🔹 CONTA A PAGAR (SE COMPRA A PRAZO / BOLETO / CONSIGNADO)
+      if (isPrazo) {
         criarContaAPagar(
           idCompra,
           fornecedor,
@@ -10104,28 +10115,41 @@
       return lista;
     }
   // FINANCEIRO
-    function criarContaAPagar(idCompra,fornecedor,valor,forma,data){
-
+    function garantirContasAPagar(){
       const ss = SpreadsheetApp.getActive();
       let sh = ss.getSheetByName('CONTAS_A_PAGAR');
-
       if(!sh){
         sh = ss.insertSheet('CONTAS_A_PAGAR');
         sh.appendRow([
           'ID_COMPRA','Fornecedor','Valor',
           'FormaPgto','Data','Status','Data_Pagamento'
         ]);
+        sh.getRange(1, 1, 1, 7)
+          .setBackground('#0f172a')
+          .setFontColor('#ffffff')
+          .setFontWeight('bold')
+          .setHorizontalAlignment('center');
       }
+      return sh;
+    }
+
+    function criarContaAPagar(idCompra,fornecedor,valor,forma,data){
+      const sh = garantirContasAPagar();
 
       sh.appendRow([
         idCompra,
         fornecedor,
         Number(valor),
         forma,
-        data,
-        'ABERTO',
+        data instanceof Date ? data : new Date(data),
+        'PENDENTE',
         ''
       ]);
+
+      const last = sh.getLastRow();
+      sh.getRange(last, 3).setNumberFormat('R$ #,##0.00');
+      sh.getRange(last, 5).setNumberFormat('dd/MM/yyyy');
+      sh.getRange(last, 6).setHorizontalAlignment('center');
     }
   // REGISTRO
     function uploadNotaFiscal(idCompra, blob){
@@ -11189,7 +11213,10 @@
     const dados = sh.getDataRange().getValues()
       .map((l,i)=>({ linha:i+1, dados:l }))
       .slice(1)
-      .filter(o => o.dados[5] === 'PENDENTE');
+      .filter(o => {
+        const st = String(o.dados[5] || '').toUpperCase().trim();
+        return st === 'PENDENTE' || st === 'ABERTO' || st === 'EM ABERTO' || st === 'A PAGAR';
+      });
 
     if(!dados.length){
       SpreadsheetApp.getUi().alert('Nenhuma conta pendente.');
@@ -11338,9 +11365,9 @@
       const id     = String(l[0] || '');
       const valor  = Number(l[2]) || 0;
       const venc   = l[4] instanceof Date ? new Date(l[4]) : null;
-      const status = l[5];
+      const status = String(l[5] || '').toUpperCase().trim();
 
-      if(status !== 'PENDENTE') return;
+      if(status !== 'PENDENTE' && status !== 'ABERTO' && status !== 'EM ABERTO' && status !== 'A PAGAR') return;
 
       pendentes++;
       total += valor;

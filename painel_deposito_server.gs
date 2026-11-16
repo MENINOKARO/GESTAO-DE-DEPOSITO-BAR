@@ -433,23 +433,47 @@ function obterDadosPainel360() {
       });
     }
 
-    // 8. Contas a Pagar (Hoje / Vencidas)
+    // 8. Contas a Pagar (Hoje / Vencidas / Total Pendente)
     let contasPagarHojeCount = 0;
     let contasPagarHojeValor = 0;
+    let contasPagarVencidasCount = 0;
+    let contasPagarVencidasValor = 0;
+    let contasPagarTotalPendente = 0;
     const shContas = ss.getSheetByName('CONTAS_A_PAGAR');
     if (shContas && shContas.getLastRow() > 1) {
       const dContas = shContas.getRange(2, 1, shContas.getLastRow() - 1, Math.min(shContas.getLastColumn(), 7)).getValues();
       dContas.forEach(r => {
         const st = String(r[5] || '').toUpperCase().trim();
-        if (st === 'PENDENTE' || st === 'EM ABERTO' || st === 'A PAGAR') {
+        if (st === 'PENDENTE' || st === 'ABERTO' || st === 'EM ABERTO' || st === 'A PAGAR') {
           const val = Number(r[2]) || 0;
+          contasPagarTotalPendente += val;
           const dtVenc = r[4] ? new Date(r[4]) : null;
           if (dtVenc && !isNaN(dtVenc.getTime())) {
-            if (formatarDataSimples(dtVenc) <= hojeStr) {
+            const dtVencStr = formatarDataSimples(dtVenc);
+            if (dtVencStr < hojeStr) {
+              contasPagarVencidasCount++;
+              contasPagarVencidasValor += val;
+            } else if (dtVencStr === hojeStr) {
               contasPagarHojeCount++;
               contasPagarHojeValor += val;
             }
           }
+        }
+      });
+    }
+
+    // 8.1 Contas a Receber (Fiados de Clientes)
+    let contasReceberAbertoValor = 0;
+    let contasReceberAbertoCount = 0;
+    const shCR = ss.getSheetByName('CONTAS_A_RECEBER');
+    if (shCR && shCR.getLastRow() > 1) {
+      const dCR = shCR.getRange(2, 1, shCR.getLastRow() - 1, Math.min(shCR.getLastColumn(), 9)).getValues();
+      dCR.forEach(r => {
+        const saldo = Number(r[6]) || 0;
+        const st = String(r[8] || '').toUpperCase().trim();
+        if (st !== 'QUITADO' && saldo > 0.001) {
+          contasReceberAbertoCount++;
+          contasReceberAbertoValor += saldo;
         }
       });
     }
@@ -484,7 +508,12 @@ function obterDadosPainel360() {
         deliverysPendentes: deliverysPendentes,
         comandasAbertasCount: comandasAbertas.length,
         contasPagarHojeCount: contasPagarHojeCount,
-        contasPagarHojeValor: contasPagarHojeValor
+        contasPagarHojeValor: contasPagarHojeValor,
+        contasPagarVencidasCount: contasPagarVencidasCount,
+        contasPagarVencidasValor: contasPagarVencidasValor,
+        contasPagarTotalPendente: contasPagarTotalPendente,
+        contasReceberAbertoCount: contasReceberAbertoCount,
+        contasReceberAbertoValor: contasReceberAbertoValor
       },
       formasPgtoHoje: formasPgtoHoje,
       produtos: produtos,
@@ -3368,5 +3397,459 @@ function verificarENotificarFechamentoFiscalAtrasado() {
     }
   } catch(e) {
     console.error('Erro em verificarENotificarFechamentoFiscalAtrasado:', e);
+  }
+}
+
+// =========================================================================
+// 🪙 MÓDULO FINANCEIRO: CONTAS A PAGAR & CONTAS A RECEBER (FIADOS)
+// =========================================================================
+
+/**
+ * Retorna dados consolidados de Contas a Pagar e Contas a Receber para o Painel 360°
+ */
+function obterDadosFinanceiroObrigacoes360(token) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    const perfil = caller ? String(caller.perfil || '').toUpperCase() : '';
+    if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN' && caller && String(caller.login).toLowerCase() !== 'admin') {
+      return { sucesso: false, erro: 'Acesso restrito ao Dono e Gerência.' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // 1. Mapeia telefones dos clientes para WhatsApp
+    const mapaClientesTel = {};
+    const shClientes = ss.getSheetByName('CLIENTES');
+    if (shClientes && shClientes.getLastRow() > 1) {
+      const dCli = shClientes.getRange(2, 1, shClientes.getLastRow() - 1, Math.min(shClientes.getLastColumn(), 4)).getValues();
+      dCli.forEach(r => {
+        const nome = String(r[0] || '').trim();
+        const tel = String(r[1] || '').trim();
+        if (nome) mapaClientesTel[nome.toLowerCase()] = tel;
+      });
+    }
+
+    // 2. Processa CONTAS_A_PAGAR
+    const contasPagar = [];
+    let pagTotalPendente = 0;
+    let pagTotalVencido = 0;
+    let pagTotalHoje = 0;
+    let pagTotalPago = 0;
+    let pagQtdVencidas = 0;
+    let pagQtdHoje = 0;
+    let pagQtdPendentes = 0;
+
+    const shCP = ss.getSheetByName('CONTAS_A_PAGAR');
+    if (shCP && shCP.getLastRow() > 1) {
+      const dCP = shCP.getRange(2, 1, shCP.getLastRow() - 1, Math.min(shCP.getLastColumn(), 7)).getValues();
+      dCP.forEach((r, idx) => {
+        const id = String(r[0] || ('CP-' + (idx + 1))).trim();
+        const fornecedor = String(r[1] || 'Fornecedor').trim();
+        const valor = Number(r[2]) || 0;
+        const forma = String(r[3] || 'Boleto').trim();
+        const rawVenc = r[4];
+        const statusRaw = String(r[5] || '').toUpperCase().trim();
+        const rawPago = r[6];
+
+        const isPago = (statusRaw === 'PAGO' || statusRaw === 'QUITADO' || (rawPago && String(rawPago).trim() !== ''));
+        const dtVenc = rawVenc ? new Date(rawVenc) : null;
+        let vencStr = '';
+        let vencFormatado = '-';
+        let situacao = 'NO_PRAZO'; // VENCIDA, VENCE_HOJE, NO_PRAZO, PAGO
+        let diasDiff = 0;
+
+        if (dtVenc && !isNaN(dtVenc.getTime())) {
+          vencStr = Utilities.formatDate(dtVenc, 'America/Bahia', 'yyyy-MM-dd');
+          vencFormatado = Utilities.formatDate(dtVenc, 'America/Bahia', 'dd/MM/yyyy');
+          const dtVencZero = new Date(dtVenc);
+          dtVencZero.setHours(0, 0, 0, 0);
+          diasDiff = Math.round((dtVencZero.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (!isPago) {
+            if (diasDiff < 0) {
+              situacao = 'VENCIDA';
+              pagQtdVencidas++;
+              pagTotalVencido += valor;
+            } else if (diasDiff === 0) {
+              situacao = 'VENCE_HOJE';
+              pagQtdHoje++;
+              pagTotalHoje += valor;
+            } else {
+              situacao = 'NO_PRAZO';
+            }
+          }
+        }
+
+        if (isPago) {
+          pagTotalPago += valor;
+        } else {
+          pagQtdPendentes++;
+          pagTotalPendente += valor;
+        }
+
+        contasPagar.push({
+          linha: idx + 2,
+          id: id,
+          fornecedor: fornecedor,
+          valor: valor,
+          forma: forma,
+          vencimento: vencStr,
+          vencimentoFormatado: vencFormatado,
+          isPago: isPago,
+          status: isPago ? 'PAGO' : 'PENDENTE',
+          situacao: isPago ? 'PAGO' : situacao,
+          diasDiff: diasDiff,
+          dataPagamento: rawPago ? String(rawPago) : ''
+        });
+      });
+    }
+
+    // Ordenação: Vencidas primeiro, depois Hoje, depois No Prazo, Pagas no fim
+    contasPagar.sort((a, b) => {
+      if (a.isPago !== b.isPago) return a.isPago ? 1 : -1;
+      return a.diasDiff - b.diasDiff;
+    });
+
+    // 3. Processa CONTAS_A_RECEBER (Fiados)
+    const contasReceber = [];
+    let recTotalAberto = 0;
+    let recTotalRecebido = 0;
+    let recQtdPendentes = 0;
+    const devedoresUnicos = new Set();
+
+    const shCR = ss.getSheetByName('CONTAS_A_RECEBER');
+    if (shCR && shCR.getLastRow() > 1) {
+      const dCR = shCR.getRange(2, 1, shCR.getLastRow() - 1, Math.min(shCR.getLastColumn(), 10)).getValues();
+      dCR.forEach((r, idx) => {
+        const id = String(r[0] || ('CR-' + (idx + 1))).trim();
+        const origem = String(r[1] || 'BALCAO').trim();
+        const idVenda = String(r[2] || '').trim();
+        const cliente = String(r[3] || 'Consumidor').trim();
+        const valorTotal = Number(r[4]) || 0;
+        const valorRecebido = Number(r[5]) || 0;
+        const saldo = Number(r[6]) || Math.max(0, valorTotal - valorRecebido);
+        const forma = String(r[7] || 'FIADO').trim();
+        const statusRaw = String(r[8] || '').toUpperCase().trim();
+        const rawData = r[9] || r[1];
+
+        const isQuitado = (statusRaw === 'QUITADO' || saldo <= 0.001);
+        let dataFormatada = '-';
+        if (rawData instanceof Date && !isNaN(rawData.getTime())) {
+          dataFormatada = Utilities.formatDate(rawData, 'America/Bahia', 'dd/MM/yyyy HH:mm');
+        } else if (rawData) {
+          dataFormatada = String(rawData);
+        }
+
+        if (!isQuitado) {
+          recTotalAberto += saldo;
+          recQtdPendentes++;
+          devedoresUnicos.add(cliente.toLowerCase());
+        }
+        recTotalRecebido += valorRecebido;
+
+        const tel = mapaClientesTel[cliente.toLowerCase()] || '';
+
+        contasReceber.push({
+          linha: idx + 2,
+          id: id,
+          origem: origem,
+          idVenda: idVenda,
+          cliente: cliente,
+          telefone: tel,
+          valorTotal: valorTotal,
+          valorRecebido: valorRecebido,
+          saldo: saldo,
+          forma: forma,
+          status: isQuitado ? 'QUITADO' : (valorRecebido > 0 ? 'PARCIAL' : 'PENDENTE'),
+          isQuitado: isQuitado,
+          dataRegistro: dataFormatada
+        });
+      });
+    }
+
+    // Ordenação: Maiores saldos primeiro, Quitados no fim
+    contasReceber.sort((a, b) => {
+      if (a.isQuitado !== b.isQuitado) return a.isQuitado ? 1 : -1;
+      return b.saldo - a.saldo;
+    });
+
+    const configs = (typeof obterMapaConfiguracoes === 'function') ? obterMapaConfiguracoes() : {};
+
+    return {
+      sucesso: true,
+      timestamp: Utilities.formatDate(new Date(), 'America/Bahia', 'dd/MM/yyyy HH:mm:ss'),
+      kpisPagar: {
+        totalPendente: pagTotalPendente,
+        totalVencido: pagTotalVencido,
+        totalHoje: pagTotalHoje,
+        totalPago: pagTotalPago,
+        qtdPendentes: pagQtdPendentes,
+        qtdVencidas: pagQtdVencidas,
+        qtdHoje: pagQtdHoje
+      },
+      contasPagar: contasPagar,
+      kpisReceber: {
+        totalAberto: recTotalAberto,
+        totalRecebido: recTotalRecebido,
+        qtdPendentes: recQtdPendentes,
+        qtdDevedores: devedoresUnicos.size
+      },
+      contasReceber: contasReceber,
+      loja: {
+        nome: configs.nome || 'Depósito',
+        chavePix: configs.chave_pix || '',
+        telefone: configs.telefone || ''
+      }
+    };
+  } catch(err) {
+    console.error('Erro em obterDadosFinanceiroObrigacoes360:', err);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Dá baixa e liquida uma conta a pagar, registrando a saída no Caixa
+ */
+function pagarContaPagar360(token, idConta, formaPgto) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    const perfil = caller ? String(caller.perfil || '').toUpperCase() : '';
+    if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN' && caller && String(caller.login).toLowerCase() !== 'admin') {
+      return { sucesso: false, erro: 'Apenas Dono e Gerência podem liquidar contas a pagar.' };
+    }
+
+    if (!idConta) return { sucesso: false, erro: 'ID da conta não informado.' };
+    formaPgto = formaPgto || 'Dinheiro';
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('CONTAS_A_PAGAR');
+    if (!sh || sh.getLastRow() < 2) return { sucesso: false, erro: 'Aba CONTAS_A_PAGAR vazia ou inexistente.' };
+
+    const dados = sh.getDataRange().getValues();
+    let linhaEncontrada = -1;
+    let fornecedor = '';
+    let valor = 0;
+
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0] || '').trim() === String(idConta).trim()) {
+        linhaEncontrada = i + 1;
+        fornecedor = String(dados[i][1] || 'Fornecedor').trim();
+        valor = Number(dados[i][2]) || 0;
+        const st = String(dados[i][5] || '').toUpperCase().trim();
+        if (st === 'PAGO' || st === 'QUITADO') {
+          return { sucesso: false, erro: 'Esta conta já foi liquidada anteriormente.' };
+        }
+        break;
+      }
+    }
+
+    if (linhaEncontrada === -1) {
+      return { sucesso: false, erro: 'Conta ' + idConta + ' não encontrada na planilha.' };
+    }
+
+    const agora = new Date();
+    sh.getRange(linhaEncontrada, 6).setValue('PAGO');
+    sh.getRange(linhaEncontrada, 7)
+      .setValue(agora)
+      .setNumberFormat('dd/MM/yyyy HH:mm:ss');
+
+    // Registra Saída no Caixa
+    if (typeof registrarCaixa === 'function') {
+      registrarCaixa(agora, 'Saida', valor, formaPgto, 'CONTA_A_PAGAR', 'PAGAMENTO ' + fornecedor + ' (' + idConta + ')');
+    } else {
+      const shCaixa = ss.getSheetByName('CAIXA');
+      if (shCaixa) {
+        if (typeof inserirLinhaPadronizadaNoTopo === 'function') {
+          inserirLinhaPadronizadaNoTopo(shCaixa, [agora, 'Saida', valor, formaPgto, 'CONTA_A_PAGAR', 'PAGAMENTO ' + fornecedor + ' (' + idConta + ')']);
+        } else {
+          shCaixa.appendRow([agora, 'Saida', valor, formaPgto, 'CONTA_A_PAGAR', 'PAGAMENTO ' + fornecedor + ' (' + idConta + ')']);
+        }
+      }
+    }
+
+    if (typeof registrarLog === 'function') {
+      registrarLog('PAGAMENTO_CONTA', fornecedor, 'PENDENTE', 'PAGO - R$ ' + valor.toFixed(2));
+    }
+
+    return { sucesso: true, msg: 'Conta paga com sucesso e saída registrada no Caixa!' };
+  } catch(err) {
+    console.error('Erro em pagarContaPagar360:', err);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Cadastra uma nova conta a pagar (fixa ou avulsa) pelo Painel 360°
+ */
+function cadastrarContaPagar360(token, dados) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    const perfil = caller ? String(caller.perfil || '').toUpperCase() : '';
+    if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN' && caller && String(caller.login).toLowerCase() !== 'admin') {
+      return { sucesso: false, erro: 'Apenas Dono e Gerência podem cadastrar contas a pagar.' };
+    }
+
+    if (!dados || !dados.fornecedor || !dados.fornecedor.trim()) {
+      return { sucesso: false, erro: 'Informe o fornecedor ou descrição da conta.' };
+    }
+    const valor = Number(dados.valor);
+    if (isNaN(valor) || valor <= 0) {
+      return { sucesso: false, erro: 'Informe um valor válido maior que zero.' };
+    }
+    if (!dados.vencimento) {
+      return { sucesso: false, erro: 'Informe a data de vencimento da conta.' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName('CONTAS_A_PAGAR');
+    if (!sh) {
+      if (typeof garantirContasAPagar === 'function') {
+        sh = garantirContasAPagar();
+      } else {
+        sh = ss.insertSheet('CONTAS_A_PAGAR');
+        sh.appendRow(['ID_COMPRA', 'Fornecedor', 'Valor', 'FormaPgto', 'Data', 'Status', 'Data_Pagamento']);
+      }
+    }
+
+    const plan = sh.getDataRange().getValues();
+    let proximo = 1;
+    for (let i = 1; i < plan.length; i++) {
+      const id = String(plan[i][0] || '');
+      if (id.startsWith('AVULSA_')) {
+        const n = Number(id.replace('AVULSA_', ''));
+        if (!isNaN(n) && n >= proximo) proximo = n + 1;
+      }
+    }
+
+    const tipo = String(dados.tipo || 'AVULSA').toUpperCase();
+    const idFinal = tipo === 'FIXA'
+      ? `FIXA_${dados.fornecedor.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+      : `AVULSA_${String(proximo).padStart(4, '0')}`;
+
+    const dtVenc = new Date(dados.vencimento + 'T00:00:00');
+    const forma = dados.forma || 'Boleto';
+
+    if (typeof inserirLinhaPadronizadaNoTopo === 'function') {
+      inserirLinhaPadronizadaNoTopo(sh, [
+        idFinal,
+        dados.fornecedor.trim(),
+        valor,
+        forma,
+        dtVenc,
+        'PENDENTE',
+        ''
+      ]);
+    } else {
+      sh.appendRow([
+        idFinal,
+        dados.fornecedor.trim(),
+        valor,
+        forma,
+        dtVenc,
+        'PENDENTE',
+        ''
+      ]);
+    }
+
+    const linha = (typeof inserirLinhaPadronizadaNoTopo === 'function') ? 2 : sh.getLastRow();
+    sh.getRange(linha, 3).setNumberFormat('R$ #,##0.00');
+    sh.getRange(linha, 5).setNumberFormat('dd/MM/yyyy');
+    sh.getRange(linha, 6).setHorizontalAlignment('center');
+
+    if (typeof registrarLog === 'function') {
+      registrarLog('CONTA_A_PAGAR', 'Cadastrada pelo Painel 360', idFinal, dados);
+    }
+
+    return { sucesso: true, msg: 'Conta a pagar cadastrada com sucesso!' };
+  } catch(err) {
+    console.error('Erro em cadastrarContaPagar360:', err);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Dá baixa total ou parcial em um fiado (Contas a Receber) com entrada imediata no Caixa
+ */
+function receberFiadoCliente360(token, idFiado, valorRecebido, formaPgto) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    const perfil = caller ? String(caller.perfil || '').toUpperCase() : '';
+    if (perfil !== 'DONO' && perfil !== 'GERENTE' && perfil !== 'ADMIN' && caller && String(caller.login).toLowerCase() !== 'admin') {
+      return { sucesso: false, erro: 'Apenas Dono e Gerência podem registrar recebimento de fiado.' };
+    }
+
+    if (!idFiado) return { sucesso: false, erro: 'ID do fiado não informado.' };
+    const valor = Number(valorRecebido);
+    if (isNaN(valor) || valor <= 0) return { sucesso: false, erro: 'Informe um valor de recebimento válido.' };
+    formaPgto = formaPgto || 'Dinheiro';
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('CONTAS_A_RECEBER');
+    if (!sh || sh.getLastRow() < 2) return { sucesso: false, erro: 'Aba CONTAS_A_RECEBER vazia ou inexistente.' };
+
+    const dados = sh.getDataRange().getValues();
+    let linhaEncontrada = -1;
+    let cliente = '';
+    let valorTotal = 0;
+    let jaRecebido = 0;
+    let saldoAtual = 0;
+
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0] || '').trim() === String(idFiado).trim()) {
+        linhaEncontrada = i + 1;
+        cliente = String(dados[i][3] || 'Cliente').trim();
+        valorTotal = Number(dados[i][4]) || 0;
+        jaRecebido = Number(dados[i][5]) || 0;
+        saldoAtual = Number(dados[i][6]) || Math.max(0, valorTotal - jaRecebido);
+        break;
+      }
+    }
+
+    if (linhaEncontrada === -1) {
+      return { sucesso: false, erro: 'Fiado ' + idFiado + ' não encontrado na planilha.' };
+    }
+
+    if (valor > (saldoAtual + 0.01)) {
+      return { sucesso: false, erro: `Valor informado (R$ ${valor.toFixed(2)}) é maior que o saldo devedor (R$ ${saldoAtual.toFixed(2)}).` };
+    }
+
+    const novoRecebido = jaRecebido + valor;
+    const novoSaldo = Math.max(0, valorTotal - novoRecebido);
+    const novoStatus = (novoSaldo <= 0.001) ? 'QUITADO' : 'PARCIAL';
+
+    sh.getRange(linhaEncontrada, 6).setValue(novoRecebido);
+    sh.getRange(linhaEncontrada, 7).setValue(novoSaldo);
+    sh.getRange(linhaEncontrada, 9).setValue(novoStatus);
+
+    // Registra Entrada no Caixa
+    const agora = new Date();
+    if (typeof registrarCaixa === 'function') {
+      registrarCaixa(agora, 'Entrada', valor, formaPgto, 'CONTAS_A_RECEBER', 'RECEBIMENTO FIADO ' + cliente + ' (' + idFiado + ')');
+    } else {
+      const shCaixa = ss.getSheetByName('CAIXA');
+      if (shCaixa) {
+        if (typeof inserirLinhaPadronizadaNoTopo === 'function') {
+          inserirLinhaPadronizadaNoTopo(shCaixa, [agora, 'Entrada', valor, formaPgto, 'CONTAS_A_RECEBER', 'RECEBIMENTO FIADO ' + cliente + ' (' + idFiado + ')']);
+        } else {
+          shCaixa.appendRow([agora, 'Entrada', valor, formaPgto, 'CONTAS_A_RECEBER', 'RECEBIMENTO FIADO ' + cliente + ' (' + idFiado + ')']);
+        }
+      }
+    }
+
+    if (typeof registrarLog === 'function') {
+      registrarLog('RECEBIMENTO_FIADO', idFiado, saldoAtual, novoSaldo);
+    }
+
+    return {
+      sucesso: true,
+      msg: (novoSaldo <= 0.001)
+        ? `Fiado de ${cliente} quitado com sucesso! Entrada de R$ ${valor.toFixed(2)} lançada no Caixa.`
+        : `Recebimento de R$ ${valor.toFixed(2)} registrado! Saldo restante de ${cliente}: R$ ${novoSaldo.toFixed(2)}.`
+    };
+  } catch(err) {
+    console.error('Erro em receberFiadoCliente360:', err);
+    return { sucesso: false, erro: err.message };
   }
 }
