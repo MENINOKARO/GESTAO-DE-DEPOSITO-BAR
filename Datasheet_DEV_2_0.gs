@@ -9986,11 +9986,51 @@
     return sincronizarArquivosEPastaRaizEmpresa(dataRef);
   }
 
+  const BASE64_ATALHO_LNK_PAINEL = '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';
+
+  /**
+   * 🖥️ Garante que o atalho executivo de aplicativo (.lnk) esteja na pasta raiz do Drive
+   * e exclui sumariamente qualquer arquivo HTML de lançador antigo ("Acessar Painel 360.html").
+   */
+  function garantirAtalhoDesktopNoDrive(pastaDestino, nomeDeposito) {
+    if (!pastaDestino) return;
+
+    // 1. 🗑️ Exclui arquivos HTML antigos de lançador
+    try {
+      const arquivos = pastaDestino.getFiles();
+      while (arquivos.hasNext()) {
+        const arq = arquivos.next();
+        const nomeArq = arq.getName();
+        if (nomeArq.includes('Acessar Painel 360') && nomeArq.toLowerCase().endsWith('.html')) {
+          arq.setTrashed(true);
+        }
+      }
+    } catch(eTrash) {
+      console.warn('Aviso ao remover html antigo:', eTrash.message);
+    }
+
+    // 2. 🚀 Garante o arquivo executivo de atalho (.lnk) na pasta raiz do Drive
+    const nomeAtalho = 'Painel Executivo 360.lnk';
+    const itLnk = pastaDestino.getFilesByName(nomeAtalho);
+    if (!itLnk.hasNext()) {
+      try {
+        const bytes = Utilities.base64Decode(BASE64_ATALHO_LNK_PAINEL);
+        const blob = Utilities.newBlob(bytes, 'application/x-ms-shortcut', nomeAtalho);
+        pastaDestino.createFile(blob);
+        if (typeof registrarLog === 'function') {
+          registrarLog('CRIAR_ARQUIVO_RAIZ', 'Atalho .lnk criado na pasta raiz do Drive', '', nomeAtalho);
+        }
+      } catch(eLnk) {
+        console.warn('Aviso ao criar atalho .lnk no Drive:', eLnk.message);
+      }
+    }
+  }
+
   /**
    * Sincroniza e garante todos os arquivos e pastas na pasta raiz da empresa no Google Drive:
    * 1. Pasta raiz no Drive com o nome do depósito.
    * 2. Planilha Google Sheets na pasta raiz (move a planilha ativa ou cria uma nova se não existir).
-   * 3. Arquivo HTML lançador do Painel 360° ('👑 Acessar Painel 360.html').
+   * 3. Arquivo executivo de atalho da Área de Trabalho ('Painel Executivo 360.lnk').
    * 4. Arquivo informativo de boas-vindas e acesso ('📄 Informações e Acesso - [Nome].txt').
    * 5. Todas as subpastas essenciais (Backup, Logs, Relatórios, Compras/Notas).
    * 6. Atualização automática de CONFIG!DRIVE_URL.
@@ -10099,64 +10139,12 @@
       }
     }
 
-    // 4. Arquivo Lançador do Painel 360° na pasta raiz ('👑 Acessar Painel 360.html')
-    let lancadorCriado = false;
-    const nomeLancador = '👑 Acessar Painel 360.html';
-    const filesLancador = root.getFilesByName(nomeLancador);
+    // 4. Garante o arquivo executivo de atalho (.lnk) na pasta raiz e elimina qualquer .html antigo
     const webAppUrl = (typeof obterUrlWebAppDeposito === 'function')
       ? obterUrlWebAppDeposito()
       : 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
 
-    const htmlLancador = '<!DOCTYPE html>\n' +
-      '<html lang="pt-BR">\n' +
-      '<head>\n' +
-      '  <meta charset="UTF-8">\n' +
-      '  <title>Acessar Painel 360 - ' + nomeDeposito + '</title>\n' +
-      '  <style>\n' +
-      '    body { font-family: "Segoe UI", -apple-system, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }\n' +
-      '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 520px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
-      '    h2 { color: #38bdf8; margin-top: 0; font-size: 24px; font-weight: 700; }\n' +
-      '    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }\n' +
-      '    .btn-app { display: block; width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 14px 20px; border-radius: 10px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); transition: 0.2s; margin-bottom: 12px; }\n' +
-      '    .btn-app:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
-      '    .btn-web { display: inline-block; color: #38bdf8; text-decoration: underline; font-size: 13px; cursor: pointer; background: none; border: none; }\n' +
-      '  </style>\n' +
-      '  <script>\n' +
-      '    const appUrl = "' + webAppUrl + '";\n' +
-      '    function abrirModoApp() {\n' +
-      '      const w = screen.availWidth || 1366;\n' +
-      '      const h = screen.availHeight || 768;\n' +
-      '      const popup = window.open(appUrl, "Painel360App", "popup=yes,menubar=no,toolbar=no,location=no,status=no,width=" + w + ",height=" + h);\n' +
-      '      if (!popup) {\n' +
-      '        window.location.href = appUrl;\n' +
-      '      }\n' +
-      '    }\n' +
-      '    window.addEventListener("load", function() {\n' +
-      '      setTimeout(abrirModoApp, 400);\n' +
-      '    });\n' +
-      '  </script>\n' +
-      '</head>\n' +
-      '<body>\n' +
-      '  <div class="card">\n' +
-      '    <h2>👑 ' + nomeDeposito + '</h2>\n' +
-      '    <h3 style="color:#f8fafc; font-size:16px; margin-bottom:12px;">Painel Executivo & PDV 360°</h3>\n' +
-      '    <p>Iniciando o Painel 360° em janela própria de aplicativo independente ("fora do navegador")...</p>\n' +
-      '    <button class="btn-app" onclick="abrirModoApp()">🚀 Abrir em Janela de Aplicativo (Recomendado)</button>\n' +
-      '    <a class="btn-web" href="' + webAppUrl + '" target="_blank">🌐 Ou abrir no navegador tradicional</a>\n' +
-      '  </div>\n' +
-      '</body>\n' +
-      '</html>';
-
-    if (!filesLancador.hasNext()) {
-      root.createFile(nomeLancador, htmlLancador, MimeType.HTML);
-      lancadorCriado = true;
-      registrarLog('CRIAR_ARQUIVO_RAIZ', 'Lançador HTML criado na pasta raiz', '', nomeLancador);
-    } else {
-      const fl = filesLancador.next();
-      try {
-        fl.setContent(htmlLancador);
-      } catch(eSet) {}
-    }
+    garantirAtalhoDesktopNoDrive(root, nomeDeposito);
 
     // 5. Arquivo Informativo / Boas-Vindas TXT na pasta raiz
     let infoCriado = false;
@@ -10184,9 +10172,9 @@
         '',
         '-------------------------------------------------------------',
         '📌 ESTRUTURA DE ARQUIVOS NA PASTA RAIZ:',
-        `1. '👑 Acessar Painel 360.html' -> Dê dois cliques para abrir o sistema diretamente`,
+        `1. 'Painel Executivo 360.lnk' -> Atalho oficial para abrir o sistema em janela própria (copie para a Área de Trabalho se desejar)`,
         `2. '${planilhaNome || 'Planilha do Sistema'}' -> Planilha de banco de dados e controle interno`,
-        `3. Subpastas: Backup, Logs, Relatórios e Compras/Notas Fiscais`,
+        `3. Subpastas: Backup, Logs, Relatórios e Compras`,
         '============================================================='
       ].join('\n');
 
@@ -11832,7 +11820,7 @@
       const ssNova = SpreadsheetApp.openById(copia.getId());
 
       // =========================================================================
-      // 🚀 CRIA O LANÇADOR DO PAINEL 360° E INFORMAÇÕES NA PASTA RAIZ DO DRIVE
+      // 🚀 CRIA O ATALHO DA ÁREA DE TRABALHO (.LNK) E INFORMAÇÕES NA PASTA RAIZ DO DRIVE
       // =========================================================================
       let webAppUrl = '';
       try {
@@ -11844,39 +11832,8 @@
         webAppUrl = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
       }
 
-      const htmlLancador = '<!DOCTYPE html>\n' +
-        '<html lang="pt-BR">\n' +
-        '<head>\n' +
-        '  <meta charset="UTF-8">\n' +
-        '  <title>Acessar Painel 360 - ' + nomeFinal + '</title>\n' +
-        '  <meta http-equiv="refresh" content="0; url=' + webAppUrl + '">\n' +
-        '  <style>\n' +
-        '    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }\n' +
-        '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
-        '    h2 { color: #38bdf8; margin-top: 0; font-size: 24px; font-weight: 700; }\n' +
-        '    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }\n' +
-        '    .btn { display: inline-block; background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: 0.2s; }\n' +
-        '    .btn:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
-        '  </style>\n' +
-        '  <script>\n' +
-        '    window.location.href = "' + webAppUrl + '";\n' +
-        '  </script>\n' +
-        '</head>\n' +
-        '<body>\n' +
-        '  <div class="card">\n' +
-        '    <h2>👑 ' + nomeFinal + '</h2>\n' +
-        '    <h3 style="color:#f8fafc; font-size:16px; margin-bottom:12px;">Painel Executivo & PDV 360°</h3>\n' +
-        '    <p>Redirecionando para o sistema da sua empresa...</p>\n' +
-        '    <a class="btn" href="' + webAppUrl + '" target="_blank">🚀 Abrir Painel 360°</a>\n' +
-        '  </div>\n' +
-        '</body>\n' +
-        '</html>';
-
-      try {
-        pastaReplica.createFile('👑 Acessar Painel 360.html', htmlLancador, MimeType.HTML);
-      } catch(eLancador) {
-        console.warn('Aviso ao criar lançador do Painel 360 no Drive:', eLancador.message);
-      }
+      // Garante atalho executivo de aplicativo (.lnk) e exclui qualquer .html antigo
+      garantirAtalhoDesktopNoDrive(pastaReplica, nomeFinal);
 
       // Cria arquivo informativo na pasta raiz da réplica
       try {
@@ -11901,9 +11858,9 @@
           '',
           '-------------------------------------------------------------',
           '📌 ESTRUTURA DE ARQUIVOS NA PASTA RAIZ:',
-          '1. \'👑 Acessar Painel 360.html\' -> Dê dois cliques para abrir o sistema diretamente',
+          '1. \'Painel Executivo 360.lnk\' -> Atalho oficial para abrir o sistema em janela própria (copie para a Área de Trabalho se desejar)',
           '2. \'' + copia.getName() + '\' -> Planilha de banco de dados e controle interno',
-          '3. Subpastas: Backup, Logs, Relatórios e Compras/Notas Fiscais',
+          '3. Subpastas: Backup, Logs, Relatórios e Compras',
           '============================================================='
         ].join('\n');
         pastaReplica.createFile('📄 Informações e Acesso - ' + nomeFinal + '.txt', infoConteudoReplica, MimeType.PLAIN_TEXT);
