@@ -233,6 +233,8 @@
             .addItem('🧾 Relatório de Logs do Sistema', 'gerarRelatorioLogsSistema')
             .addSeparator()
             .addItem('📦 Gerar TODOS os Relatórios', 'gerarPacoteRelatoriosGerenciais')
+            .addSeparator()
+            .addItem('🧹 Organizar Pastas de Relatórios no Drive', 'reorganizarRelatoriosPastasCorretas')
         );
 
       // 🛡️ CONFIGURAÇÕES & SISTEMA: EXCLUSIVO PARA O ADMINISTRADOR TÉCNICO (perfil 'ADMIN')
@@ -10036,6 +10038,16 @@
     obterOuCriarPastaPorNome(relatorios, 'Financeiro', 'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Financeiro`);
     obterOuCriarPastaPorNome(relatorios, 'Estoque',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Estoque`);
     obterOuCriarPastaPorNome(relatorios, 'Compras',    'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Compras`);
+    obterOuCriarPastaPorNome(relatorios, 'Registros',  'CRIAR_PASTA', `${nomeDeposito}/Relatorios/Registros`);
+
+    // Reorganiza automaticamente arquivos e pastas para suas subpastas de categoria corretas
+    try {
+      if (typeof reorganizarRelatoriosPastasCorretas === 'function') {
+        reorganizarRelatoriosPastasCorretas(relatorios);
+      }
+    } catch(eReorg) {
+      console.warn('Aviso reorganizacao relatorios:', eReorg.message);
+    }
 
     const compras = obterOuCriarPastaPorNome(root, 'Compras', 'CRIAR_PASTA', `${nomeDeposito}/Compras`);
     const notas = obterOuCriarPastaPorNome(compras, 'Notas', 'CRIAR_PASTA', `${nomeDeposito}/Compras/Notas`);
@@ -10242,9 +10254,23 @@
 
     if(tipoNormalizado === 'RELATORIO' || tipoNormalizado === 'RELATÓRIO'){
       const relatorios = obterOuCriarPastaPorNome(root, 'Relatorios', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios`);
+      const sub = String(subcategoria || '').trim();
+      const subNorm = sub.toLowerCase();
+      if (subNorm === 'financeiro') {
+        return obterOuCriarPastaPorNome(relatorios, 'Financeiro', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Financeiro`);
+      }
+      if (subNorm === 'estoque') {
+        return obterOuCriarPastaPorNome(relatorios, 'Estoque', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Estoque`);
+      }
+      if (subNorm === 'compras' || subNorm === 'compra') {
+        return obterOuCriarPastaPorNome(relatorios, 'Compras', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Compras`);
+      }
+      if (subNorm === 'registros' || subNorm === 'registro') {
+        return obterOuCriarPastaPorNome(relatorios, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros`);
+      }
       const registros = obterOuCriarPastaPorNome(relatorios, 'Registros', 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros`);
-      return subcategoria
-        ? obterOuCriarPastaPorNome(registros, subcategoria, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros/${subcategoria}`)
+      return sub
+        ? obterOuCriarPastaPorNome(registros, sub, 'CRIAR_PASTA', `${getNomeDeposito()}/Relatorios/Registros/${sub}`)
         : registros;
     }
 

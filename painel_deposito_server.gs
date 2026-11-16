@@ -2438,6 +2438,13 @@ function executarFuncaoPainelInteligente(token, nomeFuncao) {
         return { ok: false, msg: 'Função de pacote gerencial não encontrada.' };
       }
 
+      case 'reorganizarRelatoriosPastasCorretas': {
+        const res = (typeof reorganizarRelatoriosPastasCorretas === 'function')
+          ? reorganizarRelatoriosPastasCorretas()
+          : { ok: false, msg: 'Função não encontrada.' };
+        return { ok: res.ok, msg: res.msg || 'Organização concluída!' };
+      }
+
       case 'atualizarEstoque': {
         if (typeof atualizarEstoque === 'function') {
           atualizarEstoque();
@@ -2857,9 +2864,9 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
     }
 
     if (resultado && resultado.ok) {
-      // 📂 Salva arquivo automaticamente na pasta do Drive do mês vigente
+      // 📂 Salva arquivo automaticamente na subpasta correta de categoria e mês
       try {
-        const driveRes = salvarRelatorioNoDriveMes(resultado.titulo, resultado.resumo, resultado.colunas, resultado.linhas);
+        const driveRes = salvarRelatorioNoDriveMes(resultado.titulo, resultado.resumo, resultado.colunas, resultado.linhas, resultado.tipo);
         resultado.driveInfo = driveRes;
       } catch(eDrive) {
         console.warn('Erro ao salvar relatório no Drive:', eDrive.message);
@@ -2875,10 +2882,201 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
 }
 
 /**
- * 📂 Cria e salva o relatório na pasta raiz do Google Drive, dentro de Relatórios / [Mês Atual],
- * com nomenclatura padrão: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
+ * 🏷️ Mapeia o tipo ou título do relatório para sua respectiva pasta oficial em "Relatorios":
+ * - Financeiro: financeiroCompleto, DRE, Caixa, Contas a Pagar/Receber, Fechamento
+ * - Estoque: valoresEstoque, Curva ABC, Giro de Estoque, Produtos, Críticos
+ * - Compras: compras, Fornecedores, Entradas de NF
+ * - Registros: logs, Auditoria, Eventos do Sistema, Backup Logs
  */
-function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
+function resolverCategoriaRelatorio(tipoRelatorio, titulo) {
+  const t = String(tipoRelatorio || '').toLowerCase();
+  const tit = String(titulo || '').toLowerCase();
+
+  // 1. Estoque
+  if (t === 'valoresestoque' || t.includes('estoque') || tit.includes('estoque') || tit.includes('produto') || tit.includes('curva abc') || tit.includes('giro')) {
+    return 'Estoque';
+  }
+  // 2. Financeiro
+  if (t === 'financeirocompleto' || t.includes('financeiro') || t.includes('caixa') || t.includes('dre') ||
+      tit.includes('financeiro') || tit.includes('caixa') || tit.includes('pagar') || tit.includes('receber') || tit.includes('dre') || tit.includes('fechamento')) {
+    return 'Financeiro';
+  }
+  // 3. Compras
+  if (t === 'compras' || t.includes('compra') || t.includes('forneced') ||
+      tit.includes('compra') || tit.includes('forneced') || tit.includes('entrada')) {
+    return 'Compras';
+  }
+  // 4. Registros
+  if (t === 'logs' || t.includes('log') || t.includes('auditoria') ||
+      tit.includes('log') || tit.includes('auditoria') || tit.includes('registro') || tit.includes('evento')) {
+    return 'Registros';
+  }
+
+  return 'Financeiro';
+}
+
+/**
+ * 🧹 Varre a pasta "Relatorios", identifica pastas de mês que ficaram soltas na raiz de Relatórios
+ * (como "11 - Novembro 2026") ou arquivos avulsos, move cada relatório para sua categoria correta:
+ *   - Relatorios / Financeiro / [Mês]
+ *   - Relatorios / Estoque / [Mês]
+ *   - Relatorios / Compras / [Mês]
+ *   - Relatorios / Registros / [Mês]
+ * E remove a pasta do mês solta que ficou vazia.
+ */
+function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
+  try {
+    let pastaRelatorios = pastaRelatoriosParam || null;
+    if (!pastaRelatorios) {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const nomeDeposito = (typeof getNomeDeposito === 'function') ? getNomeDeposito() : 'Gestão de Depósito';
+
+      let rootFolder = null;
+      try {
+        const itP = DriveApp.getFileById(ss.getId()).getParents();
+        if (itP.hasNext()) rootFolder = itP.next();
+      } catch(e) {}
+      if (!rootFolder) {
+        const pastas = DriveApp.getFoldersByName(nomeDeposito);
+        if (pastas.hasNext()) rootFolder = pastas.next();
+        else rootFolder = DriveApp.getRootFolder();
+      }
+
+      const itRel = rootFolder.getFoldersByName('Relatorios');
+      if (itRel.hasNext()) {
+        pastaRelatorios = itRel.next();
+      } else {
+        const itRel2 = rootFolder.getFoldersByName('Relatórios');
+        if (itRel2.hasNext()) pastaRelatorios = itRel2.next();
+      }
+    }
+
+    if (!pastaRelatorios) {
+      return { ok: false, msg: 'Pasta Relatorios não localizada no Drive.' };
+    }
+
+    // Garante as 4 subpastas de categoria oficiais
+    const categorias = ['Financeiro', 'Estoque', 'Compras', 'Registros'];
+    const pastasCat = {};
+    categorias.forEach(cat => {
+      const it = pastaRelatorios.getFoldersByName(cat);
+      if (it.hasNext()) {
+        pastasCat[cat] = it.next();
+      } else {
+        pastasCat[cat] = pastaRelatorios.createFolder(cat);
+      }
+    });
+
+    let arquivosMovidos = 0;
+    const pastasRemovidas = [];
+
+    // 1. Procura subpastas dentro de Relatorios que não sejam as categorias oficiais
+    const subPastas = pastaRelatorios.getFolders();
+    const pastasRogue = [];
+    while (subPastas.hasNext()) {
+      const sub = subPastas.next();
+      const nomeSub = sub.getName();
+      if (!categorias.includes(nomeSub)) {
+        pastasRogue.push(sub);
+      }
+    }
+
+    pastasRogue.forEach(sub => {
+      const nomeSub = sub.getName();
+      const arquivos = sub.getFiles();
+      while (arquivos.hasNext()) {
+        const arq = arquivos.next();
+        const nomeArq = arq.getName();
+        const catAlvo = resolverCategoriaRelatorio('', nomeArq);
+        const pastaCat = pastasCat[catAlvo] || pastasCat['Financeiro'];
+
+        // Garante a pasta do mês (ex: "11 - Novembro 2026") dentro da categoria correta
+        let pastaMesAlvo = null;
+        const itMes = pastaCat.getFoldersByName(nomeSub);
+        if (itMes.hasNext()) {
+          pastaMesAlvo = itMes.next();
+        } else {
+          pastaMesAlvo = pastaCat.createFolder(nomeSub);
+        }
+
+        try {
+          arq.moveTo(pastaMesAlvo);
+          arquivosMovidos++;
+        } catch(eMove) {
+          pastaMesAlvo.addFile(arq);
+          sub.removeFile(arq);
+          arquivosMovidos++;
+        }
+      }
+
+      // Se a pasta agora estiver vazia de arquivos e subpastas, move para a lixeira
+      try {
+        if (!sub.getFiles().hasNext() && !sub.getFolders().hasNext()) {
+          sub.setTrashed(true);
+          pastasRemovidas.push(nomeSub);
+        }
+      } catch(eTrash) {
+        console.warn('Erro ao remover pasta solta vazia:', eTrash.message);
+      }
+    });
+
+    // 2. Se houver arquivos avulsos soltos diretamente em "Relatorios"
+    const agora = new Date();
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
+    const mesNome = meses[agora.getMonth()];
+    const ano = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy');
+    const nomePastaMesPadrao = `${mesNum} - ${mesNome} ${ano}`;
+
+    const arqsAvulsos = pastaRelatorios.getFiles();
+    while (arqsAvulsos.hasNext()) {
+      const arq = arqsAvulsos.next();
+      const nomeArq = arq.getName();
+      const catAlvo = resolverCategoriaRelatorio('', nomeArq);
+      const pastaCat = pastasCat[catAlvo] || pastasCat['Financeiro'];
+
+      let pastaMesAlvo = null;
+      const itMes = pastaCat.getFoldersByName(nomePastaMesPadrao);
+      if (itMes.hasNext()) {
+        pastaMesAlvo = itMes.next();
+      } else {
+        pastaMesAlvo = pastaCat.createFolder(nomePastaMesPadrao);
+      }
+
+      try {
+        arq.moveTo(pastaMesAlvo);
+        arquivosMovidos++;
+      } catch(eMove) {
+        pastaMesAlvo.addFile(arq);
+        pastaRelatorios.removeFile(arq);
+        arquivosMovidos++;
+      }
+    }
+
+    try {
+      const ssToast = SpreadsheetApp.getActiveSpreadsheet();
+      if (ssToast) {
+        ssToast.toast(`Pastas de relatórios organizadas! ${arquivosMovidos} arquivo(s) alocado(s).`, '📂 Google Drive');
+      }
+    } catch(eT) {}
+
+    return {
+      ok: true,
+      arquivosMovidos: arquivosMovidos,
+      pastasRemovidas: pastasRemovidas,
+      msg: `Organização concluída! ${arquivosMovidos} arquivo(s) alocado(s) em suas respectivas pastas.`
+    };
+  } catch(err) {
+    console.error('Erro em reorganizarRelatoriosPastasCorretas:', err);
+    return { ok: false, msg: err.message };
+  }
+}
+
+/**
+ * 📂 Cria e salva o relatório na subpasta correta de categoria e mês no Google Drive:
+ * Exemplo: Relatorios / [Estoque | Financeiro | Compras | Registros] / [MM - Mês AAAA] / [Nome Relatório - Data].pdf
+ */
+function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRelatorio) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const nomeDeposito = (typeof getNomeDeposito === 'function') ? getNomeDeposito() : 'Gestão de Depósito';
@@ -2908,7 +3106,19 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
       }
     }
 
-    // Subpasta do mês: MM - Mês AAAA
+    // 1. Identifica a subcategoria correta (Financeiro, Estoque, Compras, Registros)
+    const categoria = resolverCategoriaRelatorio(tipoRelatorio, titulo);
+
+    // 2. Obtém ou cria a pasta da Categoria dentro de Relatorios
+    let pastaCategoria = null;
+    const itCat = pastaRelatorios.getFoldersByName(categoria);
+    if (itCat.hasNext()) {
+      pastaCategoria = itCat.next();
+    } else {
+      pastaCategoria = pastaRelatorios.createFolder(categoria);
+    }
+
+    // 3. Subpasta do mês: MM - Mês AAAA dentro da categoria correspondente
     const agora = new Date();
     const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
@@ -2917,14 +3127,14 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
     const nomePastaMes = `${mesNum} - ${mesNome} ${ano}`;
 
     let pastaMes = null;
-    const itMes = pastaRelatorios.getFoldersByName(nomePastaMes);
+    const itMes = pastaCategoria.getFoldersByName(nomePastaMes);
     if (itMes.hasNext()) {
       pastaMes = itMes.next();
     } else {
-      pastaMes = pastaRelatorios.createFolder(nomePastaMes);
+      pastaMes = pastaCategoria.createFolder(nomePastaMes);
     }
 
-    // Nome do arquivo: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
+    // 4. Nome do arquivo: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
     const dataHoraStr = Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd-MM-yyyy HH-mm');
     const nomeLimpo = String(titulo || 'Relatório').replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '').trim();
     const nomeArquivo = `${nomeLimpo} - ${dataHoraStr}`;
@@ -2955,7 +3165,7 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
       <body>
         <div class="header">
           <h2>${titulo}</h2>
-          <div class="meta">${nomeDeposito} | Solicitado em: ${Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}</div>
+          <div class="meta">${nomeDeposito} | Pasta: Relatorios/${categoria}/${nomePastaMes} | Solicitado em: ${Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}</div>
         </div>
     `;
 
@@ -2983,15 +3193,21 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas) {
       htmlContent += `</tr>`;
     });
     htmlContent += `</tbody></table>`;
-    htmlContent += `<div class="footer">Documento corporativo gerado pelo Sistema Executivo Depósito Karo$$</div></body></html>`;
+    htmlContent += `<div class="footer">Documento corporativo arquivado em Relatorios/${categoria}/${nomePastaMes} — Depósito Karo$$</div></body></html>`;
 
     const blob = Utilities.newBlob(htmlContent, 'text/html').getAs('application/pdf').setName(`${nomeArquivo}.pdf`);
     const file = pastaMes.createFile(blob);
 
+    // 5. Executa rotina de auto-limpeza para garantir que nenhuma pasta solta permaneça na raiz de Relatorios
+    try {
+      reorganizarRelatoriosPastasCorretas(pastaRelatorios);
+    } catch(eReorg) {}
+
     return {
       ok: true,
       nomeArquivo: `${nomeArquivo}.pdf`,
-      pastaNome: nomePastaMes,
+      pastaNome: `${categoria}/${nomePastaMes}`,
+      categoria: categoria,
       fileId: file.getId(),
       url: file.getUrl()
     };
