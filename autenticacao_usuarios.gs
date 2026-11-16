@@ -2199,12 +2199,12 @@ function abrirSistemaPosLogin(emailUsuario){
       console.warn('Erro ao aplicar visibilidade de abas:', e);
     }
 
-    // 2️⃣ Ativa a aba HOME se existir
+    // 2️⃣ Ativa a aba principal de dados (PRODUTOS ou COMANDAS)
     try {
       const ss = SpreadsheetApp.getActive();
-      const shHome = ss.getSheetByName('HOME');
-      if (shHome) {
-        ss.setActiveSheet(shHome);
+      const shPrincipal = ss.getSheetByName('PRODUTOS') || ss.getSheetByName('COMANDAS') || ss.getSheets()[0];
+      if (shPrincipal) {
+        ss.setActiveSheet(shPrincipal);
       }
     } catch(e){}
 
@@ -2230,14 +2230,27 @@ function aplicarVisibilidadeAbasPorPerfil(){
 
   const perfil = String(usuario.perfil || '').toUpperCase();
 
-  // definir abas mínimas visíveis por perfil
-  const abasVendedor = ['HOME', 'VENDAS', 'DELIVERY', 'CLIENTES', 'BLOQUEIO_LOGIN'];
-  const abasGerente = ['HOME', 'PRODUTOS', 'ESTOQUE', 'ESTOQUE_VALORES', 'COMPRAS', 'VENDAS', 'DELIVERY', 'CLIENTES', 'BLOQUEIO_LOGIN'];
+  // definir abas mínimas visíveis por perfil (aba HOME foi descontinuada em prol do Painel 360°)
+  const abasVendedor = ['COMANDAS', 'VENDAS', 'DELIVERY', 'CLIENTES', 'BLOQUEIO_LOGIN'];
+  const abasGerente = ['PRODUTOS', 'ESTOQUE', 'ESTOQUE_VALORES', 'COMPRAS', 'COMANDAS', 'VENDAS', 'DELIVERY', 'CLIENTES', 'BLOQUEIO_LOGIN'];
 
   const sheets = ss.getSheets();
   sheets.forEach(sh => {
     const name = sh.getName();
     try{
+      // A aba HOME foi descontinuada - oculta ou exclui automaticamente
+      if (name === 'HOME') {
+        try {
+          if (sheets.length > 1) {
+            ss.deleteSheet(sh);
+          } else {
+            sh.hideSheet();
+          }
+        } catch(eDel) {
+          try { sh.hideSheet(); } catch(eHide) {}
+        }
+        return;
+      }
       if(perfil === 'ADMIN'){
         // Admin vê absolutamente todas as abas da planilha
         sh.showSheet();

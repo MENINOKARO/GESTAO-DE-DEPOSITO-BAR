@@ -140,6 +140,9 @@
         if (typeof aplicarVisibilidadeAbasPorPerfil === 'function') {
           aplicarVisibilidadeAbasPorPerfil();
         }
+        if (typeof removerAbaHomeDaPlanilha === 'function') {
+          removerAbaHomeDaPlanilha();
+        }
       } catch(e) {
         console.warn('Erro ao aplicar visibilidade de abas no onOpen:', e.message);
       }
@@ -151,8 +154,6 @@
 
       menuPrincipal.addItem('👑 Painel Executivo & PDV 360°', 'abrirPainelDeposito360Modal')
         .addItem('🌐 Abrir Painel 360° (Navegador)', 'menuAbrirPainelDeposito360Web')
-        .addSeparator()
-        .addItem('🏠 Home Antiga / Dashboard', 'abrirPainelFlutuante')
         .addSeparator()
         .addSubMenu(
           ui.createMenu('💶 Vendas & Comandas')
@@ -1221,349 +1222,44 @@
       }
 
     }
-    function criarHomeDashboard(){
-
-      const ss = SpreadsheetApp.getActive();
-
-      let sh = ss.getSheetByName('HOME');
-
-      // evita executar geração de relatório ao abrir HOME/menu
-      const relEstoque = (typeof obterResumoEstoqueFinanceiroLeve_ === 'function')
-        ? obterResumoEstoqueFinanceiroLeve_()
-        : null;
-
-
-      if(!sh){
-        sh = ss.insertSheet('HOME');
-      }
-
-      sh.clear();
-      sh.setHiddenGridlines(true);
-
-
-      // ======================
-      // DADOS
-      // ======================
-
-      const nome = getNomeDeposito();
-
-      const hoje = Utilities.formatDate(
-        new Date(),
-        Session.getScriptTimeZone(),
-        'dd/MM/yyyy HH:mm'
-      );
-
-      const driveUrl = getConfig('DRIVE_URL');
-      
-      // 🔹 Dados do usuário logado
-      const usuario = obterUsuarioAtual();
-      const nomeUsuario = usuario && usuario.nome ? usuario.nome : 'Usuário';
-      const perfilUsuario = usuario && usuario.perfil ? usuario.perfil : 'OPERACIONAL';
-      
-      const fin = (typeof calcularSaldoHoje === 'function') ? calcularSaldoHoje() : null;
-      const caixaHoje = Number((fin && fin.saldo) ? fin.saldo : 0); 
-      
-      const ops = (typeof calcularIndicadoresHoje === 'function') ? calcularIndicadoresHoje() : {};
-      const criticos = (typeof listarEstoqueCritico === 'function') ? listarEstoqueCritico() : []; 
-      
-      const valorTotalEstoque = typeof obterValorTotalEstoque === 'function' 
-        ? obterValorTotalEstoque() 
-        : 0;
-        
-      const resumoEstoque = relEstoque && relEstoque.resumo ? relEstoque.resumo : {};
-
-      // ranking pode ser pesado, usar cache de 5 minutos
-      let ranking = { top: [], flop: [] };
+    /**
+     * Remove ou oculta definitivamente a aba HOME obsoleta da planilha,
+     * transferindo o foco para a aba principal de dados (PRODUTOS ou COMANDAS).
+     */
+    function removerAbaHomeDaPlanilha() {
       try {
-        const cache = CacheService.getScriptCache();
-        const cached = cache.get('HOME_RANKING');
-        if(cached){
-          ranking = JSON.parse(cached);
-        } else if(typeof gerarRankingProdutos === 'function'){
-          ranking = gerarRankingProdutos();
-          cache.put('HOME_RANKING', JSON.stringify(ranking), 300);
+        const ss = SpreadsheetApp.getActive();
+        const sh = ss.getSheetByName('HOME');
+        if (sh) {
+          if (ss.getSheets().length > 1) {
+            try {
+              ss.deleteSheet(sh);
+            } catch(eDel) {
+              sh.hideSheet();
+            }
+          } else {
+            sh.hideSheet();
+          }
         }
-      } catch(e){
-        console.warn('Erro ao obter ranking cache:', e);
-      }
-
-      sh.getRange('A1:H1').merge()
-        .setValue(`🍻 GESTÃO DE DEPÓSITO — ${nome}`)
-        .setFontSize(18)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center')
-        .setVerticalAlignment('middle')
-        .setBackground('#0f172a')
-        .setFontColor('#ffffff');
-      
-      sh.getRange('A2:H2').merge()
-        .setValue(`👋 Bem-vindo, ${nomeUsuario} | Perfil: ${perfilUsuario} | ${hoje}`)
-        .setFontSize(18)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center')
-        .setVerticalAlignment('middle')
-        .setBackground('#1e293b')
-        .setFontColor('#e0e7ff');
-
-      // link para pasta do drive (se configurado)
-      if (driveUrl) {
-        try {
-          const richText = SpreadsheetApp.newRichTextValue()
-            .setText("📂 Abrir Pasta do Google Drive")
-            .setLinkUrl(driveUrl)
-            .build();
-          sh.getRange('A3:H3').merge()
-            .setRichTextValue(richText)
-            .setHorizontalAlignment('center')
-            .setVerticalAlignment('middle')
-            .setFontSize(11)
-            .setFontWeight('bold')
-            .setBackground('#1e293b')
-            .setFontColor('#38bdf8');
-        } catch(eDrive) {
-          sh.getRange('A3:H3').merge()
-            .setValue("📂 Google Drive: " + driveUrl)
-            .setHorizontalAlignment('center')
-            .setVerticalAlignment('middle')
-            .setFontSize(11)
-            .setBackground('#1e293b')
-            .setFontColor('#94a3b8');
-        }
-      } else {
-        sh.getRange('A3:H3').merge()
-          .setValue("💡 Depósito Digital Inteligente — Gestão 360°")
-          .setHorizontalAlignment('center')
-          .setVerticalAlignment('middle')
-          .setFontSize(11)
-          .setFontStyle('italic')
-          .setBackground('#1e293b')
-          .setFontColor('#94a3b8');
-      }
-
-
-      // ======================
-      // KPI BOTÕES
-      // ======================
-
-      const cards = [
-        ['💰 Caixa Hoje', `R$ ${caixaHoje.toFixed(2)}`, 'CAIXA', '#16a34a'],
-        ['📦 Estoque Crítico', criticos.length, 'ESTOQUE', '#dc2626'],
-        ['💰 Valor Estoque', `R$ ${valorTotalEstoque.toFixed(2)}`, 'ESTOQUE_VALORES', '#f59e0b'],
-        ['🍺 Comandas', ops.comandasAbertas, 'COMANDAS', '#2563eb'],
-        ['🚚 Delivery', ops.deliveryHoje, 'DELIVERY', '#ea580c'],
-        ['🔄 Backup', 'Fazer', 'BACKUP', '#8b5cf6'],
-        ['📂 Drive', driveUrl ? 'Abrir' : 'Configurar', 'DRIVE', '#10b981']
-      ];
-
-
-      // Layout 4x3: 4 cards na primeira linha e 3 cards na segunda (centralizados)
-      const cardPositions = [
-        [4,1], [4,3], [4,5], [4,7],
-        [7,2], [7,4], [7,6]
-      ];
-
-      // visual mais moderno para a HOME
-      sh.getRange('A1:H120')
-        .setBackground('#020617')
-        .setFontColor('#e2e8f0');
-
-      sh.setColumnWidths(1, 8, 128);
-      [4,5,6,7,8,9].forEach(l=> sh.setRowHeight(l, 34));
-
-      cards.forEach(([titulo,valor,aba,cor], idx)=>{
-
-        const [row, col] = cardPositions[idx];
-        const r = sh.getRange(row, col, 3, 2);
-
-        r.merge();
-
-        r.setValue(`${titulo}\n${valor}`)
-          .setFontSize(12)
-          .setFontWeight('bold')
-          .setHorizontalAlignment('center')
-          .setVerticalAlignment('middle')
-          .setBackground(cor)
-          .setFontColor('#ffffff')
-          .setBorder(true,true,true,true,true,true,'#0b1120',SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-
-        r.setWrap(true);
-
-      });
-
-
-      // ======================
-      // BOTÃO PAINEL
-      // ======================
-
-      const painel = sh.getRange(11,1,2,8);
-
-      painel.merge();
-
-      painel.setValue('🎛️  ABRIR CONTROLE RÁPIDO')
-        .setFontSize(15)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center')
-        .setVerticalAlignment('middle')
-        .setBackground('#3730a3')
-        .setFontColor('#ffffff');
-
-
-      // ======================
-      // ESTOQUE CRÍTICO
-      // ======================
-
-      let r1 = 14;
-
-      sh.setRowHeight(10, 8);
-
-
-      sh.getRange(r1,1,1,8).merge()
-        .setValue('🚨 PRODUTOS EM ESTOQUE CRÍTICO')
-        .setFontWeight('bold')
-        .setBackground('#7f1d1d')
-        .setFontColor('#fecaca')
-        .setHorizontalAlignment('center');
-
-
-      r1++;
-
-
-      if(criticos.length === 0){
-
-        sh.getRange(r1,1,1,8).merge()
-          .setValue('✅ Nenhum produto crítico')
-          .setHorizontalAlignment('center');
-
-        r1++;
-
-      }else{
-
-        criticos.forEach(c=>{
-
-          sh.getRange(r1,1,1,4).merge()
-            .setValue(c.produto);
-
-          sh.getRange(r1,5,1,4).merge()
-            .setValue(`Qtd: ${c.qtd} / Mín: ${c.minimo}`);
-
-          r1++;
-
+        // Remove gatilhos periódicos obsoletos da HOME
+        const triggers = ScriptApp.getProjectTriggers();
+        triggers.forEach(t => {
+          if (t.getHandlerFunction() === 'criarHomeDashboard') {
+            ScriptApp.deleteTrigger(t);
+          }
         });
-
-      }
-
-
-      // ======================
-      // RANKINGS
-      // ======================
-
-      r1 += 1;
-
-
-      sh.getRange(r1,1,1,4).merge()
-        .setValue('🏆 TOP 10 MAIS VENDIDOS')
-        .setFontWeight('bold')
-        .setBackground('#065f46')
-        .setFontColor('#d1fae5')
-        .setHorizontalAlignment('center');
-
-
-      sh.getRange(r1,5,1,4).merge()
-        .setValue('🐢 5 MENOS VENDIDOS')
-        .setFontWeight('bold')
-        .setBackground('#78350f')
-        .setFontColor('#fef3c7')
-        .setHorizontalAlignment('center');
-
-
-      r1++;
-
-
-      const max = Math.max(
-        ranking.top.length,
-        ranking.flop.length
-      );
-
-
-      for(let i=0;i<max;i++){
-
-        if(ranking.top[i]){
-
-          sh.getRange(r1+i,1,1,4).merge()
-            .setValue(
-              `${i+1}. ${ranking.top[i].produto} — ${ranking.top[i].qtd}`
-            );
-
+        const shAtiva = ss.getSheetByName('PRODUTOS') || ss.getSheetByName('COMANDAS') || ss.getSheets()[0];
+        if (shAtiva && shAtiva.getName() !== 'HOME') {
+          ss.setActiveSheet(shAtiva);
         }
-
-        if(ranking.flop[i]){
-
-          sh.getRange(r1+i,5,1,4).merge()
-            .setValue(
-              `${i+1}. ${ranking.flop[i].produto} — ${ranking.flop[i].qtd}`
-            );
-
-        }
-
+      } catch(e) {
+        console.warn('Aviso em removerAbaHomeDaPlanilha:', e);
       }
+    }
 
-
-      // ======================
-      // ESTOQUE FINANCEIRO
-      // ======================
-
-      r1 += 1;
-      
-      sh.setRowHeight(r1, 2);
-
-      sh.getRange(r1,1,1,8).merge()
-        .setValue('💰 VALOR TOTAL DO ESTOQUE')
-        .setFontWeight('bold')
-        .setBackground('#5b2c05')
-        .setFontColor('#fef3c7')
-        .setHorizontalAlignment('center');
-      +
-
-      r1++;
-      sh.getRange(r1,1,1,4).merge()
-        .setValue(`Total: R$ ${valorTotalEstoque.toFixed(2)}`);
-      sh.getRange(r1,5,1,4).merge()
-        .setValue(`Lucro Estimado: R$ ${resumoEstoque.lucroEstoque ? resumoEstoque.lucroEstoque.toFixed(2) : 0}`);
-      r1++;
-
-      // ======================
-      // VALOR POR CATEGORIA (primeiras 5)
-      // ======================
-      const porCat = typeof obterValorEstoquesPorCategoria === 'function'
-        ? obterValorEstoquesPorCategoria()
-        : {};
-      if(Object.keys(porCat).length){
-        r1++;
-        sh.getRange(r1,1,1,8).merge()
-          .setValue('📂 Valor por Categoria (top 5)')
-          .setFontWeight('bold')
-          .setBackground('#0c4a6e')
-          .setFontColor('#cffafe')
-          .setHorizontalAlignment('center');
-        r1++;
-        Object.entries(porCat).slice(0,5).forEach(([cat,d])=>{
-          sh.getRange(r1,1,1,4).merge().setValue(cat);
-          sh.getRange(r1,5,1,4).merge().setValue(`R$ ${d.valor.toFixed(2)}`);
-          r1++;
-        });
-      }
-
-      // ======================
-      // AJUSTES
-      // ======================
-
-      sh.setColumnWidths(1,8,120);
-
-      sh.setRowHeights(1,2,30);
-      sh.setRowHeights(4,12,50);
-
-      SpreadsheetApp.flush();
-
+    function criarHomeDashboard() {
+      // A aba HOME foi descontinuada em favor do Painel 360°, que centraliza todas as métricas em tempo real.
+      removerAbaHomeDaPlanilha();
     }
     function abrirAba(nome){
 
@@ -1578,25 +1274,16 @@
       }
     }
     function ativarAutoRefreshHome(){
-
-      // remove antigos
+      // Desativa e remove gatilhos da HOME obsoleta
       const triggers = ScriptApp.getProjectTriggers();
-
       triggers.forEach(t=>{
         if(t.getHandlerFunction() === 'criarHomeDashboard'){
           ScriptApp.deleteTrigger(t);
         }
       });
-
-      // cria novo
-      ScriptApp.newTrigger('criarHomeDashboard')
-        .timeBased()
-        .everyMinutes(5)
-        .create();
-
-
+      removerAbaHomeDaPlanilha();
       SpreadsheetApp.getUi()
-        .alert('⏱️ Home será atualizada a cada 5 minutos.');
+        .alert('✅ Aba HOME desativada. As métricas e relatórios estão centralizados no Painel 360°.');
     }
     function listarEstoqueCritico(){
 
@@ -14612,12 +14299,11 @@
           ScriptApp.deleteTrigger(t);
         }
       });
-      ScriptApp.newTrigger('criarHomeDashboard')
-        .timeBased()
-        .everyMinutes(5)
-        .create();
+      if (typeof removerAbaHomeDaPlanilha === 'function') {
+        removerAbaHomeDaPlanilha();
+      }
     } catch(e) {
-      console.warn("Erro ao configurar refresh silencioso:", e.message);
+      console.warn("Erro ao limpar refresh silencioso:", e.message);
     }
   }
 
