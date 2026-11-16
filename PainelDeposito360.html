@@ -7240,8 +7240,8 @@
       }
 
       const url = numLimpo
-        ? `https://wa.me/${numLimpo}?text=${encodeURIComponent(texto)}`
-        : `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+        ? ('https:' + '//wa.me/' + numLimpo + '?text=' + encodeURIComponent(texto))
+        : ('https:' + '//api.whatsapp.com/send?text=' + encodeURIComponent(texto));
 
       window.open(url, '_blank');
     }

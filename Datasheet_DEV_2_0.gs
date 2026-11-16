@@ -1291,12 +1291,38 @@
         .setFontColor('#e0e7ff');
 
       // link para pasta do drive (se configurado)
-      if(driveUrl){
+      if (driveUrl) {
+        try {
+          const richText = SpreadsheetApp.newRichTextValue()
+            .setText("📂 Abrir Pasta do Google Drive")
+            .setLinkUrl(driveUrl)
+            .build();
+          sh.getRange('A3:H3').merge()
+            .setRichTextValue(richText)
+            .setHorizontalAlignment('center')
+            .setVerticalAlignment('middle')
+            .setFontSize(11)
+            .setFontWeight('bold')
+            .setBackground('#1e293b')
+            .setFontColor('#38bdf8');
+        } catch(eDrive) {
+          sh.getRange('A3:H3').merge()
+            .setValue("📂 Google Drive: " + driveUrl)
+            .setHorizontalAlignment('center')
+            .setVerticalAlignment('middle')
+            .setFontSize(11)
+            .setBackground('#1e293b')
+            .setFontColor('#94a3b8');
+        }
+      } else {
         sh.getRange('A3:H3').merge()
-          .setFormula(`=HYPERLINK("${driveUrl}","📂 Abra Drive")`)
+          .setValue("💡 Depósito Digital Inteligente — Gestão 360°")
           .setHorizontalAlignment('center')
-          .setFontSize(12)
-          .setFontStyle('italic');
+          .setVerticalAlignment('middle')
+          .setFontSize(11)
+          .setFontStyle('italic')
+          .setBackground('#1e293b')
+          .setFontColor('#94a3b8');
       }
 
 

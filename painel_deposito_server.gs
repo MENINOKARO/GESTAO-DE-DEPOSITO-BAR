@@ -1655,15 +1655,14 @@ function menuAbrirPainelDeposito360Web() {
  * Retorna a URL pública oficial do WebApp deste script.
  */
 function obterUrlWebAppDeposito() {
-  let url = '';
+  const urlPadrao = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
   try {
-    url = ScriptApp.getService().getUrl() || '';
+    const urlService = ScriptApp.getService().getUrl();
+    if (urlService && urlService.includes('/exec') && !urlService.includes('AKfycbyBush')) {
+      return urlService;
+    }
   } catch (e) {}
-
-  if (!url) {
-    url = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
-  }
-  return url;
+  return urlPadrao;
 }
 
 // Helpers de formatação
