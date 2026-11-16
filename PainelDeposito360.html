@@ -1664,14 +1664,9 @@
     </div>
 
     <div class="header-actions">
-      <!-- BOTÃO DE OBRIGAÇÕES FINANCEIRAS (DONO / GERENTE) -->
-      <button id="btnHeaderFinanceiro" class="btn-action" style="display: none; background: rgba(234, 88, 12, 0.15); border-color: #ea580c; color: #fdba74;" onclick="trocarAba('tabFinanceiro')" title="Ver Obrigações a Pagar e Fiados a Receber">
+      <!-- BOTÃO DE OBRIGAÇÕES FINANCEIRAS PENDENTES (DONO / GERENTE / ADMIN - SÓ EXIBE SE HOUVER PENDÊNCIAS) -->
+      <button id="btnHeaderFinanceiro" class="btn-action" style="display: none; background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5;" onclick="trocarAba('tabFinanceiro')" title="Ver Obrigações a Pagar e Fiados a Receber">
         <span>🪙</span> Obrigações (<span id="headerObrigacoesCount">0</span>)
-      </button>
-
-      <!-- BOTÃO DE GESTÃO DE EQUIPE (DONO / GERENTE) -->
-      <button id="btnHeaderEquipe" class="btn-action" style="display: none;" onclick="trocarAba('tabEquipe')" title="Gerenciar Equipe e Colaboradores">
-        <span>👥</span> Equipe
       </button>
 
       <!-- BOTÃO DIRETO PARA ABRIR A PLANILHA DO GOOGLE -->
@@ -4095,7 +4090,8 @@
       TOKEN_SESSAO = null;
       USUARIO_LOGADO = null;
       document.getElementById('userHeaderPill').style.display = 'none';
-      document.getElementById('btnHeaderEquipe').style.display = 'none';
+      const btnHeaderFin = document.getElementById('btnHeaderFinanceiro');
+      if (btnHeaderFin) btnHeaderFin.style.display = 'none';
       document.getElementById('loginSenhaInput').value = '';
       exibirOverlayLogin();
       showToast('Sessão encerrada com sucesso.', 'info');
@@ -4134,9 +4130,7 @@
 
       // 1. Botões do Header e Acesso à Planilha
       const btnPlanilha = document.getElementById('btnAbrirPlanilhaGoogle');
-      const btnHeaderEquipe = document.getElementById('btnHeaderEquipe');
       if (btnPlanilha) btnPlanilha.style.display = isOperador ? 'none' : 'inline-flex';
-      if (btnHeaderEquipe) btnHeaderEquipe.style.display = isOperador ? 'none' : 'inline-flex';
 
       // 2. Indicadores do Topo (KPI Ribbon)
       const cardFatMes = document.getElementById('cardKpiFatMes');
@@ -4265,7 +4259,6 @@
       const btnTabFin = document.getElementById('btnTabFinanceiro');
       const btnHeaderFin = document.getElementById('btnHeaderFinanceiro');
       if (btnTabFin) btnTabFin.style.display = isGestorFin ? 'inline-flex' : 'none';
-      if (btnHeaderFin) btnHeaderFin.style.display = isGestorFin ? 'inline-flex' : 'none';
 
       const totalObrigacoesPendentes = (k.contasPagarHojeCount || 0) + (k.contasPagarVencidasCount || 0);
       const badgeFin = document.getElementById('tabFinanceiroBadge');
@@ -4278,6 +4271,11 @@
         } else {
           badgeFin.style.display = 'none';
         }
+      }
+
+      // 🔔 Botão de topo: Só é visível se houver obrigação pendente (> 0). Se não houver, fica oculto!
+      if (btnHeaderFin) {
+        btnHeaderFin.style.display = (isGestorFin && totalObrigacoesPendentes > 0) ? 'inline-flex' : 'none';
       }
 
       // 4. Catálogo PDV & Comandas
