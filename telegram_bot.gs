@@ -7462,6 +7462,15 @@ function doGet(e) {
       }
     } catch(eNome) {}
 
+    // 🚀 Garante que a pasta raiz e os arquivos essenciais (Lançador 360° e Info) existam no Drive
+    try {
+      if (typeof sincronizarArquivosEPastaRaizEmpresa === 'function') {
+        sincronizarArquivosEPastaRaizEmpresa();
+      }
+    } catch(eDriveSync) {
+      console.warn('Aviso sincronizacao drive em doGet:', eDriveSync);
+    }
+
     return HtmlService.createHtmlOutputFromFile('PainelDeposito360')
       .setTitle('👑 ' + nomeDep + ' - Painel 360° & PDV')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')

@@ -1549,6 +1549,11 @@
       letter-spacing: 0.5px;
     }
 
+    .user-role-badge.admin {
+      background: linear-gradient(135deg, #ef4444, #991b1b);
+      color: white;
+    }
+
     .user-role-badge.dono {
       background: linear-gradient(135deg, #f59e0b, #b45309);
       color: black;
@@ -3937,6 +3942,7 @@
               atualizarHeaderUsuario(res.usuario);
               aplicarPermissoesPerfil(res.usuario);
               sincronizarPainel();
+              try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eSync) {}
             } else {
               localStorage.removeItem('deposito360_token');
               sessionStorage.removeItem('deposito360_token');
@@ -4006,6 +4012,7 @@
             atualizarHeaderUsuario(res.usuario);
             aplicarPermissoesPerfil(res.usuario);
             sincronizarPainel();
+            try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eSync) {}
             showToast(`Bem-vindo de volta, ${res.usuario.nome}!`, 'success');
           } else {
             alertBox.className = 'login-alert error';
@@ -4104,7 +4111,9 @@
       const perfil = String(user.perfil || 'VENDEDOR').toUpperCase();
       badge.className = 'user-role-badge ' + perfil.toLowerCase();
 
-      if (perfil === 'DONO') {
+      if (perfil === 'ADMIN') {
+        badge.innerText = '🛡️ ADMIN';
+      } else if (perfil === 'DONO') {
         badge.innerText = '👑 DONO';
       } else if (perfil === 'GERENTE') {
         badge.innerText = '👔 GERENTE';
@@ -4116,9 +4125,10 @@
     function aplicarPermissoesPerfil(user) {
       if (!user) return;
       const perfil = String(user.perfil || 'VENDEDOR').toUpperCase();
+      const isAdmin = (perfil === 'ADMIN');
+      const isDono = (perfil === 'DONO' || isAdmin);
+      const isGerente = (perfil === 'GERENTE' || isDono);
       const isOperador = (perfil === 'VENDEDOR' || perfil === 'OPERADOR');
-      const isGerente = (perfil === 'GERENTE');
-      const isDono = (perfil === 'DONO');
 
       // 1. Botões do Header e Acesso à Planilha
       const btnPlanilha = document.getElementById('btnAbrirPlanilhaGoogle');

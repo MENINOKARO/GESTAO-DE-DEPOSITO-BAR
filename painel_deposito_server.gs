@@ -1621,6 +1621,12 @@ function garantirClienteCadastrado(nome, tel, end, ref, obs) {
  * Abre o Painel Executivo & PDV 360° como Modal dentro da Planilha.
  */
 function abrirPainelDeposito360Modal() {
+  try {
+    if (typeof sincronizarArquivosEPastaRaizEmpresa === 'function') {
+      sincronizarArquivosEPastaRaizEmpresa();
+    }
+  } catch(eSync) {}
+
   const html = HtmlService.createHtmlOutputFromFile('PainelDeposito360')
     .setWidth(1280)
     .setHeight(780);

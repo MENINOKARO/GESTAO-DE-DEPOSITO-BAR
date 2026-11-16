@@ -187,15 +187,32 @@
             .addItem('📑 Fechamento Fiscal (Dia)', 'fecharFiscalDia')
         );
 
-      // Menu Clientes / Equipe: Dono tem Gestão de Usuários; Gerente vê apenas clientes
-      if (isDono) {
+      // 🛡️ RBAC: Determina privilégios de Administrador Técnico e Dono
+      const perfilAtual = String(usuarioAtual.perfil || '').toUpperCase().trim();
+      const loginAtual = String(usuarioAtual.login || usuarioAtual.id || usuarioAtual.nome || '').toLowerCase().trim();
+      const isAdminTecnico = (typeof isAdmin === 'function')
+        ? isAdmin(usuarioAtual)
+        : (perfilAtual === 'ADMIN' || loginAtual === 'admin' || loginAtual === 'administrador');
+
+      // Menu Clientes / Equipe: Admin e Dono gerenciam usuários; Admin vê Matriz de Perfis RBAC
+      if (isAdminTecnico) {
         menuPrincipal.addSeparator()
           .addSubMenu(
             ui.createMenu('👥 Clientes & Equipe')
               .addItem('👤 Novo Cliente', 'popupCliente')
               .addItem('🔍 Consultar/Editar Cliente', 'popupBuscarCliente')
               .addSeparator()
-              .addItem('👥 Gestão de Usuários e Perfis', 'popupListarUsuarios')
+              .addItem('👥 Gestão de Usuários', 'popupListarUsuarios')
+              .addItem('🛡️ Módulo de Perfis & Matriz RBAC', 'popupGerenciarPerfis')
+          );
+      } else if (isDono) {
+        menuPrincipal.addSeparator()
+          .addSubMenu(
+            ui.createMenu('👥 Clientes & Equipe')
+              .addItem('👤 Novo Cliente', 'popupCliente')
+              .addItem('🔍 Consultar/Editar Cliente', 'popupBuscarCliente')
+              .addSeparator()
+              .addItem('👥 Gestão de Usuários', 'popupListarUsuarios')
           );
       } else {
         menuPrincipal.addSeparator()
@@ -217,11 +234,8 @@
             .addItem('📦 Gerar TODOS os Relatórios', 'gerarPacoteRelatoriosGerenciais')
         );
 
-      // 🛡️ CONFIGURAÇÕES & SISTEMA: EXCLUSIVO PARA O ADMINISTRADOR TÉCNICO (login 'admin')
+      // 🛡️ CONFIGURAÇÕES & SISTEMA: EXCLUSIVO PARA O ADMINISTRADOR TÉCNICO (perfil 'ADMIN')
       // O DONO tem acesso à operação e ao botão Config no Painel 360°, mas na planilha o menu técnico fica restrito ao ADMIN.
-      const loginAtual = String(usuarioAtual.login || usuarioAtual.id || usuarioAtual.nome || '').toLowerCase().trim();
-      const isAdminTecnico = (loginAtual === 'admin' || loginAtual === 'administrador');
-
       if (isAdminTecnico) {
         menuPrincipal.addSeparator()
           .addSubMenu(
@@ -10298,17 +10312,29 @@
     const ano = Utilities.formatDate(data, Session.getScriptTimeZone(), 'yyyy');
     const mes = Utilities.formatDate(data, Session.getScriptTimeZone(), 'MM');
 
-    // 1. Pasta raiz com o nome do depósito
-    const root = obterOuCriarPastaPorNome(
-      DriveApp,
-      nomeDeposito,
-      'CRIAR_PASTA_RAIZ',
-      nomeDeposito
-    );
+    // 1. Pasta raiz com o nome do depósito (ou pelo DRIVE_URL configurado)
+    let root = null;
+    const urlAtualConfig = getConfig('DRIVE_URL');
+    if (urlAtualConfig && urlAtualConfig.includes('/folders/')) {
+      try {
+        const idPasta = urlAtualConfig.split('/folders/')[1].split('?')[0].split('/')[0];
+        if (idPasta) {
+          root = DriveApp.getFolderById(idPasta);
+        }
+      } catch(eRootId) {}
+    }
+
+    if (!root) {
+      root = obterOuCriarPastaPorNome(
+        DriveApp,
+        nomeDeposito,
+        'CRIAR_PASTA_RAIZ',
+        nomeDeposito
+      );
+    }
 
     // Salva URL da pasta na aba CONFIG se estiver vazia ou desatualizada
     try {
-      const urlAtualConfig = getConfig('DRIVE_URL');
       if (!urlAtualConfig || urlAtualConfig !== root.getUrl()) {
         setConfig('DRIVE_URL', root.getUrl());
       }
@@ -10414,6 +10440,11 @@
       root.createFile(nomeLancador, htmlLancador, MimeType.HTML);
       lancadorCriado = true;
       registrarLog('CRIAR_ARQUIVO_RAIZ', 'Lançador HTML criado na pasta raiz', '', nomeLancador);
+    } else {
+      const fl = filesLancador.next();
+      try {
+        fl.setContent(htmlLancador);
+      } catch(eSet) {}
     }
 
     // 5. Arquivo Informativo / Boas-Vindas TXT na pasta raiz

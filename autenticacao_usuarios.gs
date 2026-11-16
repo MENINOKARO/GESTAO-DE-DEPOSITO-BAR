@@ -15,6 +15,88 @@
  * =====================================================
  */
 
+// =====================================================
+// 🛡️ MÓDULO DE PERFIS DE ACESSO E GOVERNANÇA (RBAC)
+// =====================================================
+const MODULO_PERFIS = {
+  ADMIN: {
+    id: 'ADMIN',
+    nome: '🛡️ Administrador do Sistema',
+    badge: 'badge-admin',
+    cor: '#ef4444',
+    descricao: 'Acesso técnico irrestrito. Gerencia banco de dados, menus administrativos, replicação e manutenção da planilha.',
+    nivel: 100,
+    acessoMenuTecnicoPlanilha: true,
+    acessoPainel360: true,
+    acessoConfigPainel360: true,
+    gerenciarUsuarios: true,
+    gerenciarPerfis: true
+  },
+  DONO: {
+    id: 'DONO',
+    nome: '👑 Dono / Proprietário',
+    badge: 'badge-dono',
+    cor: '#8b5cf6',
+    descricao: 'Gestão total do depósito, estoque, financeiro, equipe e operação 360°. Sem acesso à infraestrutura técnica da planilha.',
+    nivel: 80,
+    acessoMenuTecnicoPlanilha: false,
+    acessoPainel360: true,
+    acessoConfigPainel360: true,
+    gerenciarUsuarios: true,
+    gerenciarPerfis: false
+  },
+  GERENTE: {
+    id: 'GERENTE',
+    nome: '👨‍💼 Gerente Operacional',
+    badge: 'badge-gerente',
+    cor: '#3b82f6',
+    descricao: 'Gestão operacional de vendas, estoque, compras, delivery e contas a pagar/receber.',
+    nivel: 50,
+    acessoMenuTecnicoPlanilha: false,
+    acessoPainel360: true,
+    acessoConfigPainel360: false,
+    gerenciarUsuarios: false,
+    gerenciarPerfis: false
+  },
+  VENDEDOR: {
+    id: 'VENDEDOR',
+    nome: '💼 Vendedor / Operacional',
+    badge: 'badge-vendedor',
+    cor: '#10b981',
+    descricao: 'Frente de caixa (PDV), comandas, delivery, cadastro de clientes e consulta de estoque.',
+    nivel: 20,
+    acessoMenuTecnicoPlanilha: false,
+    acessoPainel360: true,
+    acessoConfigPainel360: false,
+    gerenciarUsuarios: false,
+    gerenciarPerfis: false
+  },
+  PENDENTE: {
+    id: 'PENDENTE',
+    nome: '⏳ Pendente de Aprovação',
+    badge: 'badge-pendente',
+    cor: '#f59e0b',
+    descricao: 'Novo cadastro aguardando classificação e liberação por um Administrador ou Dono.',
+    nivel: 0,
+    acessoMenuTecnicoPlanilha: false,
+    acessoPainel360: false,
+    acessoConfigPainel360: false,
+    gerenciarUsuarios: false,
+    gerenciarPerfis: false
+  }
+};
+
+function obterModuloPerfis() {
+  return MODULO_PERFIS;
+}
+
+function isAdmin(usuario) {
+  if (!usuario) return false;
+  const perfil = String(usuario.perfil || '').toUpperCase().trim();
+  const nome = String(usuario.nome || usuario.login || usuario.id || '').toLowerCase().trim();
+  return (perfil === 'ADMIN' || nome === 'admin' || nome === 'administrador');
+}
+
 /**
  * 🔧 INICIALIZAÇÃO DO SISTEMA DE AUTENTICAÇÃO
  */
@@ -109,15 +191,15 @@ function autenticarUsuario(usuarioOuEmail, senha) {
       }
     }
 
-    // 🔹 MASTER FALLBACK ADMIN: se digitou 'admin' e a senha for 'admin123', sempre libera
+    // 🔹 MASTER FALLBACK ADMIN: se digitou 'admin' e a senha for 'admin123', sempre libera com perfil ADMIN
     if (loginNormalizado === 'admin' && (senhaDigitada === 'admin123' || senhaDigitada === 'admin')) {
       const senhaHashDefault = gerarHashSenha('admin123');
       if (usuarioEncontrado) {
         shUsuarios.getRange(usuarioEncontrado.linha, 4).setValue(senhaHashDefault);
-        shUsuarios.getRange(usuarioEncontrado.linha, 5).setValue('DONO');
+        shUsuarios.getRange(usuarioEncontrado.linha, 5).setValue('ADMIN');
         shUsuarios.getRange(usuarioEncontrado.linha, 6).setValue('SIM');
         usuarioEncontrado.ativo = 'SIM';
-        usuarioEncontrado.perfil = 'DONO';
+        usuarioEncontrado.perfil = 'ADMIN';
         usuarioEncontrado.senhaSalva = senhaHashDefault;
       } else {
         const agora = new Date();
@@ -126,7 +208,7 @@ function autenticarUsuario(usuarioOuEmail, senha) {
           'admin',
           'admin@deposito.com',
           senhaHashDefault,
-          'DONO',
+          'ADMIN',
           'SIM',
           agora,
           agora
@@ -136,7 +218,7 @@ function autenticarUsuario(usuarioOuEmail, senha) {
           nome: 'admin',
           email: 'admin@deposito.com',
           senhaSalva: senhaHashDefault,
-          perfil: 'DONO',
+          perfil: 'ADMIN',
           ativo: 'SIM',
           linha: shUsuarios.getLastRow()
         };
@@ -397,7 +479,7 @@ function vincularUsuarioTelegram(usuarioOuEmail, senha, chatId) {
       const senhaHashDefault = gerarHashSenha('admin123');
       if (usuarioEncontrado) {
         shUsuarios.getRange(usuarioEncontrado.linha, 4).setValue(senhaHashDefault);
-        shUsuarios.getRange(usuarioEncontrado.linha, 5).setValue('DONO');
+        shUsuarios.getRange(usuarioEncontrado.linha, 5).setValue('ADMIN');
         shUsuarios.getRange(usuarioEncontrado.linha, 6).setValue('SIM');
         shUsuarios.getRange(usuarioEncontrado.linha, 9).setValue(chatIdNorm);
         return {
@@ -405,7 +487,7 @@ function vincularUsuarioTelegram(usuarioOuEmail, senha, chatId) {
           usuario: {
             id: usuarioEncontrado.id,
             nome: usuarioEncontrado.nome,
-            perfil: 'DONO'
+            perfil: 'ADMIN'
           }
         };
       }
@@ -562,22 +644,25 @@ function garantirEstruturausuarios() {
         'admin',
         'admin@deposito.com',
         senhaHashDefault,
-        'DONO',
+        'ADMIN',
         'SIM',
         agora,
         agora,
         ''
       ]);
-      console.log('[SERVER] Usuário admin padrão (admin / admin123) inicializado com perfil DONO.');
+      console.log('[SERVER] Usuário admin padrão (admin / admin123) inicializado com perfil ADMIN.');
     } else {
-      // 🔹 Auto-healing: garante que o admin tenha senha válida e status ativo
+      // 🔹 Auto-healing: garante que o admin tenha perfil ADMIN, senha válida e status ativo
       let adminExiste = false;
       for (let i = 1; i < dadosUsuarios.length; i++) {
         if (String(dadosUsuarios[i][1]).toLowerCase().trim() === 'admin' || String(dadosUsuarios[i][0]) === 'U-000001') {
           adminExiste = true;
+          if (String(dadosUsuarios[i][4]).toUpperCase() !== 'ADMIN') {
+            shUsuarios.getRange(i + 1, 5).setValue('ADMIN');
+            console.log('[SERVER] Auto-healing: perfil do usuário admin atualizado para ADMIN.');
+          }
           if (!dadosUsuarios[i][3] || String(dadosUsuarios[i][5]).toUpperCase() !== 'SIM') {
             shUsuarios.getRange(i + 1, 4).setValue(senhaHashDefault);
-            shUsuarios.getRange(i + 1, 5).setValue('DONO');
             shUsuarios.getRange(i + 1, 6).setValue('SIM');
             console.log('[SERVER] Auto-healing: admin restaurado para admin123 / ATIVO.');
           }
@@ -590,7 +675,7 @@ function garantirEstruturausuarios() {
           'admin',
           'admin@deposito.com',
           senhaHashDefault,
-          'DONO',
+          'ADMIN',
           'SIM',
           agora,
           agora,
@@ -1153,7 +1238,10 @@ function popupListarUsuarios(){
     // Formatação de tags de perfil
     let perfilText = perfil;
     let perfilClass = 'badge-pendente';
-    if (perfil === 'DONO' || perfil === 'GERENCIAL') {
+    if (perfil === 'ADMIN') {
+      perfilText = '🛡️ Administrador';
+      perfilClass = 'badge-admin';
+    } else if (perfil === 'DONO' || perfil === 'GERENCIAL') {
       perfilText = '👑 Dono';
       perfilClass = 'badge-dono';
     } else if (perfil === 'GERENTE') {
@@ -1224,6 +1312,7 @@ function popupListarUsuarios(){
         .user-id { font-size: 10px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
         .user-name { font-weight: bold; color: #020617; font-size: 14px; }
         .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: bold; display: inline-block; }
+        .badge-admin { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
         .badge-dono { background: #fef3c7; color: #b45309; }
         .badge-gerente { background: #d1fae5; color: #065f46; }
         .badge-vendedor { background: #dbeafe; color: #1e40af; }
@@ -1314,6 +1403,189 @@ function popupListarUsuarios(){
 
   const ui = HtmlService.createHtmlOutput(html).setWidth(650).setHeight(500);
   SpreadsheetApp.getUi().showModalDialog(ui,'👥 Gestão de Usuários');
+}
+
+/**
+ * 🛡️ MÓDULO DE PERFIS & MATRIZ DE GOVERNANÇA (RBAC)
+ * Exibe a matriz visual de perfis e governança do sistema
+ */
+function popupGerenciarPerfis() {
+  garantirEstruturausuarios();
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('USUARIOS');
+  const dados = sh.getDataRange().getValues().slice(1);
+
+  const contagem = {
+    ADMIN: 0,
+    DONO: 0,
+    GERENTE: 0,
+    VENDEDOR: 0,
+    PENDENTE: 0
+  };
+
+  const usuariosPorPerfil = {
+    ADMIN: [],
+    DONO: [],
+    GERENTE: [],
+    VENDEDOR: [],
+    PENDENTE: []
+  };
+
+  dados.forEach(r => {
+    let p = String(r[4] || 'PENDENTE').toUpperCase().trim();
+    if (p === 'GERENCIAL') p = 'DONO';
+    if (p === 'OPERACIONAL') p = 'VENDEDOR';
+    if (!contagem[p]) p = 'PENDENTE';
+    contagem[p]++;
+    usuariosPorPerfil[p].push(r[1] + (r[5] !== 'SIM' ? ' (inativo)' : ''));
+  });
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+    h2 { margin: 0 0 6px 0; font-size: 20px; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    p.sub { margin: 0 0 20px 0; font-size: 13px; color: #94a3b8; }
+    .grid-perfis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px; }
+    .card-perfil { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; position: relative; }
+    .card-perfil.admin { border-left: 4px solid #ef4444; }
+    .card-perfil.dono { border-left: 4px solid #8b5cf6; }
+    .card-perfil.gerente { border-left: 4px solid #3b82f6; }
+    .card-perfil.vendedor { border-left: 4px solid #10b981; }
+    .card-perfil-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .badge { font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 6px; }
+    .badge-admin { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-dono { background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .badge-gerente { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .badge-vendedor { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .perfil-desc { font-size: 12px; color: #94a3b8; line-height: 1.4; margin-bottom: 10px; }
+    .perfil-users { font-size: 11px; color: #cbd5e1; background: #090d16; padding: 6px 10px; border-radius: 6px; border: 1px solid #1e293b; }
+    .tabela-matriz { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
+    .tabela-matriz th, .tabela-matriz td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #334155; }
+    .tabela-matriz th { background: #090d16; color: #94a3b8; font-weight: 600; }
+    .tabela-matriz td.center { text-align: center; font-size: 14px; }
+    .actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .btn { padding: 9px 16px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; border: none; transition: 0.2s; }
+    .btn-secondary { background: #334155; color: #fff; }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; }
+  </style>
+</head>
+<body>
+  <h2>🛡️ Módulo de Perfis & Matriz de Permissões (RBAC)</h2>
+  <p class="sub">Estrutura de privilégios de acesso do Sistema de Gestão de Depósito 360°.</p>
+
+  <div class="grid-perfis">
+    <div class="card-perfil admin">
+      <div class="card-perfil-header">
+        <strong style="color:#ef4444;">🛡️ ADMIN</strong>
+        <span class="badge badge-admin">${contagem.ADMIN} ativo(s)</span>
+      </div>
+      <div class="perfil-desc">Acesso irrestrito ao sistema técnico: Supabase, scripts, manutenção da planilha e replicação.</div>
+      <div class="perfil-users">👥 Usuários: ${usuariosPorPerfil.ADMIN.join(', ') || 'Nenhum'}</div>
+    </div>
+
+    <div class="card-perfil dono">
+      <div class="card-perfil-header">
+        <strong style="color:#c084fc;">👑 DONO</strong>
+        <span class="badge badge-dono">${contagem.DONO} ativo(s)</span>
+      </div>
+      <div class="perfil-desc">Gestão completa da operação: Painel 360°, estoque, financeiro, equipe e relatórios. Sem menu técnico da planilha.</div>
+      <div class="perfil-users">👥 Usuários: ${usuariosPorPerfil.DONO.join(', ') || 'Nenhum'}</div>
+    </div>
+
+    <div class="card-perfil gerente">
+      <div class="card-perfil-header">
+        <strong style="color:#60a5fa;">👨‍💼 GERENTE</strong>
+        <span class="badge badge-gerente">${contagem.GERENTE} ativo(s)</span>
+      </div>
+      <div class="perfil-desc">Operação gerencial: controle de estoque, compras, vendas balcão, delivery e contas a pagar/receber.</div>
+      <div class="perfil-users">👥 Usuários: ${usuariosPorPerfil.GERENTE.join(', ') || 'Nenhum'}</div>
+    </div>
+
+    <div class="card-perfil vendedor">
+      <div class="card-perfil-header">
+        <strong style="color:#34d399;">💼 VENDEDOR</strong>
+        <span class="badge badge-vendedor">${contagem.VENDEDOR} ativo(s)</span>
+      </div>
+      <div class="perfil-desc">Frente de caixa (PDV): comandas balcão, delivery, consulta de produtos e cadastro de clientes.</div>
+      <div class="perfil-users">👥 Usuários: ${usuariosPorPerfil.VENDEDOR.join(', ') || 'Nenhum'}</div>
+    </div>
+  </div>
+
+  <table class="tabela-matriz">
+    <thead>
+      <tr>
+        <th>Recurso / Módulo</th>
+        <th style="text-align:center;">🛡️ ADMIN</th>
+        <th style="text-align:center;">👑 DONO</th>
+        <th style="text-align:center;">👨‍💼 GERENTE</th>
+        <th style="text-align:center;">💼 VENDEDOR</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🖥️ Configurações & Sistema (Planilha)</td>
+        <td class="center">✅</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+      </tr>
+      <tr>
+        <td>⚡ Banco de Dados (Supabase) / Manutenção</td>
+        <td class="center">✅</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+      </tr>
+      <tr>
+        <td>👑 Painel Executivo & PDV 360°</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+      </tr>
+      <tr>
+        <td>⚙️ Configurações da Loja / PIX / Empresa</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+      </tr>
+      <tr>
+        <td>👥 Gestão de Usuários da Equipe</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">❌</td>
+        <td class="center">❌</td>
+      </tr>
+      <tr>
+        <td>🪙 Contas a Pagar & Receber / Fluxo de Caixa</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">❌</td>
+      </tr>
+      <tr>
+        <td>🛒 Frente de Caixa / Comandas / Delivery</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+        <td class="center">✅</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="google.script.host.close()">Fechar</button>
+    <button class="btn btn-primary" onclick="google.script.run.popupListarUsuarios(); google.script.host.close();">👥 Gerenciar Usuários</button>
+  </div>
+</body>
+</html>`;
+
+  const ui = HtmlService.createHtmlOutput(html).setWidth(720).setHeight(560);
+  SpreadsheetApp.getUi().showModalDialog(ui, '🛡️ Módulo de Perfis & Permissões');
 }
 
 function bloquearUsuarioDoPainel(id) {
@@ -1421,10 +1693,11 @@ function editarUsuario(id){
       <div class="form-group">
         <label>Perfil de Acesso *</label>
         <select id="perfil">
+          <option value="ADMIN" ${perfil==='ADMIN'?'selected':''}>🛡️ Administrador (Acesso Técnico Total)</option>
+          <option value="DONO" ${perfil==='DONO' || perfil==='GERENCIAL'?'selected':''}>👑 Dono (Gestão do Depósito)</option>
+          <option value="GERENTE" ${perfil==='GERENTE'?'selected':''}>👨‍💼 Gerente Operacional</option>
+          <option value="VENDEDOR" ${perfil==='VENDEDOR' || perfil==='OPERACIONAL'?'selected':''}>💼 Vendedor (PDV / Caixa)</option>
           <option value="PENDENTE" ${perfil==='PENDENTE' || perfil==='NENHUM'?'selected':''}>⏳ PENDENTE (Aguardando Classificação)</option>
-          <option value="VENDEDOR" ${perfil==='VENDEDOR' || perfil==='OPERACIONAL'?'selected':''}>💼 Vendedor</option>
-          <option value="GERENTE" ${perfil==='GERENTE'?'selected':''}>👨‍💼 Gerente</option>
-          <option value="DONO" ${perfil==='DONO' || perfil==='GERENCIAL'?'selected':''}>👑 Dono (Acesso Total)</option>
         </select>
       </div>
 
@@ -1833,7 +2106,8 @@ function temPermissao(perfilRequerido){
   if(!usuario) return false;
   
   const perfil = String(usuario.perfil).toUpperCase();
-  if (perfil === 'GERENCIAL' || perfil === 'DONO') return true;
+  if (perfil === 'ADMIN') return true;
+  if (perfil === 'GERENCIAL' || perfil === 'DONO') return perfilRequerido !== 'ADMIN';
 
   if (perfil === 'GERENTE') {
     return perfilRequerido === 'GERENTE' || perfilRequerido === 'VENDEDOR' || perfilRequerido === 'OPERACIONAL';
@@ -1964,8 +2238,11 @@ function aplicarVisibilidadeAbasPorPerfil(){
   sheets.forEach(sh => {
     const name = sh.getName();
     try{
-      if(perfil === 'DONO' || perfil === 'GERENCIAL'){
-        // Dono vê todas as abas
+      if(perfil === 'ADMIN'){
+        // Admin vê absolutamente todas as abas da planilha
+        sh.showSheet();
+      } else if(perfil === 'DONO' || perfil === 'GERENCIAL'){
+        // Dono vê todas as abas de operação do depósito
         sh.showSheet();
       } else if(perfil === 'GERENTE'){
         // Gerente vê apenas abas operacionais + estoque + compras
