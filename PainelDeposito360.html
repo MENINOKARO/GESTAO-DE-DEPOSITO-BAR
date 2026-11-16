@@ -172,7 +172,7 @@
       display: grid;
       grid-template-columns: repeat(6, 1fr);
       gap: 10px;
-      margin: 12px 0;
+      margin: 12px 0 16px 0;
       flex-shrink: 0;
     }
 
@@ -289,7 +289,7 @@
     .tabs-bar {
       display: flex;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 22px;
       flex-shrink: 0;
     }
 
@@ -2101,9 +2101,9 @@
     <!-- ======================================================== -->
     <!-- ABA: 🪙 FINANCEIRO & OBRIGAÇÕES (DONO / GERENTE) -->
     <!-- ======================================================== -->
-    <div id="tabFinanceiro" class="tab-pane">
+    <div id="tabFinanceiro" class="tab-pane" style="margin-top: 14px;">
       <!-- SUB-ABAS CONTAS A PAGAR vs RECEBER -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; gap: 8px;">
           <button type="button" id="btnSubAbaPagar" class="btn-action" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer;" onclick="trocarSubAbaFinanceiro('pagar')">
             <span>🪙</span> Contas a Pagar (Obrigações)
@@ -2123,7 +2123,7 @@
       <!-- ======================================================== -->
       <div id="secaoFinanceiroPagar">
         <!-- KPIS CONTAS A PAGAR -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 22px;">
           <div class="kpi-card" style="border-left: 4px solid #ef4444;">
             <div class="kpi-lbl"><span>Vencidas (Atraso)</span><span>🔴</span></div>
             <div class="kpi-val" style="color:#ef4444;" id="pagarKpiVencidasVal">R$ 0,00</div>
@@ -2192,7 +2192,7 @@
       <!-- ======================================================== -->
       <div id="secaoFinanceiroReceber" style="display: none;">
         <!-- KPIS CONTAS A RECEBER -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px;">
           <div class="kpi-card" style="border-left: 4px solid #3b82f6;">
             <div class="kpi-lbl"><span>Saldo a Receber</span><span>💰</span></div>
             <div class="kpi-val" style="color:#38bdf8;" id="receberKpiTotalVal">R$ 0,00</div>
