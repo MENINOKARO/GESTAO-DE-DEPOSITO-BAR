@@ -10413,25 +10413,37 @@
       '<head>\n' +
       '  <meta charset="UTF-8">\n' +
       '  <title>Acessar Painel 360 - ' + nomeDeposito + '</title>\n' +
-      '  <meta http-equiv="refresh" content="0; url=' + webAppUrl + '">\n' +
       '  <style>\n' +
       '    body { font-family: "Segoe UI", -apple-system, sans-serif; background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }\n' +
-      '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
+      '    .card { background: #1e293b; padding: 36px; border-radius: 16px; border: 1px solid #334155; max-width: 520px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }\n' +
       '    h2 { color: #38bdf8; margin-top: 0; font-size: 24px; font-weight: 700; }\n' +
       '    p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }\n' +
-      '    .btn { display: inline-block; background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #fff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35); transition: 0.2s; }\n' +
-      '    .btn:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
+      '    .btn-app { display: block; width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 14px 20px; border-radius: 10px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); transition: 0.2s; margin-bottom: 12px; }\n' +
+      '    .btn-app:hover { opacity: 0.95; transform: translateY(-1px); }\n' +
+      '    .btn-web { display: inline-block; color: #38bdf8; text-decoration: underline; font-size: 13px; cursor: pointer; background: none; border: none; }\n' +
       '  </style>\n' +
       '  <script>\n' +
-      '    window.location.href = "' + webAppUrl + '";\n' +
+      '    const appUrl = "' + webAppUrl + '";\n' +
+      '    function abrirModoApp() {\n' +
+      '      const w = screen.availWidth || 1366;\n' +
+      '      const h = screen.availHeight || 768;\n' +
+      '      const popup = window.open(appUrl, "Painel360App", "popup=yes,menubar=no,toolbar=no,location=no,status=no,width=" + w + ",height=" + h);\n' +
+      '      if (!popup) {\n' +
+      '        window.location.href = appUrl;\n' +
+      '      }\n' +
+      '    }\n' +
+      '    window.addEventListener("load", function() {\n' +
+      '      setTimeout(abrirModoApp, 400);\n' +
+      '    });\n' +
       '  </script>\n' +
       '</head>\n' +
       '<body>\n' +
       '  <div class="card">\n' +
       '    <h2>👑 ' + nomeDeposito + '</h2>\n' +
       '    <h3 style="color:#f8fafc; font-size:16px; margin-bottom:12px;">Painel Executivo & PDV 360°</h3>\n' +
-      '    <p>Redirecionando para o ambiente operacional da sua empresa...</p>\n' +
-      '    <a class="btn" href="' + webAppUrl + '" target="_blank">🚀 Abrir Painel 360°</a>\n' +
+      '    <p>Iniciando o Painel 360° em janela própria de aplicativo independente ("fora do navegador")...</p>\n' +
+      '    <button class="btn-app" onclick="abrirModoApp()">🚀 Abrir em Janela de Aplicativo (Recomendado)</button>\n' +
+      '    <a class="btn-web" href="' + webAppUrl + '" target="_blank">🌐 Ou abrir no navegador tradicional</a>\n' +
       '  </div>\n' +
       '</body>\n' +
       '</html>';

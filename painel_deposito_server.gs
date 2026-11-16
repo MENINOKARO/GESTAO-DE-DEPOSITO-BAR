@@ -1989,8 +1989,8 @@ function obterUsuarioPorToken(token) {
 function listarUsuariosPainel(token) {
   try {
     const caller = obterUsuarioPorToken(token);
-    if (!caller || (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
-      return { ok: false, msg: 'Acesso restrito a Donos e Gerentes.' };
+    if (!caller || (caller.perfil !== 'ADMIN' && caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
+      return { ok: false, msg: 'Acesso restrito a Administradores, Donos e Gerentes.' };
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2034,7 +2034,7 @@ function listarUsuariosPainel(token) {
 function salvarNovoUsuarioPainel(token, dadosUser) {
   try {
     const caller = obterUsuarioPorToken(token);
-    if (!caller || (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
+    if (!caller || (caller.perfil !== 'ADMIN' && caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
       return { ok: false, msg: 'Acesso restrito.' };
     }
 
@@ -2105,7 +2105,7 @@ function salvarNovoUsuarioPainel(token, dadosUser) {
 function alterarStatusUsuarioPainel(token, idUser, novoStatus) {
   try {
     const caller = obterUsuarioPorToken(token);
-    if (!caller || (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
+    if (!caller || (caller.perfil !== 'ADMIN' && caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
       return { ok: false, msg: 'Acesso restrito.' };
     }
 
@@ -2120,7 +2120,7 @@ function alterarStatusUsuarioPainel(token, idUser, novoStatus) {
     for (let i = 1; i < dados.length; i++) {
       if (String(dados[i][0]).trim() === String(idUser).trim()) {
         const perfilAlvo = String(dados[i][4] || '').toUpperCase().trim();
-        if (caller.perfil === 'GERENTE' && (perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
+        if (caller.perfil === 'GERENTE' && (perfilAlvo === 'ADMIN' || perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerentes só podem gerenciar Vendedores.' };
         }
 
@@ -2145,7 +2145,7 @@ function alterarStatusUsuarioPainel(token, idUser, novoStatus) {
 function redefinirSenhaUsuarioPainel(token, idUser, novaSenha) {
   try {
     const caller = obterUsuarioPorToken(token);
-    if (!caller || (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
+    if (!caller || (caller.perfil !== 'ADMIN' && caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
       return { ok: false, msg: 'Acesso restrito.' };
     }
 
@@ -2160,7 +2160,7 @@ function redefinirSenhaUsuarioPainel(token, idUser, novaSenha) {
     for (let i = 1; i < dados.length; i++) {
       if (String(dados[i][0]).trim() === String(idUser).trim()) {
         const perfilAlvo = String(dados[i][4] || '').toUpperCase().trim();
-        if (caller.perfil === 'GERENTE' && (perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
+        if (caller.perfil === 'GERENTE' && (perfilAlvo === 'ADMIN' || perfilAlvo === 'DONO' || perfilAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerentes só podem alterar senhas de Vendedores.' };
         }
 
@@ -2187,8 +2187,8 @@ function redefinirSenhaUsuarioPainel(token, idUser, novaSenha) {
 function editarColaboradorPainel(token, dadosUser) {
   try {
     const caller = obterUsuarioPorToken(token);
-    if (!caller || (caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
-      return { ok: false, msg: 'Acesso restrito a Gerentes e Donos.' };
+    if (!caller || (caller.perfil !== 'ADMIN' && caller.perfil !== 'DONO' && caller.perfil !== 'GERENTE')) {
+      return { ok: false, msg: 'Acesso restrito a Administradores, Donos e Gerentes.' };
     }
 
     if (!dadosUser || !dadosUser.id) {
@@ -2208,18 +2208,18 @@ function editarColaboradorPainel(token, dadosUser) {
 
     // Se o usuário está editando a si mesmo:
     if (caller.id === idAlvo) {
-      if (caller.perfil === 'DONO' && novoPerfil !== 'DONO') {
-        return { ok: false, msg: 'O Dono principal não pode rebaixar seu próprio perfil.' };
+      if ((caller.perfil === 'DONO' || caller.perfil === 'ADMIN') && (novoPerfil !== 'DONO' && novoPerfil !== 'ADMIN')) {
+        return { ok: false, msg: 'O gestor principal não pode rebaixar seu próprio perfil para operacional.' };
       }
       if (novoAtivo !== 'SIM') {
         return { ok: false, msg: 'Você não pode desativar seu próprio acesso.' };
       }
     }
 
-    // Gerente só pode editar Vendedores e não pode promover para GERENTE ou DONO
+    // Gerente só pode editar Vendedores e não pode promover para GERENTE, DONO ou ADMIN
     if (caller.perfil === 'GERENTE') {
       if (novoPerfil !== 'VENDEDOR') {
-        return { ok: false, msg: 'Gerente não tem permissão para alterar perfil para Gerente ou Dono.' };
+        return { ok: false, msg: 'Gerente não tem permissão para alterar perfil para Gerente, Dono ou Admin.' };
       }
     }
 
@@ -2238,7 +2238,7 @@ function editarColaboradorPainel(token, dadosUser) {
       if (uid === idAlvo) {
         linhaAlvo = i + 1;
         const perfilAtualAlvo = String(dados[i][4] || '').toUpperCase().trim();
-        if (caller.perfil === 'GERENTE' && (perfilAtualAlvo === 'DONO' || perfilAtualAlvo === 'GERENTE')) {
+        if (caller.perfil === 'GERENTE' && (perfilAtualAlvo === 'ADMIN' || perfilAtualAlvo === 'DONO' || perfilAtualAlvo === 'GERENTE')) {
           return { ok: false, msg: 'Gerente só tem permissão para editar colaboradores Vendedores.' };
         }
       } else {

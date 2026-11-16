@@ -2392,9 +2392,10 @@
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">PERFIL DE ACESSO *</label>
             <select id="novoUserPerfil" class="cart-select">
-              <option value="VENDEDOR">🛒 VENDEDOR (PDV & Comandas)</option>
-              <option value="GERENTE">👔 GERENTE (Gestão & Relatórios)</option>
+              <option value="ADMIN">🛡️ ADMIN (Administrador Geral)</option>
               <option value="DONO">👑 DONO (Acesso Total)</option>
+              <option value="GERENTE">👔 GERENTE (Gestão & Relatórios)</option>
+              <option value="VENDEDOR">🛒 VENDEDOR (PDV & Comandas)</option>
             </select>
           </div>
           <div>
@@ -2818,9 +2819,10 @@
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 4px;">PERFIL DE ACESSO</label>
             <select id="editUserPerfil" class="cart-select">
-              <option value="VENDEDOR">🛒 VENDEDOR</option>
-              <option value="GERENTE">👔 GERENTE</option>
+              <option value="ADMIN">🛡️ ADMIN</option>
               <option value="DONO">👑 DONO</option>
+              <option value="GERENTE">👔 GERENTE</option>
+              <option value="VENDEDOR">🛒 VENDEDOR</option>
             </select>
           </div>
           <div>
@@ -3672,8 +3674,8 @@
               selectGestor.innerHTML = `<option value="">Gestor Geral (Dono Padrão)</option>`;
             }
 
-            // Se o próprio usuário for DONO ou GERENTE, exibe opção de auto-aprovação
-            const isGestor = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE');
+            // Se o próprio usuário for ADMIN, DONO ou GERENTE, exibe opção de auto-aprovação
+            const isGestor = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE' || USUARIO_LOGADO.perfil === 'ADMIN');
             document.getElementById('prevConfAutoAprovarBox').style.display = isGestor ? 'block' : 'none';
             document.getElementById('prevConfAutoAprovar').checked = false;
 
@@ -4259,7 +4261,7 @@
       verificarAlertaFechamentoFiscal();
 
       // 3.2 Indicadores e Visibilidade de Obrigações Financeiras (Contas a Pagar / Receber)
-      const isGestorFin = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE' || String(USUARIO_LOGADO.login || '').toLowerCase() === 'admin');
+      const isGestorFin = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'GERENTE' || USUARIO_LOGADO.perfil === 'ADMIN' || String(USUARIO_LOGADO.login || '').toLowerCase() === 'admin');
       const btnTabFin = document.getElementById('btnTabFinanceiro');
       const btnHeaderFin = document.getElementById('btnHeaderFinanceiro');
       if (btnTabFin) btnTabFin.style.display = isGestorFin ? 'inline-flex' : 'none';
@@ -4378,10 +4380,11 @@
         const isAtivo = u.ativo === 'SIM';
         const roleClass = u.perfil ? u.perfil.toLowerCase() : 'vendedor';
         let roleLabel = '🛒 VENDEDOR';
-        if (u.perfil === 'DONO') roleLabel = '👑 DONO';
+        if (u.perfil === 'ADMIN') roleLabel = '🛡️ ADMIN';
+        else if (u.perfil === 'DONO') roleLabel = '👑 DONO';
         else if (u.perfil === 'GERENTE') roleLabel = '👔 GERENTE';
 
-        const podeGerenciar = (perfilSolicitante === 'DONO') || (perfilSolicitante === 'GERENTE' && u.perfil === 'VENDEDOR');
+        const podeGerenciar = (perfilSolicitante === 'ADMIN') || (perfilSolicitante === 'DONO') || (perfilSolicitante === 'GERENTE' && u.perfil === 'VENDEDOR');
 
         const uNomeEsc = escapeHtml(u.nome).replace(/'/g, "\\'");
         const uEmailEsc = escapeHtml(u.email || '').replace(/'/g, "\\'");
@@ -4447,11 +4450,11 @@
       document.getElementById('editUserStatus').value = (ativo === 'SIM' ? 'SIM' : 'NAO');
       document.getElementById('editUserSenha').value = '';
 
-      // Se o usuário logado for GERENTE, não permite alterar para DONO ou GERENTE
+      // Se o usuário logado for GERENTE, não permite alterar para DONO, GERENTE ou ADMIN
       const editPerfilSelect = document.getElementById('editUserPerfil');
       if (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE') {
         Array.from(editPerfilSelect.options).forEach(opt => {
-          if (opt.value === 'DONO' || opt.value === 'GERENTE') {
+          if (opt.value === 'DONO' || opt.value === 'GERENTE' || opt.value === 'ADMIN') {
             opt.disabled = true;
           } else {
             opt.disabled = false;
@@ -4514,6 +4517,15 @@
       const box = document.getElementById('boxNovoUsuarioForm');
       box.style.display = box.style.display === 'none' ? 'block' : 'none';
       if (box.style.display === 'block') {
+        const select = document.getElementById('novoUserPerfil');
+        if (USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'GERENTE') {
+          Array.from(select.options).forEach(opt => {
+            opt.disabled = (opt.value !== 'VENDEDOR');
+          });
+          select.value = 'VENDEDOR';
+        } else {
+          Array.from(select.options).forEach(opt => opt.disabled = false);
+        }
         document.getElementById('novoUserNome').focus();
       }
     }
@@ -5116,8 +5128,8 @@
       const itens = comanda.itens || [];
       document.getElementById('detComandaItensCount').innerText = itens.length;
 
-      // Verificação RBAC: Apenas DONO pode excluir itens
-      const isDono = USUARIO_LOGADO && USUARIO_LOGADO.perfil === 'DONO';
+      // Verificação RBAC: Apenas DONO e ADMIN podem excluir itens
+      const isDono = USUARIO_LOGADO && (USUARIO_LOGADO.perfil === 'DONO' || USUARIO_LOGADO.perfil === 'ADMIN');
       const badgeDono = document.getElementById('detComandaDonoBadge');
       const headerAcao = document.getElementById('detComandaColAcaoHeader');
       if (badgeDono) badgeDono.style.display = isDono ? 'inline-block' : 'none';
@@ -6337,7 +6349,7 @@
 
       // Validação de Permissão por Perfil (DONO e GERENTE alteram; OPERADOR somente leitura)
       const perfil = (USUARIO_LOGADO && USUARIO_LOGADO.perfil) ? String(USUARIO_LOGADO.perfil).toUpperCase() : 'VENDEDOR';
-      const podeEditar = (perfil === 'DONO' || perfil === 'GERENTE');
+      const podeEditar = (perfil === 'DONO' || perfil === 'GERENTE' || perfil === 'ADMIN');
 
       const inputsBloqueaveis = [
         'gestaoProdNome', 'gestaoProdCategoria', 'gestaoProdMarca', 'gestaoProdVolume',
