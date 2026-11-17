@@ -7454,22 +7454,13 @@ function doGet(e) {
       return HtmlService.createHtmlOutput(html).setTitle(nomeDeposito + " - Status");
     }
 
-    // Padrão: Carrega o Painel Executivo & PDV 360° diretamente via HtmlOutput (sem template evaluation, prevenindo estouro de buffer e tela branca)
+    // Padrão: Carrega o Painel Executivo & PDV 360° diretamente via HtmlOutput (instantâneo, sem operações pesadas de disco/Drive no carregamento)
     let nomeDep = 'Gestão de Depósito';
     try {
       if (typeof getNomeDeposito === 'function') {
         nomeDep = getNomeDeposito() || nomeDep;
       }
     } catch(eNome) {}
-
-    // 🚀 Garante que a pasta raiz e os arquivos essenciais (Lançador 360° e Info) existam no Drive
-    try {
-      if (typeof sincronizarArquivosEPastaRaizEmpresa === 'function') {
-        sincronizarArquivosEPastaRaizEmpresa();
-      }
-    } catch(eDriveSync) {
-      console.warn('Aviso sincronizacao drive em doGet:', eDriveSync);
-    }
 
     return HtmlService.createHtmlOutputFromFile('PainelDeposito360')
       .setTitle('👑 ' + nomeDep + ' - Painel 360° & PDV')
