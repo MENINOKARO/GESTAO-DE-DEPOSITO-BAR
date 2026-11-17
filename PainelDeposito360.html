@@ -1033,7 +1033,7 @@
       color: #fff !important;
     }
 
-    /* Estilos de Impressão de Relatórios */
+    /* Estilos de Impressão de Relatórios (A4 Limpa e Profissional) */
     @media print {
       body * {
         visibility: hidden;
@@ -1048,6 +1048,8 @@
         width: 100%;
         background: #fff !important;
         color: #000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       .modal-content-comanda {
         border: none !important;
@@ -1056,16 +1058,42 @@
         max-width: 100% !important;
         background: #fff !important;
         color: #000 !important;
+        padding: 10px !important;
       }
-      .btn-action, .btn-clear-cart, #btnRelatorioAbrirPlanilha, #btnRelatorioImprimir {
+      #relatorioFiltroBarra, #relatorioModalDriveBox, .btn-action, .btn-clear-cart, .btn-remove-item,
+      #btnRelatorioAbrirPlanilha, #btnRelatorioImprimir, #btnRelatorioBaixarPdf, #btnRelatorioCompartilhar {
         display: none !important;
+      }
+      #relatorioModalTitulo {
+        color: #0f172a !important;
+      }
+      #relatorioModalSubtitulo {
+        color: #64748b !important;
+      }
+      .kpi-box, #relatorioModalResumo > div {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #000 !important;
+      }
+      #relatorioModalResumo strong {
+        color: #0284c7 !important;
+      }
+      #relatorioModalResumo span {
+        color: #64748b !important;
       }
       table {
         color: #000 !important;
+        width: 100% !important;
       }
-      th, td {
-        border-color: #ccc !important;
-        color: #000 !important;
+      th {
+        background: #0f172a !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      td {
+        border-bottom: 1px solid #e2e8f0 !important;
+        color: #1e293b !important;
       }
     }
 
@@ -3241,58 +3269,94 @@
   <!-- 📊 MODAL CENTRAL DE PRÉVIA E GERAÇÃO DE RELATÓRIOS -->
   <!-- ======================================================== -->
   <div id="modalCentralRelatorios" class="modal-backdrop" style="display: none; z-index: 9999;">
-    <div class="modal-content-comanda" style="max-width: 860px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-content-comanda" style="max-width: 920px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
       <!-- Cabeçalho -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px;">
         <div>
           <h3 id="relatorioModalTitulo" style="font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
             <span>📊</span> Prévia de Relatório
           </h3>
-          <div id="relatorioModalSubtitulo" style="font-size: 12px; color: var(--text-muted);">
-            Gerado em tempo real
+          <div id="relatorioModalSubtitulo" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Gerado em tempo real | Depósito Karo$$
           </div>
         </div>
         <button type="button" class="btn-remove-item" onclick="fecharModalRelatorio()" style="font-size: 18px; width: 32px; height: 32px;">✕</button>
       </div>
 
-      <!-- Resumo Executivo (Cards) -->
-      <div id="relatorioModalResumo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px;">
+      <!-- Barra de Filtros de Período & Categoria -->
+      <div id="relatorioFiltroBarra" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 12px; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+            <span>📅</span> Período:
+          </span>
+          <select id="relatorioFiltroModo" onchange="alterarModoFiltroRelatorio()" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            <option value="mes" selected>Este Mês (Atual)</option>
+            <option value="mes_anterior">Mês Anterior</option>
+            <option value="hoje">Hoje</option>
+            <option value="7dias">Últimos 7 Dias</option>
+            <option value="periodo">Personalizado (Data a Data)</option>
+            <option value="tudo">Histórico Completo (Tudo)</option>
+          </select>
+
+          <!-- Datas para modo personalizado -->
+          <div id="relatorioDatasPersonalizadas" style="display: none; align-items: center; gap: 6px;">
+            <input type="date" id="relatorioDataInicio" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px;">
+            <span style="color: var(--text-muted); font-size: 12px;">até</span>
+            <input type="date" id="relatorioDataFim" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px;">
+          </div>
+        </div>
+
+        <button type="button" class="btn-sm-action blue" onclick="aplicarFiltroRelatorioAtual()" style="padding: 7px 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <span>🔍</span> Atualizar / Filtrar
+        </button>
+      </div>
+
+      <!-- Resumo Executivo (Cards KPI Padronizados) -->
+      <div id="relatorioModalResumo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px;">
         <!-- Injetado dinamicamente -->
       </div>
 
       <!-- Slot para Link do Google Drive -->
       <div id="relatorioModalDriveBox" style="display: none; background: rgba(2, 132, 199, 0.15); border: 1px solid rgba(2, 132, 199, 0.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #38bdf8; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 18px;">📁</span>
+          <span style="font-size: 20px;">📄</span>
           <div>
-            <strong>Arquivo arquivado no Google Drive:</strong>
+            <strong>PDF Oficial Arquivado no Google Drive:</strong>
             <span id="relatorioModalDriveNome" style="color: #cbd5e1; display: block; font-size: 11px;"></span>
           </div>
         </div>
-        <a href="#" target="_blank" id="relatorioModalDriveLink" class="btn-sm-action blue" style="text-decoration: none; padding: 6px 12px; font-weight: 700;">
-          Abrir no Google Drive ↗
-        </a>
+        <div style="display: flex; gap: 8px;">
+          <a href="#" target="_blank" id="relatorioModalDriveLink" class="btn-sm-action blue" style="text-decoration: none; padding: 6px 12px; font-weight: 700;">
+            Abrir no Drive ↗
+          </a>
+        </div>
       </div>
 
       <!-- Tabela com Prévia -->
-      <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px;">
+      <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px;">
         <table class="table-responsive" id="relatorioModalTabela">
           <thead id="relatorioModalTabelaHead"></thead>
           <tbody id="relatorioModalTabelaBody"></tbody>
         </table>
       </div>
 
-      <!-- Rodapé de Ações -->
+      <!-- Rodapé de Ações Multiplataforma -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; flex-wrap: wrap; gap: 10px;">
         <button type="button" class="btn-clear-cart" onclick="fecharModalRelatorio()">
-          👁️ Apenas Visualizar (Fechar)
+          ✕ Fechar
         </button>
-        <div style="display: flex; gap: 10px;">
-          <button type="button" id="btnRelatorioAbrirPlanilha" class="btn-action" style="background: #059669; border-color: #047857; color: #fff;" onclick="abrirPlanilhaAbaRelatorio()">
-            📊 Abrir na Planilha
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" id="btnRelatorioAbrirPlanilha" class="btn-action" style="background: #059669; border-color: #047857; color: #fff; padding: 7px 12px; font-size: 12px;" onclick="abrirPlanilhaAbaRelatorio()">
+            📊 Planilha
           </button>
-          <button type="button" id="btnRelatorioImprimir" class="btn-action" style="background: #2563eb; border-color: #1d4ed8; color: #fff;" onclick="imprimirRelatorioModal()">
-            🖨️ / 📄 Imprimir ou Salvar PDF
+          <button type="button" id="btnRelatorioBaixarPdf" class="btn-action" style="background: #0284c7; border-color: #0369a1; color: #fff; padding: 7px 12px; font-size: 12px;" onclick="baixarPdfRelatorioModal()">
+            📄 Baixar PDF
+          </button>
+          <button type="button" id="btnRelatorioImprimir" class="btn-action" style="background: #475569; border-color: #334155; color: #fff; padding: 7px 12px; font-size: 12px;" onclick="imprimirRelatorioModal()">
+            🖨️ Imprimir A4
+          </button>
+          <button type="button" id="btnRelatorioCompartilhar" class="btn-action" style="background: #2563eb; border-color: #1d4ed8; color: #fff; padding: 7px 14px; font-size: 12px; font-weight: 700;" onclick="compartilharRelatorioModal()">
+            📲 Compartilhar
           </button>
         </div>
       </div>
@@ -3511,14 +3575,32 @@
     }
 
     // ========================================================
-    // 📊 CENTRAL DE RELATÓRIOS (PRÉVIA, RESUMO & IMPRESSÃO PDF)
+    // 📊 CENTRAL DE RELATÓRIOS (PRÉVIA, FILTROS, PDF & MULTIPLATAFORMA)
     // ========================================================
-    function abrirRelatorioComResumo(tipoRelatorio) {
+    let TIPO_RELATORIO_ATUAL = 'valoresEstoque';
+    let FILTROS_RELATORIO_ATUAL = { modo: 'mes' };
+
+    function abrirRelatorioComResumo(tipoRelatorio, filtros) {
       if (!TOKEN_SESSAO) {
         showToast('Faça login para acessar relatórios.', 'error');
         return;
       }
-      mostrarLoader('Gerando prévia do relatório...');
+      if (tipoRelatorio) TIPO_RELATORIO_ATUAL = tipoRelatorio;
+      if (filtros) FILTROS_RELATORIO_ATUAL = filtros;
+
+      // Sincroniza controles de UI do filtro
+      const modoSel = document.getElementById('relatorioFiltroModo');
+      if (modoSel && FILTROS_RELATORIO_ATUAL.modo) {
+        modoSel.value = FILTROS_RELATORIO_ATUAL.modo;
+      }
+      const wrapDatas = document.getElementById('relatorioDatasPersonalizadas');
+      if (wrapDatas) {
+        wrapDatas.style.display = (FILTROS_RELATORIO_ATUAL.modo === 'periodo') ? 'flex' : 'none';
+        if (FILTROS_RELATORIO_ATUAL.dataInicio) document.getElementById('relatorioDataInicio').value = FILTROS_RELATORIO_ATUAL.dataInicio;
+        if (FILTROS_RELATORIO_ATUAL.dataFim) document.getElementById('relatorioDataFim').value = FILTROS_RELATORIO_ATUAL.dataFim;
+      }
+
+      mostrarLoader('Processando relatório e gerando PDF...');
       google.script.run
         .withSuccessHandler(res => {
           esconderLoader();
@@ -3532,85 +3614,124 @@
           esconderLoader();
           showToast('Erro ao obter relatório: ' + err.message, 'error');
         })
-        .obterPreviaRelatorio360(TOKEN_SESSAO, tipoRelatorio);
+        .obterPreviaRelatorio360(TOKEN_SESSAO, TIPO_RELATORIO_ATUAL, FILTROS_RELATORIO_ATUAL);
+    }
+
+    function alterarModoFiltroRelatorio() {
+      const modo = document.getElementById('relatorioFiltroModo').value;
+      const wrapDatas = document.getElementById('relatorioDatasPersonalizadas');
+      const inputIni = document.getElementById('relatorioDataInicio');
+      const inputFim = document.getElementById('relatorioDataFim');
+
+      if (modo === 'periodo') {
+        wrapDatas.style.display = 'flex';
+        const hoje = new Date();
+        const dFimStr = hoje.toISOString().split('T')[0];
+        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const dIniStr = primeiroDia.toISOString().split('T')[0];
+        if (!inputIni.value) inputIni.value = dIniStr;
+        if (!inputFim.value) inputFim.value = dFimStr;
+      } else {
+        wrapDatas.style.display = 'none';
+        // Atualiza automaticamente quando trocar o modo para mais agilidade
+        aplicarFiltroRelatorioAtual();
+      }
+    }
+
+    function aplicarFiltroRelatorioAtual() {
+      const modo = document.getElementById('relatorioFiltroModo').value;
+      const dIni = document.getElementById('relatorioDataInicio').value;
+      const dFim = document.getElementById('relatorioDataFim').value;
+
+      abrirRelatorioComResumo(TIPO_RELATORIO_ATUAL, {
+        modo: modo,
+        dataInicio: dIni,
+        dataFim: dFim
+      });
     }
 
     function renderizarModalRelatorio(dados) {
       RELATORIO_ATUAL_DADOS = dados;
       document.getElementById('relatorioModalTitulo').innerHTML = `<span>📊</span> ${escapeHtml(dados.titulo || 'Relatório Gerencial')}`;
-      document.getElementById('relatorioModalSubtitulo').innerText = `Gerado em: ${dados.dataGeracao || ''} | Depósito Karo$$`;
+      
+      const periodoTexto = dados.periodo ? `<span style="background:rgba(2,132,199,0.2);color:#38bdf8;padding:2px 8px;border-radius:4px;font-weight:700;margin-right:6px;">Período: ${escapeHtml(dados.periodo)}</span>` : '';
+      document.getElementById('relatorioModalSubtitulo').innerHTML = `${periodoTexto} Gerado em: ${dados.dataGeracao || ''} | Depósito Karo$$`;
 
-      // Monta os cards de resumo
+      // Monta os cards de resumo executivo padronizados
       const resumoContainer = document.getElementById('relatorioModalResumo');
       let kpisHtml = '';
       if (dados.resumo) {
         if (dados.tipo === 'valoresEstoque') {
           kpisHtml += `
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL ITENS</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">TOTAL ITENS</span>
               <strong style="font-size:16px;color:#fff;">${dados.resumo.totalItens}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">ESTOQUE (CUSTO)</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">ESTOQUE (CUSTO)</span>
               <strong style="font-size:16px;color:#f59e0b;">${formatMoeda(dados.resumo.valorEstoqueCusto)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">ESTOQUE (VENDA)</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">ESTOQUE (VENDA)</span>
               <strong style="font-size:16px;color:#38bdf8;">${formatMoeda(dados.resumo.valorEstoqueVenda)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">LUCRO PROJETADO</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">LUCRO PROJETADO</span>
               <strong style="font-size:16px;color:#34d399;">${formatMoeda(dados.resumo.lucroProjetadoTotal)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">MARGEM MÉDIA</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">MARGEM MÉDIA</span>
               <strong style="font-size:16px;color:#a855f7;">${Number(dados.resumo.margemMediaGlobal || 0).toFixed(1)}%</strong>
             </div>
           `;
         } else if (dados.tipo === 'financeiroCompleto') {
           kpisHtml += `
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL ENTRADAS</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">TOTAL ENTRADAS</span>
               <strong style="font-size:16px;color:#34d399;">${formatMoeda(dados.resumo.totalEntradas)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL SAÍDAS</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">TOTAL SAÍDAS</span>
               <strong style="font-size:16px;color:#ef4444;">${formatMoeda(dados.resumo.totalSaidas)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">SALDO CONSOLIDADO</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">SALDO CONSOLIDADO</span>
               <strong style="font-size:16px;color:${dados.resumo.saldoConsolidado >= 0 ? '#34d399' : '#ef4444'};">${formatMoeda(dados.resumo.saldoConsolidado)}</strong>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">LANÇAMENTOS</span>
+              <strong style="font-size:16px;color:#38bdf8;">${dados.resumo.totalLancamentos || (dados.linhas || []).length}</strong>
             </div>
           `;
         } else if (dados.tipo === 'compras') {
           kpisHtml += `
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">REGISTROS DE COMPRAS</span>
-              <strong style="font-size:16px;color:#fff;">${dados.resumo.totalRegistros}</strong>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">COMPRAS NO PERÍODO</span>
+              <strong style="font-size:16px;color:#fff;">${dados.resumo.totalComprasRegistradas !== undefined ? dados.resumo.totalComprasRegistradas : (dados.resumo.totalRegistros || 0)}</strong>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL GASTO</span>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">TOTAL INVESTIDO</span>
               <strong style="font-size:16px;color:#f59e0b;">${formatMoeda(dados.resumo.valorTotalGasto)}</strong>
             </div>
           `;
         } else if (dados.tipo === 'logs') {
           kpisHtml += `
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
-              <span style="font-size:11px;color:var(--text-muted);display:block;">TOTAL EVENTOS AUDITADOS</span>
-              <strong style="font-size:16px;color:#38bdf8;">${dados.resumo.totalEventos}</strong>
+              <span style="font-size:11px;color:var(--text-muted);display:block;font-weight:700;">EVENTOS REGISTRADOS</span>
+              <strong style="font-size:16px;color:#38bdf8;">${dados.resumo.totalEventosNoPeriodo !== undefined ? dados.resumo.totalEventosNoPeriodo : (dados.resumo.totalEventos || 0)}</strong>
             </div>
           `;
         }
       }
       resumoContainer.innerHTML = kpisHtml;
 
-      // Monta tabela
+      // Monta tabela padronizada
       const thead = document.getElementById('relatorioModalTabelaHead');
       const tbody = document.getElementById('relatorioModalTabelaBody');
       thead.innerHTML = `<tr>${(dados.colunas || []).map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
 
       if (!dados.linhas || dados.linhas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${(dados.colunas || []).length || 1}" style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum dado encontrado para exibição.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${(dados.colunas || []).length || 1}" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhum dado encontrado para este período.</td></tr>`;
       } else {
         tbody.innerHTML = dados.linhas.map(row => {
           return `<tr>${row.map(cel => `<td>${escapeHtml(String(cel))}</td>`).join('')}</tr>`;
@@ -3639,6 +3760,63 @@
 
     function imprimirRelatorioModal() {
       window.print();
+    }
+
+    function baixarPdfRelatorioModal() {
+      if (RELATORIO_ATUAL_DADOS && RELATORIO_ATUAL_DADOS.driveInfo && RELATORIO_ATUAL_DADOS.driveInfo.url) {
+        const url = RELATORIO_ATUAL_DADOS.driveInfo.downloadUrl || RELATORIO_ATUAL_DADOS.driveInfo.url;
+        window.open(url, '_blank');
+      } else {
+        showToast('O arquivo PDF está sendo gerado ou link indisponível.', 'warning');
+      }
+    }
+
+    function compartilharRelatorioModal() {
+      if (!RELATORIO_ATUAL_DADOS) {
+        showToast('Nenhum relatório aberto para compartilhar.', 'warning');
+        return;
+      }
+
+      const titulo = RELATORIO_ATUAL_DADOS.titulo || 'Relatório Gerencial';
+      const periodo = RELATORIO_ATUAL_DADOS.periodo || 'Mês Atual';
+      const urlPdf = (RELATORIO_ATUAL_DADOS.driveInfo && RELATORIO_ATUAL_DADOS.driveInfo.url) ? RELATORIO_ATUAL_DADOS.driveInfo.url : window.location.href;
+
+      let resumoTexto = '';
+      if (RELATORIO_ATUAL_DADOS.resumo) {
+        const r = RELATORIO_ATUAL_DADOS.resumo;
+        if (r.saldoConsolidado !== undefined) {
+          resumoTexto = `\n• Entradas: ${formatMoeda(r.totalEntradas)}\n• Saídas: ${formatMoeda(r.totalSaidas)}\n• Saldo: ${formatMoeda(r.saldoConsolidado)}`;
+        } else if (r.valorEstoqueVenda !== undefined) {
+          resumoTexto = `\n• Itens: ${r.totalItens}\n• Total Venda: ${formatMoeda(r.valorEstoqueVenda)}\n• Lucro Proj.: ${formatMoeda(r.lucroProjetadoTotal)}`;
+        } else if (r.valorTotalGasto !== undefined) {
+          resumoTexto = `\n• Compras: ${r.totalComprasRegistradas || r.totalRegistros || 0}\n• Total Gasto: ${formatMoeda(r.valorTotalGasto)}`;
+        }
+      }
+
+      const textoZap = `👑 *Depósito Karo$$ - ${titulo}*\n📅 *Período:* ${periodo}${resumoTexto}\n\n📄 *PDF Oficial no Google Drive:* ${urlPdf}`;
+
+      // Se suportar Web Share API nativa (ex: Celular, Tablet, Mac/Windows)
+      if (navigator.share) {
+        navigator.share({
+          title: `Depósito Karo$$ - ${titulo}`,
+          text: textoZap,
+          url: urlPdf
+        }).catch(err => {
+          copiarLinkRelatorioEWhatsApp(textoZap, urlPdf);
+        });
+      } else {
+        copiarLinkRelatorioEWhatsApp(textoZap, urlPdf);
+      }
+    }
+
+    function copiarLinkRelatorioEWhatsApp(textoZap, urlPdf) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(urlPdf).then(() => {
+          showToast('✅ Link do PDF copiado! Abrindo WhatsApp...', 'success');
+        }).catch(() => {});
+      }
+      const urlZap = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoZap)}`;
+      window.open(urlZap, '_blank');
     }
 
     function abrirPlanilhaAbaRelatorio() {

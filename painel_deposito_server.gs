@@ -2659,7 +2659,83 @@ function ajustarEstoque360(token, produtoNome, quantidade, motivo) {
  * Retorna dados estruturados de prévia de um relatório para exibição e geração de PDF.
  * Salva automaticamente uma cópia em PDF na pasta de Relatórios do Drive do mês vigente.
  */
-function obterPreviaRelatorio360(token, tipoRelatorio) {
+/**
+ * 📅 Resolve o intervalo de datas com base nos filtros informados pelo usuário:
+ * - 'mes': mês vigente ou mês especificado (f.mes, f.ano)
+ * - 'mes_anterior': mês imediatamente anterior
+ * - 'hoje': do início ao fim do dia atual
+ * - '7dias': últimos 7 dias corridos
+ * - 'periodo': data a data personalizada (f.dataInicio e f.dataFim)
+ * - 'tudo': histórico irrestrito
+ */
+function resolverIntervaloFiltroRelatorio(filtros) {
+  const f = filtros || {};
+  const modo = String(f.modo || 'mes').toLowerCase();
+  const agora = new Date();
+  const tz = 'America/Sao_Paulo';
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  let dataInicio = null;
+  let dataFim = null;
+  let labelPeriodo = 'Mês Atual';
+
+  if (modo === 'hoje') {
+    dataInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0);
+    dataFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59);
+    labelPeriodo = 'Hoje (' + Utilities.formatDate(agora, tz, 'dd/MM/yyyy') + ')';
+  } else if (modo === '7dias') {
+    dataInicio = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    dataInicio.setHours(0, 0, 0, 0);
+    dataFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59);
+    labelPeriodo = 'Últimos 7 Dias (' + Utilities.formatDate(dataInicio, tz, 'dd/MM') + ' a ' + Utilities.formatDate(dataFim, tz, 'dd/MM/yyyy') + ')';
+  } else if (modo === 'mes_anterior') {
+    const mesAnt = agora.getMonth() === 0 ? 11 : agora.getMonth() - 1;
+    const anoAnt = agora.getMonth() === 0 ? agora.getFullYear() - 1 : agora.getFullYear();
+    dataInicio = new Date(anoAnt, mesAnt, 1, 0, 0, 0);
+    dataFim = new Date(anoAnt, mesAnt + 1, 0, 23, 59, 59);
+    labelPeriodo = meses[mesAnt] + ' / ' + anoAnt;
+  } else if (modo === 'periodo') {
+    if (f.dataInicio) {
+      const p1 = String(f.dataInicio).split('-');
+      if (p1.length === 3) {
+        dataInicio = new Date(parseInt(p1[0], 10), parseInt(p1[1], 10) - 1, parseInt(p1[2], 10), 0, 0, 0);
+      }
+    }
+    if (f.dataFim) {
+      const p2 = String(f.dataFim).split('-');
+      if (p2.length === 3) {
+        dataFim = new Date(parseInt(p2[0], 10), parseInt(p2[1], 10) - 1, parseInt(p2[2], 10), 23, 59, 59);
+      }
+    }
+    const dIniStr = dataInicio ? Utilities.formatDate(dataInicio, tz, 'dd/MM/yyyy') : 'Início';
+    const dFimStr = dataFim ? Utilities.formatDate(dataFim, tz, 'dd/MM/yyyy') : 'Hoje';
+    labelPeriodo = `${dIniStr} a ${dFimStr}`;
+  } else if (modo === 'tudo') {
+    dataInicio = null;
+    dataFim = null;
+    labelPeriodo = 'Todos os Registros (Histórico Completo)';
+  } else {
+    // Padrão: Mês Atual (ou mês específico passado em f.mes e f.ano)
+    const mes = (f.mes !== undefined && f.mes !== '') ? parseInt(f.mes, 10) - 1 : agora.getMonth();
+    const ano = (f.ano !== undefined && f.ano !== '') ? parseInt(f.ano, 10) : agora.getFullYear();
+    dataInicio = new Date(ano, mes, 1, 0, 0, 0);
+    dataFim = new Date(ano, mes + 1, 0, 23, 59, 59);
+    labelPeriodo = `${meses[mes]} / ${ano}`;
+  }
+
+  return {
+    modo: modo,
+    dataInicio: dataInicio,
+    dataFim: dataFim,
+    labelPeriodo: labelPeriodo
+  };
+}
+
+/**
+ * 📊 Retorna a prévia consolidada de relatórios para exibição no Modal do Painel 360°,
+ * aplicando filtros de período e gerando arquivo PDF corporativo na respectiva pasta do Drive.
+ */
+function obterPreviaRelatorio360(token, tipoRelatorio, filtros) {
   try {
     const caller = obterUsuarioPorToken(token);
     if (!caller) {
@@ -2669,6 +2745,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     sincronizarFusoHorarioPlanilha();
     const tipo = String(tipoRelatorio || '').trim();
+    const intervalo = resolverIntervaloFiltroRelatorio(filtros);
     let resultado = null;
 
     if (tipo === 'valoresEstoque') {
@@ -2691,11 +2768,16 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         });
       }
 
+      const catFiltro = filtros && filtros.categoria ? String(filtros.categoria).toLowerCase() : 'todas';
+
       if (shProd && shProd.getLastRow() > 1) {
         const dProd = shProd.getRange(2, 1, shProd.getLastRow() - 1, 8).getValues();
         dProd.forEach(r => {
           const nome = String(r[0] || '').trim();
           if (!nome) return;
+          const categoria = String(r[1] || 'Geral');
+          if (catFiltro !== 'todas' && categoria.toLowerCase() !== catFiltro) return;
+
           const preco = Number(r[4]) || 0;
           const custo = Number(r[6]) || 0;
           const qtd = mapaEst[nome.toUpperCase()] !== undefined ? mapaEst[nome.toUpperCase()] : (Number(r[7]) || 0);
@@ -2705,7 +2787,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           totalVenda += vVenda;
           produtos.push({
             nome: nome,
-            categoria: String(r[1] || 'Geral'),
+            categoria: categoria,
             qtd: qtd,
             custo: custo,
             preco: preco,
@@ -2723,6 +2805,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         tipo: 'valoresEstoque',
         titulo: '📊 Relatório de Valores do Estoque',
         dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+        periodo: intervalo.labelPeriodo,
         resumo: {
           totalItens: produtos.length,
           valorEstoqueCusto: totalCusto,
@@ -2731,7 +2814,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           margemMediaGlobal: totalCusto > 0 ? ((totalVenda - totalCusto) / totalCusto) * 100 : 0
         },
         colunas: ['Produto', 'Categoria', 'Estoque', 'Custo Un.', 'Preço Venda', 'Total Custo', 'Total Venda', 'Lucro Proj.'],
-        linhas: produtos.slice(0, 50).map(p => [
+        linhas: produtos.slice(0, 100).map(p => [
           p.nome, p.categoria, p.qtd + ' un',
           'R$ ' + p.custo.toFixed(2).replace('.', ','),
           'R$ ' + p.preco.toFixed(2).replace('.', ','),
@@ -2751,7 +2834,7 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
       const shCaixa = ss.getSheetByName('CAIXA');
       let entradas = 0;
       let saidas = 0;
-      const ultimos = [];
+      const transacoesFiltradas = [];
 
       if (shCaixa && shCaixa.getLastRow() > 1) {
         const dCaixa = shCaixa.getRange(2, 1, shCaixa.getLastRow() - 1, 5).getValues();
@@ -2759,6 +2842,12 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           const r = dCaixa[i];
           const rawData = r[0];
           const d = rawData instanceof Date ? rawData : new Date(rawData);
+          if (isNaN(d.getTime())) continue;
+
+          // Aplicação de Filtro por Data
+          if (intervalo.dataInicio && d < intervalo.dataInicio) continue;
+          if (intervalo.dataFim && d > intervalo.dataFim) continue;
+
           const t = String(r[1] || '').trim().toUpperCase();
           const v = Number(r[2]) || 0;
           const pgto = String(r[3] || '');
@@ -2767,15 +2856,13 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           if (t === 'ENTRADA') entradas += v;
           if (t === 'SAIDA' || t === 'SAÍDA') saidas += v;
 
-          if (ultimos.length < 30 && !isNaN(d.getTime())) {
-            ultimos.push([
-              Utilities.formatDate(d, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
-              t,
-              'R$ ' + v.toFixed(2).replace('.', ','),
-              pgto,
-              desc
-            ]);
-          }
+          transacoesFiltradas.push([
+            Utilities.formatDate(d, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+            t,
+            'R$ ' + v.toFixed(2).replace('.', ','),
+            pgto,
+            desc
+          ]);
         }
       }
 
@@ -2784,13 +2871,15 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         tipo: 'financeiroCompleto',
         titulo: '💰 Relatório Financeiro Consolidado',
         dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+        periodo: intervalo.labelPeriodo,
         resumo: {
           totalEntradas: entradas,
           totalSaidas: saidas,
-          saldoConsolidado: entradas - saidas
+          saldoConsolidado: entradas - saidas,
+          totalLancamentos: transacoesFiltradas.length
         },
         colunas: ['Data / Hora', 'Tipo', 'Valor', 'Forma Pgto', 'Descrição'],
-        linhas: ultimos,
+        linhas: transacoesFiltradas.length > 0 ? transacoesFiltradas.slice(0, 100) : [['-', '-', 'R$ 0,00', '-', 'Nenhum lançamento no período']],
         abaNome: 'RELATORIO_FINANCEIRO'
       };
     }
@@ -2809,17 +2898,22 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
           const r = d[i];
           const rawData = r[0];
           const dt = rawData instanceof Date ? rawData : new Date(rawData);
+
+          // Aplicação de Filtro por Data
+          if (!isNaN(dt.getTime())) {
+            if (intervalo.dataInicio && dt < intervalo.dataInicio) continue;
+            if (intervalo.dataFim && dt > intervalo.dataFim) continue;
+          }
+
           const val = Number(r[3]) || Number(r[2]) || 0;
           totalCompras += val;
-          if (listaCompras.length < 30) {
-            listaCompras.push([
-              !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Sao_Paulo', 'dd/MM/yyyy') : String(rawData || ''),
-              String(r[1] || ''),
-              'R$ ' + val.toFixed(2).replace('.', ','),
-              String(r[4] || ''),
-              String(r[5] || '')
-            ]);
-          }
+          listaCompras.push([
+            !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Sao_Paulo', 'dd/MM/yyyy') : String(rawData || ''),
+            String(r[1] || ''),
+            'R$ ' + val.toFixed(2).replace('.', ','),
+            String(r[4] || ''),
+            String(r[5] || '')
+          ]);
         }
       }
 
@@ -2828,25 +2922,33 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         tipo: 'compras',
         titulo: '🛒 Relatório de Compras de Fornecedores',
         dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+        periodo: intervalo.labelPeriodo,
         resumo: {
-          totalRegistros: shCompras ? Math.max(0, shCompras.getLastRow() - 1) : 0,
+          totalComprasRegistradas: listaCompras.length,
           valorTotalGasto: totalCompras
         },
         colunas: ['Data', 'Fornecedor / Item', 'Valor', 'Status', 'Nota Fiscal / Obs'],
-        linhas: listaCompras,
+        linhas: listaCompras.length > 0 ? listaCompras.slice(0, 100) : [['-', '-', 'R$ 0,00', '-', 'Nenhuma compra encontrada no período']],
         abaNome: 'RELATORIO_COMPRAS'
       };
     }
 
     if (tipo === 'logs') {
-      const shLogs = ss.getSheetByName('LOGS') || ss.getSheetByName('AUDITORIA');
+      const shLogs = ss.getSheetByName('LOG_SISTEMA') || ss.getSheetByName('LOGS') || ss.getSheetByName('AUDITORIA');
       const ultimosLogs = [];
       if (shLogs && shLogs.getLastRow() > 1) {
         const d = shLogs.getRange(2, 1, shLogs.getLastRow() - 1, Math.min(shLogs.getLastColumn(), 5)).getValues();
-        for (let i = d.length - 1; i >= Math.max(0, d.length - 40); i--) {
+        for (let i = d.length - 1; i >= 0; i--) {
           const r = d[i];
           const rawData = r[0];
           const dt = rawData instanceof Date ? rawData : new Date(rawData);
+
+          // Aplicação de Filtro por Data
+          if (!isNaN(dt.getTime())) {
+            if (intervalo.dataInicio && dt < intervalo.dataInicio) continue;
+            if (intervalo.dataFim && dt > intervalo.dataFim) continue;
+          }
+
           ultimosLogs.push([
             !isNaN(dt.getTime()) ? Utilities.formatDate(dt, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm') : String(rawData || ''),
             String(r[1] || ''),
@@ -2861,19 +2963,31 @@ function obterPreviaRelatorio360(token, tipoRelatorio) {
         tipo: 'logs',
         titulo: '🧾 Relatório de Logs e Auditoria',
         dataGeracao: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'),
+        periodo: intervalo.labelPeriodo,
         resumo: {
-          totalEventos: shLogs ? Math.max(0, shLogs.getLastRow() - 1) : 0
+          totalEventosNoPeriodo: ultimosLogs.length
         },
         colunas: ['Data / Hora', 'Ação / Evento', 'Operador', 'Detalhes'],
-        linhas: ultimosLogs,
+        linhas: ultimosLogs.length > 0 ? ultimosLogs.slice(0, 100) : [['-', '-', '-', 'Nenhum log no período']],
         abaNome: 'RELATORIO_LOGS'
       };
     }
 
     if (resultado && resultado.ok) {
-      // 📂 Salva arquivo automaticamente na subpasta correta de categoria e mês
+      resultado.filtrosAplicados = intervalo;
+
+      // 📂 Salva arquivo automaticamente na subpasta correta de categoria e mês no padrão PDF
       try {
-        const driveRes = salvarRelatorioNoDriveMes(resultado.titulo, resultado.resumo, resultado.colunas, resultado.linhas, resultado.tipo);
+        const dataRef = intervalo.dataInicio || new Date();
+        const driveRes = salvarRelatorioNoDriveMes(
+          resultado.titulo,
+          resultado.resumo,
+          resultado.colunas,
+          resultado.linhas,
+          resultado.tipo,
+          intervalo.labelPeriodo,
+          dataRef
+        );
         resultado.driveInfo = driveRes;
       } catch(eDrive) {
         console.warn('Erro ao salvar relatório no Drive:', eDrive.message);
@@ -3105,7 +3219,7 @@ function reorganizarRelatoriosPastasCorretas(pastaRelatoriosParam) {
  * 📂 Cria e salva o relatório na subpasta correta de categoria e mês no Google Drive:
  * Exemplo: Relatorios / [Estoque | Financeiro | Compras | Registros] / [MM - Mês AAAA] / [Nome Relatório - Data].pdf
  */
-function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRelatorio) {
+function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRelatorio, periodoTexto, dataReferencia) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const nomeDeposito = (typeof getNomeDeposito === 'function') ? getNomeDeposito() : 'Gestão de Depósito';
@@ -3135,7 +3249,7 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
       }
     }
 
-    // 1. Identifica a subcategoria correta (Financeiro, Estoque, Compras, Registros)
+    // 1. Identifica a subcategoria correta (Financeiro, Estoque, Compras, Auditoria_Logs)
     const categoria = resolverCategoriaRelatorio(tipoRelatorio, titulo);
 
     // 2. Obtém ou cria a pasta da Categoria dentro de Relatorios
@@ -3148,11 +3262,11 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
     }
 
     // 3. Subpasta do mês: MM - Mês AAAA dentro da categoria correspondente
-    const agora = new Date();
+    const refData = (dataReferencia instanceof Date && !isNaN(dataReferencia.getTime())) ? dataReferencia : new Date();
     const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const mesNum = Utilities.formatDate(agora, 'America/Sao_Paulo', 'MM');
-    const mesNome = meses[agora.getMonth()];
-    const ano = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy');
+    const mesNum = Utilities.formatDate(refData, 'America/Sao_Paulo', 'MM');
+    const mesNome = meses[refData.getMonth()];
+    const ano = Utilities.formatDate(refData, 'America/Sao_Paulo', 'yyyy');
     const nomePastaMes = `${mesNum} - ${mesNome} ${ano}`;
 
     let pastaMes = null;
@@ -3164,11 +3278,13 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
     }
 
     // 4. Nome do arquivo: [Nome do Relatório] - [dd-MM-yyyy HH-mm].pdf
+    const agora = new Date();
     const dataHoraStr = Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd-MM-yyyy HH-mm');
     const nomeLimpo = String(titulo || 'Relatório').replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '').trim();
     const nomeArquivo = `${nomeLimpo} - ${dataHoraStr}`;
 
-    // Monta HTML elegante para conversão em PDF
+    // Monta HTML corporativo de altíssima qualidade para conversão em PDF
+    const periodoBadge = periodoTexto ? `<span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:4px;font-weight:700;margin-left:6px;">Período: ${periodoTexto}</span>` : '';
     let htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -3176,25 +3292,28 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
         <meta charset="utf-8">
         <title>${nomeArquivo}</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; color: #1e293b; }
-          .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 20px; }
-          h2 { color: #0f172a; margin: 0 0 6px 0; font-size: 20px; }
-          .meta { font-size: 11px; color: #64748b; }
-          .kpi-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-          .kpi-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 120px; text-align: center; }
-          .kpi-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; color: #1e293b; background: #ffffff; }
+          .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 18px; }
+          h2 { color: #0f172a; margin: 0 0 6px 0; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+          .meta { font-size: 11px; color: #64748b; line-height: 1.6; }
+          .kpi-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+          .kpi-box { border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 120px; text-align: center; }
+          .kpi-lbl { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px; letter-spacing: 0.5px; }
           .kpi-val { font-size: 16px; font-weight: 800; color: #0284c7; }
           table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
-          th { background: #0f172a; color: #ffffff; padding: 8px 10px; text-align: left; font-weight: 600; }
+          th { background: #0f172a; color: #ffffff; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 10px; }
           td { border-bottom: 1px solid #e2e8f0; padding: 7px 10px; color: #334155; }
           tr:nth-child(even) td { background-color: #f8fafc; }
-          .footer { margin-top: 30px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+          .footer { margin-top: 28px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h2>${titulo}</h2>
-          <div class="meta">${nomeDeposito} | Pasta: Relatorios/${categoria}/${nomePastaMes} | Solicitado em: ${Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}</div>
+          <h2><span>👑 ${nomeDeposito}</span> <span style="font-size:14px;color:#0284c7;font-weight:600;">Relatório Oficial</span></h2>
+          <div class="meta">
+            <strong>${titulo}</strong> ${periodoBadge}<br>
+            Pasta Drive: <code>Relatorios/${categoria}/${nomePastaMes}</code> | Emitido em: ${Utilities.formatDate(agora, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss')}
+          </div>
         </div>
     `;
 
@@ -3202,7 +3321,7 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
       htmlContent += `<div class="kpi-row">`;
       for (const k in dadosResumo) {
         let v = dadosResumo[k];
-        if (typeof v === 'number' && !k.toLowerCase().includes('itens') && !k.toLowerCase().includes('totalregistros') && !k.toLowerCase().includes('totaleventos') && !k.toLowerCase().includes('margem')) {
+        if (typeof v === 'number' && !k.toLowerCase().includes('itens') && !k.toLowerCase().includes('total') && !k.toLowerCase().includes('eventos') && !k.toLowerCase().includes('margem') && !k.toLowerCase().includes('lancamentos')) {
           v = 'R$ ' + v.toFixed(2).replace('.', ',');
         } else if (k.toLowerCase().includes('margem')) {
           v = Number(v).toFixed(1) + '%';
@@ -3222,10 +3341,14 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
       htmlContent += `</tr>`;
     });
     htmlContent += `</tbody></table>`;
-    htmlContent += `<div class="footer">Documento corporativo arquivado em Relatorios/${categoria}/${nomePastaMes} — Depósito Karo$$</div></body></html>`;
+    htmlContent += `<div class="footer">Documento corporativo oficial gerado eletronicamente em Relatorios/${categoria}/${nomePastaMes} — Depósito Karo$$</div></body></html>`;
 
     const blob = Utilities.newBlob(htmlContent, 'text/html').getAs('application/pdf').setName(`${nomeArquivo}.pdf`);
     const file = pastaMes.createFile(blob);
+
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(eShare) {}
 
     // 5. Executa rotina de auto-limpeza para garantir que nenhuma pasta solta permaneça na raiz de Relatorios
     try {
@@ -3238,7 +3361,8 @@ function salvarRelatorioNoDriveMes(titulo, dadosResumo, colunas, linhas, tipoRel
       pastaNome: `${categoria}/${nomePastaMes}`,
       categoria: categoria,
       fileId: file.getId(),
-      url: file.getUrl()
+      url: file.getUrl(),
+      downloadUrl: `https://drive.google.com/uc?export=download&id=${file.getId()}`
     };
   } catch(err) {
     console.error('Erro em salvarRelatorioNoDriveMes:', err);

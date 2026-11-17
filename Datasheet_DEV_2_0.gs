@@ -10282,23 +10282,44 @@
       const horaFmt = Utilities.formatDate(data, Session.getScriptTimeZone(), 'HH-mm-ss');
       const nomeSanitizado = String(titulo || 'registro').replace(/[\\/:*?"<>|]/g, '-').substring(0, 80);
       const pasta = obterPastaDestinoRegistroDrive(tipo, cfg.subcategoria, data);
-      const cabecalho = [
-        `Tipo: ${String(tipo || 'GERAL').toUpperCase()}`,
-        `Título: ${titulo || 'Registro sem título'}`,
-        `Data: ${dataFmt} ${horaFmt.replace(/-/g, ':')}`,
-        `Usuário: ${Session.getActiveUser().getEmail() || 'Desconhecido'}`,
-        '--------------------------------------------------'
-      ].join('\n');
 
-      const arquivo = pasta.createFile(
-        `${dataFmt}_${horaFmt}_${nomeSanitizado}.txt`,
-        `${cabecalho}\n${String(conteudo || '').trim()}`,
-        MimeType.PLAIN_TEXT
-      );
+      // 📄 Todos os relatórios solicitados em texto agora são gerados no padrão universal executivo PDF
+      const linhasConteudo = String(conteudo || '').trim().split('\n');
+      let corpoHtml = '';
+      linhasConteudo.forEach(l => {
+        const partes = l.split(':');
+        if (partes.length > 1) {
+          corpoHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong style="color:#0f172a;font-size:12px;">${partes[0].trim()}:</strong><span style="color:#334155;font-size:12px;font-weight:600;">${partes.slice(1).join(':').trim()}</span></div>`;
+        } else if (l.trim()) {
+          corpoHtml += `<p style="margin:6px 0;color:#334155;font-size:12px;">${l.trim()}</p>`;
+        }
+      });
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; color: #1e293b; background: #fff; }
+        .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 20px; }
+        h2 { color: #0f172a; margin: 0 0 6px 0; font-size: 18px; font-weight: 700; }
+        .meta { font-size: 11px; color: #64748b; }
+        .content-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 18px; margin-top: 15px; }
+        .footer { margin-top: 30px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      </style></head><body>
+        <div class="header">
+          <h2>👑 Depósito Karo$$ | ${String(tipo || 'RELATÓRIO').toUpperCase()}</h2>
+          <div class="meta">${titulo || 'Registro Executivo'} | Emitido em: ${dataFmt} às ${horaFmt.replace(/-/g, ':')} | Usuário: ${Session.getActiveUser().getEmail() || 'Sistema'}</div>
+        </div>
+        <div class="content-box">
+          ${corpoHtml}
+        </div>
+        <div class="footer">Documento corporativo oficial arquivado no Google Drive — Depósito Karo$$</div>
+      </body></html>`;
+
+      const blob = Utilities.newBlob(html, 'text/html').getAs('application/pdf').setName(`${dataFmt}_${horaFmt}_${nomeSanitizado}.pdf`);
+      const arquivo = pasta.createFile(blob);
 
       registrarLog(
         'REGISTRO_IMPORTANTE_DRIVE',
-        `Registro ${String(tipo || 'GERAL').toUpperCase()} salvo no Drive`,
+        `Relatório PDF ${String(tipo || 'GERAL').toUpperCase()} salvo no Drive`,
         '',
         arquivo.getUrl()
       );
