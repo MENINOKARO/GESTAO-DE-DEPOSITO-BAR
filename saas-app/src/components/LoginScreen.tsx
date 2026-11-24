@@ -3,7 +3,10 @@ import { Eye, EyeOff, Layers, Lock } from 'lucide-react';
 import type { SessaoAtiva } from '../types/domain';
 import {
   autenticarUsuario,
-  concluirSetupBoasVindas
+  cadastrarNovaEmpresaTrial,
+  concluirSetupBoasVindas,
+  redefinirSenhaComCodigo,
+  solicitarRecuperacaoSenha
 } from '../services/dataRepository';
 import {
   getSupabaseConfig,
@@ -31,12 +34,20 @@ export function LoginScreen({
   const [verSenha, setVerSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [alerta, setAlerta] = useState<{ tipo: 'error' | 'success'; texto: string } | null>(null);
+  const [modoTela, setModoTela] = useState<'login' | 'trial' | 'recuperar'>('login');
 
   // Boas-Vindas (Nova Empresa)
   const [nomeEmpresa, setNomeEmpresa] = useState(setupNomeEmpresa || '');
   const [usuarioDono, setUsuarioDono] = useState('');
   const [emailDono, setEmailDono] = useState('');
+  const [telefoneDono, setTelefoneDono] = useState('');
   const [senhaDono, setSenhaDono] = useState('');
+
+  // Recuperar Senha via Telegram
+  const [recIdent, setRecIdent] = useState('');
+  const [recCodigoEnviado, setRecCodigoEnviado] = useState(false);
+  const [recCodigo, setRecCodigo] = useState('');
+  const [recNovaSenha, setRecNovaSenha] = useState('');
 
   // Modal discreto para configurar Supabase direto antes do login se desejado
   const [mostrarCfgSupa, setMostrarCfgSupa] = useState(false);
@@ -55,6 +66,59 @@ export function LoginScreen({
         onLoginSucesso(res.sessao);
       } else {
         setAlerta({ tipo: 'error', texto: res.msg || 'Usuário ou senha incorretos.' });
+      }
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleTrialSubmit(e: FormEvent) {
+    e.preventDefault();
+    setAlerta(null);
+    setCarregando(true);
+    try {
+      const res = await cadastrarNovaEmpresaTrial({
+        nomeEmpresa,
+        usernameDono: usuarioDono,
+        emailDono,
+        senhaDono,
+        telefone: telefoneDono
+      });
+      if (res.ok && res.sessao) {
+        onLoginSucesso(res.sessao);
+      } else {
+        setAlerta({ tipo: 'error', texto: res.msg || 'Não foi possível criar a empresa.' });
+      }
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleEnviarCodigoRecuperacao(e: FormEvent) {
+    e.preventDefault();
+    setAlerta(null);
+    setCarregando(true);
+    try {
+      const res = await solicitarRecuperacaoSenha(recIdent);
+      setAlerta({ tipo: res.ok ? 'success' : 'error', texto: res.msg });
+      if (res.ok) setRecCodigoEnviado(true);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleRedefinirSenha(e: FormEvent) {
+    e.preventDefault();
+    setAlerta(null);
+    setCarregando(true);
+    try {
+      const res = await redefinirSenhaComCodigo(recIdent, recCodigo, recNovaSenha);
+      setAlerta({ tipo: res.ok ? 'success' : 'error', texto: res.msg });
+      if (res.ok) {
+        setModoTela('login');
+        setRecCodigoEnviado(false);
+        setRecCodigo('');
+        setRecNovaSenha('');
       }
     } finally {
       setCarregando(false);
@@ -114,7 +178,7 @@ export function LoginScreen({
 
         {alerta && <div className={`login-alert ${alerta.tipo}`}>{alerta.texto}</div>}
 
-        {mostrarCfgSupa ? (
+        {mostrarCfgSupa && !supabaseAtivo ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.4 }}>
               Conecte seu projeto <strong>Supabase</strong> (URL + Anon Key pública) ou deixe vazio para operar em modo Local-First.
@@ -226,6 +290,118 @@ export function LoginScreen({
               {carregando ? 'Configurando...' : 'Concluir Cadastro e Acessar'}
             </button>
           </form>
+        ) : modoTela === 'trial' ? (
+          <form onSubmit={handleTrialSubmit}>
+            <div
+              style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                borderRadius: 12,
+                padding: '10px 12px',
+                marginBottom: 14,
+                fontSize: 12,
+                color: '#a7f3d0',
+                lineHeight: 1.45
+              }}
+            >
+              <strong>Teste Grátis por 7 Dias!</strong> Crie sua empresa e seu acesso de <strong>Dono</strong> agora mesmo.
+            </div>
+            <div className="login-input-group">
+              <label>Nome da Empresa *</label>
+              <input className="login-input" placeholder="Ex.: Depósito Central" value={nomeEmpresa} onChange={(e) => setNomeEmpresa(e.target.value)} required />
+            </div>
+            <div className="login-input-group">
+              <label>Usuário de Acesso (Dono) *</label>
+              <input className="login-input" placeholder="Ex.: joao.silva" value={usuarioDono} onChange={(e) => setUsuarioDono(e.target.value)} required />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div className="login-input-group">
+                <label>E-mail</label>
+                <input type="email" className="login-input" placeholder="contato@empresa.com" value={emailDono} onChange={(e) => setEmailDono(e.target.value)} />
+              </div>
+              <div className="login-input-group">
+                <label>WhatsApp</label>
+                <input className="login-input" placeholder="(11) 99999-9999" value={telefoneDono} onChange={(e) => setTelefoneDono(e.target.value)} />
+              </div>
+            </div>
+            <div className="login-input-group">
+              <label>Senha (mínimo 4 caracteres) *</label>
+              <input type="password" className="login-input" placeholder="Senha" minLength={4} value={senhaDono} onChange={(e) => setSenhaDono(e.target.value)} required />
+            </div>
+            <button type="submit" className="btn-login-submit" disabled={carregando}>
+              {carregando ? 'Criando empresa...' : 'Criar Empresa e Acessar'}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ width: '100%', marginTop: 10, justifyContent: 'center' }}
+              onClick={() => { setAlerta(null); setModoTela('login'); }}
+            >
+              Voltar para Login
+            </button>
+          </form>
+        ) : modoTela === 'recuperar' ? (
+          <form onSubmit={recCodigoEnviado ? handleRedefinirSenha : handleEnviarCodigoRecuperacao}>
+            <div style={{ fontSize: 12.5, color: '#cbd5e1', marginBottom: 12, lineHeight: 1.45 }}>
+              Informe seu <strong>usuário ou e-mail</strong> para receber um código de 6 dígitos no <strong>Telegram</strong> cadastrado na empresa.
+            </div>
+            <div className="login-input-group">
+              <label>Usuário ou E-mail *</label>
+              <input
+                className="login-input"
+                placeholder="Usuário ou e-mail"
+                value={recIdent}
+                onChange={(e) => setRecIdent(e.target.value)}
+                disabled={recCodigoEnviado}
+                required
+              />
+            </div>
+            {recCodigoEnviado && (
+              <>
+                <div className="login-input-group">
+                  <label>Código recebido no Telegram *</label>
+                  <input
+                    className="login-input"
+                    placeholder="000000"
+                    value={recCodigo}
+                    onChange={(e) => setRecCodigo(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="login-input-group">
+                  <label>Nova Senha *</label>
+                  <input
+                    type="password"
+                    className="login-input"
+                    placeholder="Mínimo 4 caracteres"
+                    minLength={4}
+                    value={recNovaSenha}
+                    onChange={(e) => setRecNovaSenha(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
+            <button type="submit" className="btn-login-submit" disabled={carregando}>
+              {carregando
+                ? 'Processando...'
+                : recCodigoEnviado
+                ? 'Redefinir Senha'
+                : 'Enviar Código no Telegram'}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ width: '100%', marginTop: 10, justifyContent: 'center' }}
+              onClick={() => {
+                setAlerta(null);
+                setRecCodigoEnviado(false);
+                setModoTela('login');
+              }}
+            >
+              Voltar para Login
+            </button>
+          </form>
         ) : (
           <form id="formLoginWeb" onSubmit={handleLoginSubmit}>
             <div className="login-input-group">
@@ -288,11 +464,42 @@ export function LoginScreen({
                 />
                 <span>Manter conectado</span>
               </label>
+              <button
+                type="button"
+                onClick={() => { setAlerta(null); setModoTela('recuperar'); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#a78bfa',
+                  cursor: 'pointer',
+                  fontSize: 12.5,
+                  padding: 0
+                }}
+              >
+                Esqueci minha senha
+              </button>
             </div>
 
             <button type="submit" id="btnLoginSubmit" className="btn-login-submit" disabled={carregando}>
               <span id="btnLoginText">{carregando ? 'Validando...' : 'Acessar Painel'}</span>
             </button>
+
+            <div style={{ marginTop: 14, textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => { setAlerta(null); setNomeEmpresa(''); setModoTela('trial'); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#34d399',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600
+                }}
+              >
+                Não tem conta? Criar Empresa (Teste Grátis 7 dias)
+              </button>
+            </div>
           </form>
         )}
 
@@ -301,14 +508,20 @@ export function LoginScreen({
             <Lock size={13} aria-hidden="true" />
             <span>Acesso seguro</span>
           </span>
-          <button
-            type="button"
-            className="login-mode-pill"
-            onClick={() => setMostrarCfgSupa((v) => !v)}
-            title="Alternar ou configurar conexão Supabase"
-          >
-            {supabaseAtivo ? 'Supabase Conectado' : 'Modo Local-First'}
-          </button>
+          {supabaseAtivo ? (
+            <span className="login-mode-pill" style={{ cursor: 'default' }}>
+              Nuvem Conectada
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="login-mode-pill"
+              onClick={() => setMostrarCfgSupa((v) => !v)}
+              title="Configurar conexão Supabase"
+            >
+              Modo Local-First
+            </button>
+          )}
         </div>
       </div>
     </div>

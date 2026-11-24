@@ -22,6 +22,7 @@ import {
   alternarStatusUsuario,
   analisarComprovanteSaasAdmin,
   atualizarLicencaEmpresaAdmin,
+  criarEmpresaPeloAdmin,
   criarUsuarioEquipe,
   derrubarSessoesUsuarioAdmin,
   editarUsuarioEquipe,
@@ -80,6 +81,20 @@ export function AdminMasterTab({
   const [editPlano, setEditPlano] = useState<PlanoSaas>('PRO');
   const [editStatus, setEditStatus] = useState<StatusAssinatura>('ATIVO');
   const [editValidoAte, setEditValidoAte] = useState('');
+
+  // Modal Nova Empresa
+  const [modalNovaEmp, setModalNovaEmp] = useState(false);
+  const [novaEmpNome, setNovaEmpNome] = useState('');
+  const [novaEmpDono, setNovaEmpDono] = useState('');
+  const [novaEmpCnpj, setNovaEmpCnpj] = useState('');
+  const [novaEmpTel, setNovaEmpTel] = useState('');
+  const [novaEmpCidade, setNovaEmpCidade] = useState('');
+  const [novaEmpPlano, setNovaEmpPlano] = useState<PlanoSaas>('PRO');
+  const [novaEmpStatus, setNovaEmpStatus] = useState<StatusAssinatura>('ATIVO');
+  const [novaEmpValidoAte, setNovaEmpValidoAte] = useState('');
+  const [novaEmpUser, setNovaEmpUser] = useState('');
+  const [novaEmpEmail, setNovaEmpEmail] = useState('');
+  const [novaEmpSenha, setNovaEmpSenha] = useState('');
 
   // Modal Confirmação de Suporte Técnico (Código enviado ao Dono)
   const [suporteAlvo, setSuporteAlvo] = useState<Empresa | null>(null);
@@ -310,6 +325,42 @@ export function AdminMasterTab({
       onNotify(res.msg, res.ok ? 'success' : 'error');
       if (res.ok) {
         setEmpEditando(null);
+        await carregar();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCriarEmpresaMaster(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await criarEmpresaPeloAdmin(sessao, {
+        nomeEmpresa: novaEmpNome,
+        donoNome: novaEmpDono,
+        cnpj: novaEmpCnpj,
+        telefone: novaEmpTel,
+        cidade: novaEmpCidade,
+        plano: novaEmpPlano,
+        statusAssinatura: novaEmpStatus,
+        validoAte: novaEmpValidoAte || undefined,
+        usernameDono: novaEmpUser,
+        emailDono: novaEmpEmail,
+        senhaDono: novaEmpSenha
+      });
+      onNotify(res.msg, res.ok ? 'success' : 'error');
+      if (res.ok) {
+        setModalNovaEmp(false);
+        setNovaEmpNome('');
+        setNovaEmpDono('');
+        setNovaEmpCnpj('');
+        setNovaEmpTel('');
+        setNovaEmpCidade('');
+        setNovaEmpValidoAte('');
+        setNovaEmpUser('');
+        setNovaEmpEmail('');
+        setNovaEmpSenha('');
         await carregar();
       }
     } finally {
@@ -557,15 +608,20 @@ export function AdminMasterTab({
                 </button>
               ))}
             </div>
-            <div style={{ position: 'relative', minWidth: 240 }}>
-              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                className="field-input"
-                style={{ paddingLeft: 32 }}
-                placeholder="Buscar empresa, dono, CNPJ..."
-                value={buscaEmp}
-                onChange={(e) => setBuscaEmp(e.target.value)}
-              />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', minWidth: 220 }}>
+                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  className="field-input"
+                  style={{ paddingLeft: 32 }}
+                  placeholder="Buscar empresa, dono, CNPJ..."
+                  value={buscaEmp}
+                  onChange={(e) => setBuscaEmp(e.target.value)}
+                />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={() => setModalNovaEmp(true)}>
+                <Building2 size={14} /> + Nova Empresa
+              </button>
             </div>
           </div>
 
@@ -1198,6 +1254,87 @@ export function AdminMasterTab({
             ) : (
               <p style={{ color: 'var(--text-muted)' }}>Nenhum arquivo anexado.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOVA EMPRESA */}
+      {modalNovaEmp && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: 520 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16 }}>Cadastrar Nova Empresa + Dono</h3>
+              <button type="button" className="btn btn-xs" onClick={() => setModalNovaEmp(false)}><X size={14} /></button>
+            </div>
+            <form style={{ display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={handleCriarEmpresaMaster}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="field-label">Nome da Empresa *</label>
+                  <input className="field-input" required value={novaEmpNome} onChange={(e) => setNovaEmpNome(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">Nome do Responsável / Dono</label>
+                  <input className="field-input" value={novaEmpDono} onChange={(e) => setNovaEmpDono(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="field-label">CNPJ</label>
+                  <input className="field-input" value={novaEmpCnpj} onChange={(e) => setNovaEmpCnpj(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">Telefone / WhatsApp</label>
+                  <input className="field-input" value={novaEmpTel} onChange={(e) => setNovaEmpTel(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">Cidade / UF</label>
+                  <input className="field-input" value={novaEmpCidade} onChange={(e) => setNovaEmpCidade(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="field-label">Plano</label>
+                  <select className="field-select" value={novaEmpPlano} onChange={(e) => setNovaEmpPlano(e.target.value as PlanoSaas)}>
+                    <option value="START">START</option>
+                    <option value="PRO">PRO</option>
+                    <option value="ENTERPRISE">ENTERPRISE</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Status Inicial</label>
+                  <select className="field-select" value={novaEmpStatus} onChange={(e) => setNovaEmpStatus(e.target.value as StatusAssinatura)}>
+                    <option value="ATIVO">ATIVO (Liberado)</option>
+                    <option value="TRIAL">TRIAL</option>
+                    <option value="BLOQUEADO">BLOQUEADO</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Válido Até (opcional)</label>
+                  <input type="date" className="field-input" value={novaEmpValidoAte} onChange={(e) => setNovaEmpValidoAte(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ borderTop: '1px solid rgba(148,163,184,0.2)', paddingTop: 10, marginTop: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#cbd5e1' }}>Acesso do Usuário Dono</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label className="field-label">Login Dono *</label>
+                    <input className="field-input" required value={novaEmpUser} onChange={(e) => setNovaEmpUser(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="field-label">E-mail</label>
+                    <input type="email" className="field-input" value={novaEmpEmail} onChange={(e) => setNovaEmpEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="field-label">Senha Inicial *</label>
+                    <input type="password" className="field-input" required minLength={4} value={novaEmpSenha} onChange={(e) => setNovaEmpSenha(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button type="button" className="btn" onClick={() => setModalNovaEmp(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={busy}>Criar Empresa</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

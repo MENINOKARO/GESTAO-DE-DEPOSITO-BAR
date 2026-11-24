@@ -688,6 +688,281 @@ export async function concluirSetupBoasVindas(payload: {
   return autenticarUsuario(uname, payload.senhaDono.trim(), true);
 }
 
+export async function cadastrarNovaEmpresaTrial(payload: {
+  nomeEmpresa: string;
+  usernameDono: string;
+  emailDono: string;
+  senhaDono: string;
+  telefone?: string;
+}): Promise<{ ok: boolean; msg?: string; sessao?: SessaoAtiva }> {
+  const nomeEmp = payload.nomeEmpresa.trim();
+  const uname = payload.usernameDono.trim().toLowerCase();
+  const senhaLimpa = payload.senhaDono.trim();
+  if (uname === 'admin' || uname === 'administrador') {
+    return { ok: false, msg: 'Este usuário é reservado ao sistema. Escolha outro login.' };
+  }
+  if (!nomeEmp || !uname || senhaLimpa.length < 4) {
+    return { ok: false, msg: 'Preencha nome da empresa, usuário e senha (mínimo 4 caracteres).' };
+  }
+
+  const senhaHash = await sha256Hex(senhaLimpa);
+  const empId = gerarId('EMP');
+  const grpId = gerarId('GRP');
+  const usrId = gerarId('USR');
+  const validoAteTrial = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+  if (isSupabaseConfigured()) {
+    const client = getSupabaseClient();
+    if (client) {
+      const { data: dup } = await client
+        .from('usuarios')
+        .select('id')
+        .eq('username', uname)
+        .limit(1);
+      if (dup && dup.length > 0) {
+        return { ok: false, msg: `O usuário "${uname}" já está em uso. Escolha outro.` };
+      }
+
+      const { error: empErr } = await client.from('empresas').insert({
+        id: empId,
+        grupo_id: grpId,
+        tipo: 'MATRIZ',
+        nome: nomeEmp,
+        dono_nome: payload.usernameDono.trim(),
+        cnpj: '',
+        telefone: payload.telefone?.trim() || '',
+        cidade: '',
+        chave_pix: '',
+        drive_folder_id: '',
+        planilha_espelho_id: '',
+        plano: 'PRO',
+        status_assinatura: 'TRIAL',
+        valido_ate: validoAteTrial,
+        setup_concluido: true
+      });
+      if (empErr) return { ok: false, msg: empErr.message };
+
+      const { error: usrErr } = await client.from('usuarios').insert({
+        id: usrId,
+        empresa_id: empId,
+        grupo_id: grpId,
+        username: uname,
+        nome: payload.usernameDono.trim(),
+        email: payload.emailDono.trim().toLowerCase(),
+        senha_hash: senhaHash,
+        perfil: 'DONO',
+        ativo: true
+      });
+      if (usrErr) return { ok: false, msg: usrErr.message };
+
+      const cfg = await lerChaveConfigSaas<ConfigMasterSaas>(
+        client,
+        'SAAS_MASTER_CONFIG',
+        MASTER_SAAS_CFG_KEY,
+        DEFAULT_CONFIG_MASTER_SAAS
+      );
+      void notificarAdminSaasTelegram(
+        cfg,
+        `🆕 <b>Nova Empresa Cadastrada (Trial 7 dias)!</b>\nEmpresa: <b>${nomeEmp}</b>\nDono: <code>${uname}</code>\nVálido até: ${formatarDataBr(validoAteTrial)}`
+      );
+
+      return autenticarUsuario(uname, senhaLimpa, true);
+    }
+  }
+
+  const db = loadLocalDb();
+  if (db.usuarios.some((u) => u.username.toLowerCase() === uname)) {
+    return { ok: false, msg: `O usuário "${uname}" já está em uso. Escolha outro.` };
+  }
+  db.empresas.push({
+    id: empId,
+    grupo_id: grpId,
+    tipo: 'MATRIZ',
+    nome: nomeEmp,
+    dono_nome: payload.usernameDono.trim(),
+    cnpj: '',
+    telefone: payload.telefone?.trim() || '',
+    cidade: '',
+    chave_pix: '',
+    drive_folder_id: '',
+    planilha_espelho_id: '',
+    plano: 'PRO',
+    status_assinatura: 'TRIAL',
+    valido_ate: validoAteTrial,
+    setup_concluido: true
+  });
+  db.usuarios.push({
+    id: usrId,
+    empresa_id: empId,
+    grupo_id: grpId,
+    username: uname,
+    nome: payload.usernameDono.trim(),
+    email: payload.emailDono.trim().toLowerCase(),
+    senha_hash: senhaHash,
+    perfil: 'DONO',
+    ativo: true,
+    ultimo_acesso: new Date().toISOString()
+  });
+  saveLocalDb(db);
+  return autenticarUsuario(uname, senhaLimpa, true);
+}
+
+export async function solicitarRecuperacaoSenha(
+  identificadorBruto: string
+): Promise<{ ok: boolean; msg: string }> {
+  const ident = identificadorBruto.trim().toLowerCase();
+  if (!ident) return { ok: false, msg: 'Informe seu usuário ou e-mail.' };
+
+  let usuario: Usuario | null = null;
+  let botToken = '';
+  let chatId = '';
+
+  const client = isSupabaseConfigured() ? getSupabaseClient() : null;
+  if (client) {
+    const { data: porUser } = await client
+      .from('usuarios')
+      .select('*')
+      .eq('username', ident)
+      .limit(1);
+    const achado =
+      porUser && porUser.length > 0
+        ? (porUser[0] as Usuario)
+        : ((
+            await client.from('usuarios').select('*').eq('email', ident).limit(1)
+          ).data?.[0] as Usuario | undefined);
+    if (!achado) {
+      return { ok: false, msg: 'Usuário ou e-mail não encontrado.' };
+    }
+    usuario = achado;
+
+    if (String(usuario.perfil || '').toUpperCase() === 'ADMIN') {
+      const cfg = await lerChaveConfigSaas<ConfigMasterSaas>(
+        client,
+        'SAAS_MASTER_CONFIG',
+        MASTER_SAAS_CFG_KEY,
+        DEFAULT_CONFIG_MASTER_SAAS
+      );
+      botToken = cfg.telegram_bot_token_admin || '';
+      chatId = cfg.telegram_chat_id_admin || '';
+    } else {
+      const { data: empRow } = await client
+        .from('empresas')
+        .select('telegram_bot_token,telegram_chat_id')
+        .eq('id', usuario.empresa_id)
+        .maybeSingle();
+      botToken = (empRow as { telegram_bot_token?: string } | null)?.telegram_bot_token || '';
+      chatId = (empRow as { telegram_chat_id?: string } | null)?.telegram_chat_id || '';
+    }
+  } else {
+    const db = loadLocalDb();
+    usuario =
+      db.usuarios.find(
+        (u) => u.username.toLowerCase() === ident || String(u.email || '').toLowerCase() === ident
+      ) || null;
+    if (!usuario) return { ok: false, msg: 'Usuário ou e-mail não encontrado.' };
+    const emp = db.empresas.find((e) => e.id === usuario!.empresa_id);
+    botToken = emp?.telegram_bot_token || '';
+    chatId = emp?.telegram_chat_id || '';
+  }
+
+  if (!botToken.trim() || !chatId.trim()) {
+    return {
+      ok: false,
+      msg: 'Telegram da empresa não configurado. Peça ao Dono ou Administrador para redefinir sua senha.'
+    };
+  }
+
+  const codigo = String(Math.floor(100000 + Math.random() * 900000));
+  const payloadReset = {
+    userId: usuario.id,
+    codigo,
+    expiraEm: Date.now() + 10 * 60 * 1000
+  };
+  await gravarChaveConfigSaas(
+    client,
+    `PWD_RESET_${usuario.id}`,
+    `pwd_reset_${usuario.id}`,
+    payloadReset
+  );
+
+  const enviado = await enviarMensagemTelegram(
+    {
+      nome: 'Gestão 360°',
+      telegram_bot_token: botToken,
+      telegram_chat_id: chatId
+    } as Empresa,
+    `🔐 <b>Recuperação de Senha — Gestão 360°</b>\nUsuário: <code>${usuario.username}</code>\nCódigo de verificação: <b>${codigo}</b>\n\nVálido por 10 minutos.`
+  );
+  if (!enviado) {
+    return { ok: false, msg: 'Falha ao enviar código pelo Telegram. Tente novamente ou contate o suporte.' };
+  }
+
+  return { ok: true, msg: 'Código de 6 dígitos enviado para o Telegram cadastrado!' };
+}
+
+export async function redefinirSenhaComCodigo(
+  identificadorBruto: string,
+  codigoBruto: string,
+  novaSenhaBruta: string
+): Promise<{ ok: boolean; msg: string }> {
+  const ident = identificadorBruto.trim().toLowerCase();
+  const codigo = codigoBruto.trim();
+  const novaSenha = novaSenhaBruta.trim();
+  if (!ident || !codigo) return { ok: false, msg: 'Informe usuário/e-mail e o código recebido.' };
+  if (novaSenha.length < 4) return { ok: false, msg: 'A nova senha deve ter pelo menos 4 caracteres.' };
+
+  const client = isSupabaseConfigured() ? getSupabaseClient() : null;
+  let usuarioId = '';
+
+  if (client) {
+    const { data: porUser } = await client.from('usuarios').select('id').eq('username', ident).limit(1);
+    const achado =
+      porUser && porUser.length > 0
+        ? (porUser[0] as { id: string })
+        : ((await client.from('usuarios').select('id').eq('email', ident).limit(1)).data?.[0] as
+            | { id: string }
+            | undefined);
+    if (!achado) return { ok: false, msg: 'Usuário não encontrado.' };
+    usuarioId = achado.id;
+  } else {
+    const db = loadLocalDb();
+    const u = db.usuarios.find(
+      (x) => x.username.toLowerCase() === ident || String(x.email || '').toLowerCase() === ident
+    );
+    if (!u) return { ok: false, msg: 'Usuário não encontrado.' };
+    usuarioId = u.id;
+  }
+
+  const salvo = await lerChaveConfigSaas<{ userId?: string; codigo?: string; expiraEm?: number } | null>(
+    client,
+    `PWD_RESET_${usuarioId}`,
+    `pwd_reset_${usuarioId}`,
+    null
+  );
+  if (!salvo || salvo.codigo !== codigo || !salvo.expiraEm || Date.now() > salvo.expiraEm) {
+    return { ok: false, msg: 'Código inválido ou expirado. Solicite um novo código.' };
+  }
+
+  const novoHash = await sha256Hex(novaSenha);
+  if (client) {
+    const { error } = await client
+      .from('usuarios')
+      .update({ senha_hash: novoHash })
+      .eq('id', usuarioId);
+    if (error) return { ok: false, msg: error.message };
+  } else {
+    const db = loadLocalDb();
+    const u = db.usuarios.find((x) => x.id === usuarioId);
+    if (u) {
+      u.senha_hash = novoHash;
+      saveLocalDb(db);
+    }
+  }
+
+  await gravarChaveConfigSaas(client, `PWD_RESET_${usuarioId}`, `pwd_reset_${usuarioId}`, null);
+  return { ok: true, msg: 'Senha redefinida com sucesso! Já pode acessar com a nova senha.' };
+}
+
 // ====================================================================
 // 2. SNAPSHOT COMPLETO DO PAINEL (KPIS + MÓDULOS)
 // ====================================================================
@@ -4943,6 +5218,108 @@ export async function atualizarLicencaEmpresaAdmin(
   Object.assign(alvo, patch);
   saveLocalDb(db);
   return { ok: true, msg: 'Licença da empresa atualizada!' };
+}
+
+export async function criarEmpresaPeloAdmin(
+  sessao: SessaoAtiva,
+  payload: {
+    nomeEmpresa: string;
+    donoNome: string;
+    cnpj?: string;
+    telefone?: string;
+    cidade?: string;
+    plano: PlanoSaas;
+    statusAssinatura: StatusAssinatura;
+    validoAte?: string;
+    usernameDono: string;
+    emailDono?: string;
+    senhaDono: string;
+  }
+): Promise<{ ok: boolean; msg: string; empresa?: Empresa }> {
+  if (String(sessao.usuario.perfil || '').toUpperCase() !== 'ADMIN') {
+    return { ok: false, msg: 'Apenas o ADMIN pode criar novas empresas pelo Master.' };
+  }
+  const nomeEmp = payload.nomeEmpresa.trim();
+  const uname = payload.usernameDono.trim().toLowerCase();
+  const senhaLimpa = payload.senhaDono.trim();
+  if (!nomeEmp || !uname || senhaLimpa.length < 4) {
+    return { ok: false, msg: 'Informe nome da empresa, login do Dono e senha (mínimo 4 caracteres).' };
+  }
+  if (uname === 'admin' || uname === 'administrador') {
+    return { ok: false, msg: 'Login reservado ao sistema. Escolha outro para o Dono.' };
+  }
+
+  const client = getTenantSupabaseClient(sessao);
+  const empId = gerarId('EMP');
+  const grpId = gerarId('GRP');
+  const usrId = gerarId('USR');
+  const senhaHash = await sha256Hex(senhaLimpa);
+
+  const novaEmpresa: Empresa = {
+    id: empId,
+    grupo_id: grpId,
+    tipo: 'MATRIZ',
+    nome: nomeEmp,
+    dono_nome: payload.donoNome.trim() || uname,
+    cnpj: payload.cnpj?.trim() || '',
+    telefone: payload.telefone?.trim() || '',
+    cidade: payload.cidade?.trim() || '',
+    chave_pix: '',
+    drive_folder_id: '',
+    planilha_espelho_id: '',
+    plano: payload.plano,
+    status_assinatura: payload.statusAssinatura,
+    valido_ate: payload.validoAte?.trim() || undefined,
+    setup_concluido: true
+  };
+
+  if (client) {
+    const { data: dup } = await client.from('usuarios').select('id').eq('username', uname).limit(1);
+    if (dup && dup.length > 0) {
+      return { ok: false, msg: `O login "${uname}" já está em uso.` };
+    }
+
+    const { error: empErr } = await client.from('empresas').insert({
+      ...novaEmpresa,
+      valido_ate: novaEmpresa.valido_ate || null
+    });
+    if (empErr) return { ok: false, msg: empErr.message };
+
+    const { error: usrErr } = await client.from('usuarios').insert({
+      id: usrId,
+      empresa_id: empId,
+      grupo_id: grpId,
+      username: uname,
+      nome: novaEmpresa.dono_nome,
+      email: payload.emailDono?.trim().toLowerCase() || '',
+      senha_hash: senhaHash,
+      perfil: 'DONO',
+      ativo: true
+    });
+    if (usrErr) return { ok: false, msg: usrErr.message };
+
+    return { ok: true, msg: `Empresa "${nomeEmp}" e usuário Dono "${uname}" criados no Supabase!`, empresa: novaEmpresa };
+  }
+
+  const db = loadLocalDb();
+  if (db.usuarios.some((u) => u.username.toLowerCase() === uname)) {
+    return { ok: false, msg: `O login "${uname}" já está em uso.` };
+  }
+  db.empresas.push(novaEmpresa);
+  db.usuarios.push({
+    id: usrId,
+    empresa_id: empId,
+    grupo_id: grpId,
+    username: uname,
+    nome: novaEmpresa.dono_nome,
+    email: payload.emailDono?.trim().toLowerCase() || '',
+    senha_hash: senhaHash,
+    perfil: 'DONO',
+    ativo: true,
+    ultimo_acesso: new Date().toISOString()
+  });
+  saveLocalDb(db);
+  return { ok: true, msg: `Empresa "${nomeEmp}" criada com sucesso!`, empresa: novaEmpresa };
 }
 
 export async function listarComprovantesEmpresa(
