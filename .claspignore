@@ -1,0 +1,9 @@
+saas-app/**
+node_modules/**
+documento/**
+.git/**
+*.md
+*.sql
+*.ico
+*.log
+desktop.ini

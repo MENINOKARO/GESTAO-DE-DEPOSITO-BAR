@@ -984,8 +984,8 @@ function finalizarPedidoCliente(chatId, formaPgto, trocoInfo) {
       PropertiesService.getScriptProperties().setProperty('deliv_chat_' + pedido, String(chatId));
     } catch(eProp) {}
 
-    // 1. Grava na aba DELIVERY com as 11 colunas corretas incluindo ID_PEDIDO
-    del.appendRow([
+    // 1. Grava no topo da aba DELIVERY com as 11 colunas corretas incluindo ID_PEDIDO
+    inserirLinhaPadronizadaNoTopo(del, [
       pedido,            // 1. Pedido
       new Date(),        // 2. Data
       cart.nomeCliente || 'Cliente Telegram', // 3. Cliente
@@ -1007,7 +1007,7 @@ function finalizarPedidoCliente(chatId, formaPgto, trocoInfo) {
     cart.itens.forEach((it, idx) => {
       const sub = Number(it.qtd) * Number(it.preco);
       resumoItens += `• ${it.qtd}x ${it.nome} - R$ ${sub.toFixed(2).replace('.', ',')}\n`;
-      itensSh.appendRow([
+      inserirLinhaPadronizadaNoTopo(itensSh, [
         pedido,
         it.nome,
         Number(it.qtd),
@@ -1383,7 +1383,7 @@ function criarDeliverySimplesTelegram(cliente, formaPgto) {
   const del = typeof garantirEstruturaDelivery === 'function' ? garantirEstruturaDelivery() : ss.getSheetByName('DELIVERY');
   const pedido = typeof gerarNumeroDelivery === 'function' ? gerarNumeroDelivery() : (del.getLastRow() + 1);
   const idPedido = typeof gerarIdVendaDelivery === 'function' ? gerarIdVendaDelivery(pedido) : ('DEL-' + String(pedido).padStart(6, '0'));
-  del.appendRow([
+  inserirLinhaPadronizadaNoTopo(del, [
     pedido,
     new Date(),
     cliente || 'Consumidor',
@@ -1534,7 +1534,7 @@ function salvarItemDeliveryTelegram(pedido, produto, qtd, unit) {
     ]]);
   }
   const totalItem = Number(qtd) * Number(unit);
-  itensSh.appendRow([
+  inserirLinhaPadronizadaNoTopo(itensSh, [
     pedido,
     produto,
     Number(qtd),
@@ -3152,9 +3152,54 @@ function exibirDetalhesComandaTelegram(pedido, chatId, messageId) {
 }
 
 /**
- * Webhook (doPost) - Processamento central de mensagens e botões inline
+ * Webhook (doPost) - Bridge WebApp <-> Planilha & Processamento central Telegram
  */
+let _doPostDepth = 0;
+
 function doPost(e) {
+  let update = null;
+  try {
+    const raw = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+    update = JSON.parse(raw);
+  } catch (parseErr) {}
+
+  if (update && update.action && typeof processarAcaoSyncWebApp === 'function') {
+    return processarAcaoSyncWebApp(update);
+  }
+
+  _doPostDepth++;
+  try {
+    return _executarDoPostTelegram(e);
+  } finally {
+    _doPostDepth = Math.max(0, _doPostDepth - 1);
+    if (_doPostDepth === 0 && update && (update.callback_query || update.message)) {
+      try {
+        const cbData = update.callback_query ? String(update.callback_query.data || '').trim() : '';
+        const msgTxt = update.message && update.message.text ? String(update.message.text).trim() : '';
+        const navApenas =
+          (update.callback_query &&
+            (cbData === 'menu' ||
+              cbData === 'help' ||
+              cbData === 'prod_search_help' ||
+              cbData === 'status' ||
+              cbData === 'estoque')) ||
+          (update.message &&
+            (msgTxt === '/start' ||
+              msgTxt === '/menu' ||
+              msgTxt === '/help' ||
+              msgTxt === '/status' ||
+              msgTxt === '/estoque'));
+        if (!navApenas && typeof sincronizarPlanilhaParaSupabaseSilencioso === 'function') {
+          sincronizarPlanilhaParaSupabaseSilencioso();
+        }
+      } catch (eSyncTg) {
+        console.warn('Aviso auto-sync Telegram -> Supabase:', eSyncTg.message);
+      }
+    }
+  }
+}
+
+function _executarDoPostTelegram(e) {
   try {
     const update = JSON.parse(e.postData.contents);
     
@@ -7462,7 +7507,7 @@ function doGet(e) {
       }
     } catch(eNome) {}
 
-    return HtmlService.createHtmlOutputFromFile('PainelDeposito360')
+    return HtmlService.createHtmlOutputFromFile('Painel360_v2')
       .setTitle('👑 ' + nomeDep + ' - Painel 360° & PDV')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

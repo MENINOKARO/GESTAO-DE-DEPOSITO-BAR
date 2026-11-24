@@ -3,3 +3,9 @@ desktop.ini
 Thumbs.db
 node_modules/
 *.log
+saas-app/node_modules/
+saas-app/dist/
+saas-app/dist-gas/
+saas-app/release/
+saas-app/.env
+saas-app/.env.local

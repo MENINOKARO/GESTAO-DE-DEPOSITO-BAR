@@ -53,10 +53,10 @@ function inserirLinhaPadronizadaNoTopo(sheetOuNome, dados) {
 /**
  * Retorna todos os dados consolidados para o Painel Executivo 360°, PDV e Configurações.
  */
-function obterDadosPainel360() {
+function obterDadosPainel360(unidadeId) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const nomeDeposito = typeof getNomeDeposito === 'function' ? getNomeDeposito() : 'Gestão de Depósito';
+    const ss = obterPlanilhaContexto360(unidadeId);
+    const nomeDeposito = obterNomeDepositoDaPlanilha(ss);
     const spreadsheetUrl = ss.getUrl();
     const spreadsheetId = ss.getId();
 
@@ -82,10 +82,12 @@ function obterDadosPainel360() {
     let totalVendasHoje = 0;
     const rankingVendas = {};
     const ultimasVendas = [];
+    const comandasEmVendasHoje = {};
+    const comandasEmVendasMes = {};
 
     const shVendas = ss.getSheetByName('VENDAS');
     if (shVendas && shVendas.getLastRow() > 1) {
-      const dadosVendas = shVendas.getRange(2, 1, shVendas.getLastRow() - 1, Math.min(shVendas.getLastColumn(), 6)).getValues();
+      const dadosVendas = shVendas.getRange(2, 1, shVendas.getLastRow() - 1, Math.min(shVendas.getLastColumn(), 7)).getValues();
       for (let i = dadosVendas.length - 1; i >= 0; i--) {
         const row = dadosVendas[i];
         const dataVenda = row[0] ? new Date(row[0]) : null;
@@ -94,16 +96,21 @@ function obterDadosPainel360() {
         const valor = Number(row[3]) || 0;
         const pgto = String(row[4] || 'Outro').trim();
         const origem = String(row[5] || 'Balcão').trim();
+        const refCol = String(row[6] || '').trim();
+        const mRef = refCol.match(/^(?:C-0*|#)?(\d+)$/i);
+        const numCmdV = (origem.toUpperCase().includes('COMANDA') && mRef) ? String(Number(mRef[1])) : '';
 
         if (dataVenda && !isNaN(dataVenda.getTime())) {
           // Vendas deste mês
           if (dataVenda.getMonth() === mesAtual && dataVenda.getFullYear() === anoAtual) {
             faturamentoMes += valor;
+            if (numCmdV) comandasEmVendasMes[numCmdV] = true;
           }
           // Vendas de hoje
           if (formatarDataSimples(dataVenda) === hojeStr) {
             faturamentoHoje += valor;
             totalVendasHoje++;
+            if (numCmdV) comandasEmVendasHoje[numCmdV] = true;
           }
         }
 
@@ -127,8 +134,6 @@ function obterDadosPainel360() {
       }
     }
 
-    const ticketMedioHoje = totalVendasHoje > 0 ? (faturamentoHoje / totalVendasHoje) : 0;
-
     // 3. Leitura do CAIXA
     let saldoCaixa = 0;
     let entradasHoje = 0;
@@ -151,11 +156,26 @@ function obterDadosPainel360() {
         const tipo = String(row[1] || '').trim().toUpperCase();
         const valor = Number(row[2]) || 0;
         const forma = String(row[3] || '').trim();
+        const textoCmdCx = String(row[4] || '') + ' ' + String(row[5] || '');
 
         if (tipo === 'ENTRADA') {
           saldoCaixa += valor;
         } else if (tipo === 'SAÍDA' || tipo === 'SAIDA') {
           saldoCaixa -= valor;
+        }
+
+        if (tipo === 'ENTRADA' && dataCaixa && !isNaN(dataCaixa.getTime()) && /comanda/i.test(textoCmdCx)) {
+          const mCx = textoCmdCx.match(/Comanda\s*(?:C-0*)?#?(\d+)/i) || textoCmdCx.match(/#(\d+)/);
+          const numCmdCx = mCx ? String(Number(mCx[1])) : '';
+          if (numCmdCx) {
+            if (formatarDataSimples(dataCaixa) === hojeStr && !comandasEmVendasHoje[numCmdCx]) {
+              faturamentoHoje += valor;
+              totalVendasHoje++;
+            }
+            if (dataCaixa.getMonth() === mesAtual && dataCaixa.getFullYear() === anoAtual && !comandasEmVendasMes[numCmdCx]) {
+              faturamentoMes += valor;
+            }
+          }
         }
 
         // Movimento de hoje
@@ -171,14 +191,20 @@ function obterDadosPainel360() {
       }
     }
 
-    // 3.1 Leitura do Último Fechamento Fiscal para Governança e Alertas
+    const ticketMedioHoje = totalVendasHoje > 0 ? (faturamentoHoje / totalVendasHoje) : 0;
+
+    // 3.1 Leitura do Último Fechamento Fiscal para Governança e Alertas (maior data independente da ordem)
     let ultimoFechamentoFiscal = null;
     const shFiscal = obterAbaFechamentoFiscal(ss);
     if (shFiscal && shFiscal.getLastRow() > 1) {
-      const valFisc = shFiscal.getRange(shFiscal.getLastRow(), 5).getValue() || shFiscal.getRange(shFiscal.getLastRow(), 1).getValue();
-      if (valFisc) {
+      const dFiscAll = shFiscal.getRange(2, 1, shFiscal.getLastRow() - 1, Math.min(shFiscal.getLastColumn(), 5)).getValues();
+      let maxFiscMs = 0;
+      for (let f = 0; f < dFiscAll.length; f++) {
+        const valFisc = dFiscAll[f][4] || dFiscAll[f][0];
+        if (!valFisc) continue;
         const d = valFisc instanceof Date ? valFisc : new Date(valFisc);
-        if (!isNaN(d.getTime())) {
+        if (!isNaN(d.getTime()) && d.getTime() > maxFiscMs) {
+          maxFiscMs = d.getTime();
           ultimoFechamentoFiscal = d.toISOString();
         }
       }
@@ -1240,6 +1266,7 @@ function executarVendaBalcao360(payload) {
       if (typeof supabaseRequest === 'function') {
         try {
           supabaseRequest('vendas', 'POST', {
+            id: 'VN-GAS-' + Utilities.getUuid().slice(0, 12),
             data_hora: agora.toISOString(),
             produto_nome: item.produto,
             quantidade: item.qtd,
@@ -1247,6 +1274,7 @@ function executarVendaBalcao360(payload) {
             valor_total: item.subtotal,
             forma_pagamento: formaPgto,
             origem: 'Balcão',
+            cliente_nome: cliente,
             vendedor: 'Balcão'
           });
         } catch (eSupaVenda) {}
@@ -1293,6 +1321,7 @@ function executarVendaBalcao360(payload) {
         if (typeof supabaseRequest === 'function') {
           try {
             supabaseRequest('caixa', 'POST', {
+              id: 'CX-GAS-' + Utilities.getUuid().slice(0, 12),
               data_hora: agora.toISOString(),
               tipo: 'ENTRADA',
               valor: totalVenda,
@@ -1627,7 +1656,7 @@ function abrirPainelDeposito360Modal() {
     }
   } catch(eSync) {}
 
-  const html = HtmlService.createHtmlOutputFromFile('PainelDeposito360')
+  const html = HtmlService.createHtmlOutputFromFile('Painel360_v2')
     .setWidth(1280)
     .setHeight(780);
   SpreadsheetApp.getUi().showModalDialog(html, '👑 Painel Executivo & PDV 360°');
@@ -1821,11 +1850,11 @@ function autenticarWebPainel(loginOuEmail, senha, lembrar) {
     const token = gerarTokenSessaoWeb(usuarioEncontrado.id);
     const ttlSegundos = lembrar ? (30 * 24 * 3600) : (12 * 3600); // 30 dias ou 12h
 
-    // Grava na aba SESSOES
+    // Grava na aba SESSOES (sempre no topo - linha 2)
     let shSessoes = ss.getSheetByName('SESSOES');
     if (shSessoes) {
       try {
-        shSessoes.appendRow([
+        inserirLinhaPadronizadaNoTopo(shSessoes, [
           token,
           usuarioEncontrado.id,
           agora,
@@ -2054,9 +2083,9 @@ function salvarNovoUsuarioPainel(token, dadosUser) {
     let perfil = String(dadosUser.perfil || 'VENDEDOR').toUpperCase().trim();
     const senha = String(dadosUser.senha).trim();
 
-    // 🛡️ Apenas ADMIN pode cadastrar perfil ADMIN
-    if (caller.perfil !== 'ADMIN' && perfil === 'ADMIN') {
-      return { ok: false, msg: 'Acesso restrito: apenas Administradores podem cadastrar novos Administradores.' };
+    // 🛡️ Regra estrita: existe apenas 1 usuário ADMIN técnico no sistema; ninguém pode criar outro ADMIN
+    if (perfil === 'ADMIN') {
+      return { ok: false, msg: 'Não é permitido criar novos usuários ADMIN. Existe apenas 1 administrador técnico no sistema.' };
     }
 
     // Gerente só pode criar Vendedor
@@ -2555,17 +2584,17 @@ function salvarDadosProduto360(token, payload) {
     // Espelhamento atômico no Supabase
     try {
       if (typeof supabaseUpdate === 'function') {
-        const idNum = Number(String(idFinal).replace(/\D/g, '')) || idFinal;
         supabaseUpdate('produtos', {
           nome: dadosEnvio.produto,
           categoria: dadosEnvio.categoria,
           marca: dadosEnvio.marca,
           volume: dadosEnvio.volume,
-          preco: preco,
-          custo: custo,
+          preco_venda: preco,
+          custo_medio: custo,
           estoque_minimo: minimo,
-          atualizado_em: new Date().toISOString()
-        }, { id: idNum });
+          margem_pct: margem,
+          updated_at: new Date().toISOString()
+        }, { id: String(idFinal) });
       }
     } catch (e) {
       console.warn('Erro ao espelhar produto no Supabase:', e);
@@ -2735,14 +2764,14 @@ function resolverIntervaloFiltroRelatorio(filtros) {
  * 📊 Retorna a prévia consolidada de relatórios para exibição no Modal do Painel 360°,
  * aplicando filtros de período e gerando arquivo PDF corporativo na respectiva pasta do Drive.
  */
-function obterPreviaRelatorio360(token, tipoRelatorio, filtros) {
+function obterPreviaRelatorio360(token, tipoRelatorio, filtros, unidadeId) {
   try {
     const caller = obterUsuarioPorToken(token);
     if (!caller) {
       return { ok: false, msg: 'Sessão expirada. Faça login novamente.' };
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = obterPlanilhaContexto360(unidadeId);
     sincronizarFusoHorarioPlanilha();
     const tipo = String(tipoRelatorio || '').trim();
     const intervalo = resolverIntervaloFiltroRelatorio(filtros);
@@ -3648,13 +3677,12 @@ function obterPreviaFechamentoFiscal(token) {
 
     let ultimoFechamento = null;
     let ultimoFechamentoStr = 'Nenhum fechamento anterior';
-    for (let i = dadosFiscal.length - 1; i >= 1; i--) {
+    for (let i = 1; i < dadosFiscal.length; i++) {
       const val = dadosFiscal[i][4] || dadosFiscal[i][0];
       const d = converterParaDataValida(val);
-      if (d) {
+      if (d && (!ultimoFechamento || d.getTime() > ultimoFechamento.getTime())) {
         ultimoFechamento = d;
         ultimoFechamentoStr = Utilities.formatDate(d, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
-        break;
       }
     }
 
@@ -3818,7 +3846,7 @@ function verificarENotificarFechamentoFiscalAtrasado() {
 /**
  * Retorna dados consolidados de Contas a Pagar e Contas a Receber para o Painel 360°
  */
-function obterDadosFinanceiroObrigacoes360(token) {
+function obterDadosFinanceiroObrigacoes360(token, unidadeId) {
   try {
     const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
     const perfil = caller ? String(caller.perfil || '').toUpperCase() : '';
@@ -3826,7 +3854,7 @@ function obterDadosFinanceiroObrigacoes360(token) {
       return { sucesso: false, erro: 'Acesso restrito ao Dono e Gerência.' };
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = obterPlanilhaContexto360(unidadeId);
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
@@ -4269,16 +4297,313 @@ function receberFiadoCliente360(token, idFiado, valorRecebido, formaPgto) {
  * Endpoint para sincronizar pasta raiz e arquivos da empresa a partir do Painel 360
  */
 function sincronizarPastaRaizEmpresa360(token) {
-  const auth = validarSessaoOuErro(token);
-  if (!auth.ok) return { sucesso: false, erro: auth.erro };
+  const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+  if (token && !caller) {
+    return { sucesso: false, erro: 'Sessão inválida ou expirada.' };
+  }
   try {
+    let resDrive = null;
+    let resReorg = null;
     if (typeof sincronizarArquivosEPastaRaizEmpresa === 'function') {
-      const res = sincronizarArquivosEPastaRaizEmpresa();
-      return { sucesso: true, dados: res };
+      resDrive = sincronizarArquivosEPastaRaizEmpresa();
     }
-    return { sucesso: false, erro: 'Função de sincronização não carregada.' };
+    if (typeof reorganizarRelatoriosPastasCorretas === 'function') {
+      resReorg = reorganizarRelatoriosPastasCorretas();
+    }
+    return { sucesso: true, dados: resDrive, reorganizacao: resReorg };
   } catch(e) {
     console.error('Erro em sincronizarPastaRaizEmpresa360:', e);
     return { sucesso: false, erro: e.message };
+  }
+}
+
+/**
+ * 🏢 Resolve qual Spreadsheet abrir com base na unidade selecionada no Dashboard
+ * (Matriz padrão ou Filial cadastrada na aba UNIDADES_REDE)
+ */
+function obterPlanilhaContexto360(unidadeId) {
+  const ssMatriz = SpreadsheetApp.getActiveSpreadsheet();
+  const idAlvo = String(unidadeId || '').trim();
+  if (!idAlvo || idAlvo === 'MATRIZ' || idAlvo === ssMatriz.getId()) {
+    return ssMatriz;
+  }
+
+  // Verifica cache rápido para evitar leitura repetida de UNIDADES_REDE
+  try {
+    const cache = CacheService.getScriptCache();
+    const cachedSheetId = cache.get('UNIDADE_SHEET_' + idAlvo);
+    if (cachedSheetId) {
+      return (cachedSheetId === ssMatriz.getId()) ? ssMatriz : SpreadsheetApp.openById(cachedSheetId);
+    }
+  } catch(eC) {}
+
+  try {
+    const aba = ssMatriz.getSheetByName('UNIDADES_REDE');
+    if (aba && aba.getLastRow() > 1) {
+      const dados = aba.getDataRange().getValues();
+      for (let i = 1; i < dados.length; i++) {
+        const uid = String(dados[i][0] || '').trim();
+        const planId = String(dados[i][3] || '').trim();
+        const status = String(dados[i][6] || 'ATIVA').trim().toUpperCase();
+        if ((uid === idAlvo || planId === idAlvo) && status === 'ATIVA' && planId) {
+          try { CacheService.getScriptCache().put('UNIDADE_SHEET_' + idAlvo, planId, 300); } catch(eP) {}
+          return (planId === ssMatriz.getId()) ? ssMatriz : SpreadsheetApp.openById(planId);
+        }
+      }
+    }
+  } catch(eOpen) {
+    console.warn('Aviso ao abrir planilha da unidade ' + idAlvo + ':', eOpen.message);
+  }
+
+  return ssMatriz;
+}
+
+/**
+ * 🏷️ Lê o nome da empresa/unidade diretamente da aba CONFIG da planilha informada
+ */
+function obterNomeDepositoDaPlanilha(ss) {
+  try {
+    const abaCfg = ss ? ss.getSheetByName('CONFIG') : null;
+    if (abaCfg && abaCfg.getLastRow() > 1) {
+      const dados = abaCfg.getDataRange().getValues();
+      for (let i = 1; i < dados.length; i++) {
+        if (String(dados[i][0] || '').trim().toUpperCase() === 'NOME_DEPOSITO') {
+          const val = String(dados[i][1] || '').trim();
+          if (val) return val;
+        }
+      }
+    }
+  } catch(e) {}
+  return (typeof getNomeDeposito === 'function') ? getNomeDeposito() : 'Gestão de Negócios';
+}
+
+/**
+ * 🏢 Lista todas as unidades da rede (Matriz + Filiais) para o Seletor do Dashboard.
+ * O seletor só será exibido no front-end se temFiliais === true (unidades.length > 1).
+ */
+function listarUnidadesRede360(token) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    if (!caller) {
+      return { ok: false, sucesso: false, unidades: [], temFiliais: false, msg: 'Sessão inválida.' };
+    }
+
+    const perfil = String(caller.perfil || '').toUpperCase().trim();
+    const loginNorm = String(caller.login || caller.nome || '').toLowerCase().trim();
+    const podeAlternar = (perfil === 'ADMIN' || perfil === 'DONO' || loginNorm === 'admin' || loginNorm === 'administrador');
+
+    if (!podeAlternar) {
+      return { ok: true, sucesso: true, unidades: [], temFiliais: false };
+    }
+
+    const ssMatriz = SpreadsheetApp.getActiveSpreadsheet();
+    const aba = ssMatriz.getSheetByName('UNIDADES_REDE');
+    if (!aba || aba.getLastRow() <= 1) {
+      return { ok: true, sucesso: true, unidades: [], temFiliais: false };
+    }
+
+    const dados = aba.getDataRange().getValues();
+    const unidades = [];
+    for (let i = 1; i < dados.length; i++) {
+      const id = String(dados[i][0] || '').trim();
+      const nome = String(dados[i][1] || '').trim();
+      const tipo = String(dados[i][2] || 'FILIAL').trim().toUpperCase();
+      const planilhaId = String(dados[i][3] || '').trim();
+      const pastaUrl = String(dados[i][4] || '').trim();
+      const status = String(dados[i][6] || 'ATIVA').trim().toUpperCase();
+      if (!id || !planilhaId || status !== 'ATIVA') continue;
+      unidades.push({
+        id: id,
+        nome: nome || (tipo === 'MATRIZ' ? 'Matriz' : 'Filial'),
+        tipo: tipo,
+        planilhaId: planilhaId,
+        pastaUrl: pastaUrl,
+        ehMatriz: (tipo === 'MATRIZ' || planilhaId === ssMatriz.getId())
+      });
+    }
+
+    return {
+      ok: true,
+      sucesso: true,
+      unidades: unidades,
+      temFiliais: unidades.length > 1
+    };
+  } catch(e) {
+    console.error('Erro em listarUnidadesRede360:', e);
+    return { ok: false, sucesso: false, unidades: [], temFiliais: false, erro: e.message };
+  }
+}
+
+/**
+ * 📦 Endpoint protegido com RBAC estrito para Replicação:
+ * - FILIAL: permitido para DONO e ADMIN
+ * - NOVA_EMPRESA: exclusivo do ADMIN técnico único
+ */
+function replicarEmpresaOuFilial360(token, payload) {
+  try {
+    const caller = (typeof obterUsuarioPorToken === 'function') ? obterUsuarioPorToken(token) : null;
+    if (!caller) {
+      return { ok: false, sucesso: false, msg: 'Sessão expirada. Faça login novamente.' };
+    }
+
+    const perfil = String(caller.perfil || '').toUpperCase().trim();
+    const loginNorm = String(caller.login || caller.nome || '').toLowerCase().trim();
+    const isAdmin = (perfil === 'ADMIN' || loginNorm === 'admin' || loginNorm === 'administrador');
+    const isDono = (perfil === 'DONO' || isAdmin);
+
+    const tipo = (payload && String(payload.tipo || '').toUpperCase().trim() === 'NOVA_EMPRESA')
+      ? 'NOVA_EMPRESA'
+      : 'FILIAL';
+
+    if (tipo === 'NOVA_EMPRESA' && !isAdmin) {
+      return { ok: false, sucesso: false, msg: 'Apenas o Administrador Técnico pode criar uma Nova Empresa independente.' };
+    }
+    if (tipo === 'FILIAL' && !isDono) {
+      return { ok: false, sucesso: false, msg: 'Apenas o Dono da empresa ou o Administrador podem criar uma Nova Filial.' };
+    }
+
+    const nome = payload && payload.nome ? String(payload.nome).trim() : '';
+    if (!nome) {
+      return { ok: false, sucesso: false, msg: 'Informe o nome da nova empresa ou filial.' };
+    }
+
+    const manterProdutos = (tipo === 'FILIAL') ? Boolean(payload.manterProdutos) : false;
+    const manterClientes = (tipo === 'FILIAL') ? Boolean(payload.manterClientes) : false;
+    const pastaDestino = payload && payload.pastaDestino ? String(payload.pastaDestino).trim() : '';
+
+    if (typeof executarReplicacaoPlanilhaVirgem !== 'function') {
+      return { ok: false, sucesso: false, msg: 'Função executarReplicacaoPlanilhaVirgem não carregada.' };
+    }
+
+    const res = executarReplicacaoPlanilhaVirgem(nome, manterProdutos, tipo, manterClientes, pastaDestino);
+    if (res && (res.ok || res.sucesso)) {
+      const lista = listarUnidadesRede360(token);
+      res.unidades = lista.unidades || [];
+      res.temFiliais = Boolean(lista.temFiliais);
+      res.sucesso = true;
+      res.ok = true;
+    }
+    return res;
+  } catch(e) {
+    console.error('Erro em replicarEmpresaOuFilial360:', e);
+    return { ok: false, sucesso: false, msg: 'Erro ao replicar: ' + e.message };
+  }
+}
+
+/**
+ * 🌟 Verifica se esta é uma Nova Empresa aguardando cadastro inicial do DONO (Boas-Vindas)
+ */
+function verificarSetupInicial360() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const abaCfg = ss.getSheetByName('CONFIG');
+    let setupConcluido = 'SIM';
+    let nomeEmpresa = '';
+    if (abaCfg && abaCfg.getLastRow() > 1) {
+      const cfgs = abaCfg.getDataRange().getValues();
+      for (let i = 1; i < cfgs.length; i++) {
+        const k = String(cfgs[i][0] || '').trim().toUpperCase();
+        if (k === 'SETUP_CONCLUIDO') setupConcluido = String(cfgs[i][1] || 'SIM').trim().toUpperCase();
+        if (k === 'NOME_DEPOSITO') nomeEmpresa = String(cfgs[i][1] || '').trim();
+      }
+    }
+
+    // Verifica se já existe algum usuário com perfil DONO cadastrado
+    let temDono = false;
+    const abaUsers = ss.getSheetByName('USUARIOS');
+    if (abaUsers && abaUsers.getLastRow() > 1) {
+      const rows = abaUsers.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        const perf = String(rows[i][4] || '').trim().toUpperCase();
+        const ativo = String(rows[i][5] || '').trim().toUpperCase();
+        if (perf === 'DONO' && ativo === 'SIM') {
+          temDono = true;
+          break;
+        }
+      }
+    }
+
+    return {
+      ok: true,
+      precisaSetupDono: (setupConcluido === 'NAO' && !temDono),
+      nomeEmpresa: nomeEmpresa
+    };
+  } catch(e) {
+    return { ok: false, precisaSetupDono: false };
+  }
+}
+
+/**
+ * 🌟 Conclui as Boas-Vindas de uma Nova Empresa:
+ * Salva os dados da empresa e cria o usuário DONO escolhido pelo cliente (nunca cria ADMIN).
+ */
+function concluirSetupBoasVindas360(payload) {
+  try {
+    const status = verificarSetupInicial360();
+    if (!status.precisaSetupDono) {
+      return { ok: false, msg: 'O cadastro inicial desta empresa já foi concluído.' };
+    }
+
+    const nomeEmpresa = String(payload && payload.nomeEmpresa || '').trim();
+    const nomeDono = String(payload && payload.nomeDono || '').trim();
+    const emailDono = String(payload && payload.emailDono || '').trim().toLowerCase();
+    const senhaDono = String(payload && payload.senhaDono || '').trim();
+
+    if (!nomeEmpresa || !nomeDono || !senhaDono || senhaDono.length < 4) {
+      return { ok: false, msg: 'Preencha nome da empresa, nome do responsável e senha (mínimo 4 caracteres).' };
+    }
+    if (nomeDono.toLowerCase() === 'admin' || nomeDono.toLowerCase() === 'administrador') {
+      return { ok: false, msg: 'Este nome de usuário é reservado ao sistema. Escolha outro login para o Dono.' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const abaCfg = ss.getSheetByName('CONFIG');
+    if (abaCfg && abaCfg.getLastRow() > 1) {
+      const cfgs = abaCfg.getDataRange().getValues();
+      let achouNome = false;
+      let achouDono = false;
+      let achouSetup = false;
+      for (let i = 1; i < cfgs.length; i++) {
+        const k = String(cfgs[i][0] || '').trim().toUpperCase();
+        if (k === 'NOME_DEPOSITO') { abaCfg.getRange(i + 1, 2).setValue(nomeEmpresa); achouNome = true; }
+        if (k === 'DONO') { abaCfg.getRange(i + 1, 2).setValue(nomeDono); achouDono = true; }
+        if (k === 'SETUP_CONCLUIDO') { abaCfg.getRange(i + 1, 2).setValue('SIM'); achouSetup = true; }
+      }
+      if (!achouNome) abaCfg.appendRow(['NOME_DEPOSITO', nomeEmpresa, 'Nome da Empresa']);
+      if (!achouDono) abaCfg.appendRow(['DONO', nomeDono, 'Responsável / Dono']);
+      if (!achouSetup) abaCfg.appendRow(['SETUP_CONCLUIDO', 'SIM', 'Cadastro inicial concluído']);
+    }
+
+    const abaUsers = ss.getSheetByName('USUARIOS');
+    if (!abaUsers) {
+      return { ok: false, msg: 'Aba USUARIOS não encontrada.' };
+    }
+
+    const agora = new Date();
+    const idDono = 'U-DONO-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const hashSenha = (typeof gerarHashSenha === 'function') ? gerarHashSenha(senhaDono) : senhaDono;
+    abaUsers.appendRow([
+      idDono,
+      nomeDono,
+      emailDono || (nomeDono.toLowerCase().replace(/\s+/g, '.') + '@empresa.local'),
+      hashSenha,
+      'DONO',
+      'SIM',
+      agora,
+      agora,
+      ''
+    ]);
+
+    SpreadsheetApp.flush();
+
+    // Já autentica automaticamente o novo DONO e devolve a sessão ativa
+    if (typeof autenticarWebPainel === 'function') {
+      return autenticarWebPainel(emailDono || nomeDono, senhaDono, true);
+    }
+
+    return { ok: true, msg: 'Cadastro concluído com sucesso! Faça login com suas novas credenciais.' };
+  } catch(e) {
+    console.error('Erro em concluirSetupBoasVindas360:', e);
+    return { ok: false, msg: 'Erro ao concluir cadastro: ' + e.message };
   }
 }

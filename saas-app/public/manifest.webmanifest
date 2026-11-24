@@ -1,0 +1,18 @@
+{
+  "name": "Gestão de Negócios 360°",
+  "short_name": "Negócios 360°",
+  "description": "Plataforma multimodal de gestão para o seu negócio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050812",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

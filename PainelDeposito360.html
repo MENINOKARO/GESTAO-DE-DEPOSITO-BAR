@@ -285,39 +285,94 @@
     .kpi-val.yellow { color: #fbbf24; }
     .kpi-val.red { color: #f87171; }
 
-    /* TABS */
+    /* WORKSPACE & SIDEBAR TABS (ESPELHO DO PAINEL WEB) */
+    .workspace-shell {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      flex: 1;
+      min-height: 0;
+    }
+
     .tabs-bar {
       display: flex;
-      gap: 8px;
-      margin-bottom: 22px;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      position: sticky;
+      top: 12px;
       flex-shrink: 0;
     }
 
+    .nav-section-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      padding: 8px 10px 3px;
+      margin-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .nav-section-label:first-child {
+      margin-top: 0;
+      padding-top: 2px;
+      border-top: none;
+    }
+
     .tab-btn {
-      background: var(--bg-surface);
+      background: transparent;
       color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 9px 18px;
-      border-radius: 10px;
+      border: 1px solid transparent;
+      width: 100%;
+      text-align: left;
+      padding: 10px 13px;
+      border-radius: 12px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
+      gap: 10px;
+      transition: all 0.18s;
     }
 
     .tab-btn:hover {
       color: var(--text-main);
-      background: var(--bg-card);
+      background: rgba(30, 41, 59, 0.7);
+      border-color: rgba(139, 92, 246, 0.35);
     }
 
     .tab-btn.active {
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.15));
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.92), rgba(79, 70, 229, 0.92));
       color: #fff;
-      border-color: var(--primary);
-      box-shadow: 0 2px 10px var(--primary-glow);
+      border-color: rgba(167, 139, 250, 0.6);
+      box-shadow: 0 6px 20px rgba(124, 58, 237, 0.3);
+    }
+
+    @media (max-width: 960px) {
+      .workspace-shell {
+        grid-template-columns: 1fr;
+      }
+      .tabs-bar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        position: static;
+      }
+      .nav-section-label {
+        flex-basis: 100%;
+        margin-top: 4px;
+        padding: 6px 6px 2px;
+      }
+      .tab-btn {
+        width: auto;
+        padding: 9px 13px;
+      }
     }
 
     .tab-badge {
@@ -1387,67 +1442,99 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: radial-gradient(circle at center, #1e1b4b 0%, #090d16 100%);
+      background:
+        radial-gradient(circle at 18% 20%, rgba(139, 92, 246, 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 82% 80%, rgba(59, 130, 246, 0.14) 0%, transparent 48%),
+        linear-gradient(160deg, #0b1120 0%, #050812 100%);
       z-index: 99999;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      backdrop-filter: blur(12px);
+      padding: 24px;
+      backdrop-filter: blur(14px);
     }
 
     .login-card {
-      background: #0f172a;
-      border: 1px solid rgba(139, 92, 246, 0.35);
-      border-radius: 20px;
-      padding: 36px 32px;
-      max-width: 440px;
+      position: relative;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 22px;
+      padding: 40px 34px 30px 34px;
+      max-width: 420px;
       width: 100%;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 40px rgba(139, 92, 246, 0.2);
-      animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow:
+        0 28px 64px rgba(0, 0, 0, 0.72),
+        0 0 0 1px rgba(139, 92, 246, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      animation: zoomIn 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.85), rgba(59, 130, 246, 0.85), transparent);
     }
 
     @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.94); }
-      to { opacity: 1; transform: scale(1); }
+      from { opacity: 0; transform: translateY(10px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     .login-brand {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
     }
 
     .login-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 18px;
-      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 30px;
-      box-shadow: 0 8px 24px var(--primary-glow);
-      margin-bottom: 12px;
+      color: #ffffff;
+      box-shadow: 0 10px 28px rgba(124, 58, 237, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      margin-bottom: 16px;
     }
 
     .login-brand h2 {
-      font-size: 22px;
+      font-size: 23px;
       font-weight: 800;
       color: #f8fafc;
-      letter-spacing: -0.5px;
+      letter-spacing: -0.6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 0;
     }
 
-    .login-badge-360 {
-      display: inline-block;
-      margin-top: 6px;
+    .login-pill-360 {
       font-size: 11px;
       font-weight: 800;
-      padding: 3px 10px;
-      border-radius: 20px;
-      background: rgba(139, 92, 246, 0.18);
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: rgba(139, 92, 246, 0.16);
       color: #c4b5fd;
-      border: 1px solid rgba(139, 92, 246, 0.4);
-      letter-spacing: 0.8px;
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      letter-spacing: 0.4px;
+      vertical-align: middle;
+    }
+
+    .login-subtitle {
+      margin: 8px auto 0 auto;
+      max-width: 310px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #94a3b8;
+      font-weight: 400;
     }
 
     .login-alert {
@@ -1480,30 +1567,34 @@
 
     .login-input-group label {
       display: block;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: #94a3b8;
-      margin-bottom: 6px;
+      margin-bottom: 7px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.7px;
     }
 
     .login-input {
       width: 100%;
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(71, 85, 105, 0.65);
       color: #f8fafc;
-      padding: 12px 14px;
-      border-radius: 10px;
+      padding: 13px 15px;
+      border-radius: 12px;
       font-size: 14px;
       outline: none;
-      transition: all 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .login-input::placeholder {
+      color: #64748b;
     }
 
     .login-input:focus {
       border-color: #8b5cf6;
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
-      background: #243047;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.22);
+      background: rgba(30, 41, 59, 0.98);
     }
 
     .btn-toggle-pass {
@@ -1514,31 +1605,44 @@
       background: none;
       border: none;
       color: #94a3b8;
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
+      padding: 4px;
+      opacity: 0.75;
+      transition: opacity 0.15s;
+    }
+
+    .btn-toggle-pass:hover {
+      opacity: 1;
     }
 
     .btn-login-submit {
       width: 100%;
-      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-      color: white;
+      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+      color: #ffffff;
       border: none;
       padding: 14px;
       border-radius: 12px;
       font-size: 15px;
       font-weight: 700;
+      letter-spacing: 0.2px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-      transition: all 0.2s;
+      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.38);
+      transition: transform 0.18s, box-shadow 0.18s, filter 0.18s;
     }
 
     .btn-login-submit:hover {
-      filter: brightness(1.1);
+      filter: brightness(1.08);
       transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.48);
+    }
+
+    .btn-login-submit:active {
+      transform: translateY(0);
     }
 
     .login-spinner {
@@ -1551,10 +1655,16 @@
     }
 
     .login-footer {
-      margin-top: 20px;
-      font-size: 11px;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      font-size: 12px;
       color: #64748b;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      letter-spacing: 0.2px;
     }
 
     /* HEADER USER PILL */
@@ -1632,42 +1742,81 @@
   <div id="overlayLogin" class="login-backdrop" style="display: flex;">
     <div class="login-card">
       <div class="login-brand">
-        <div class="login-icon">👑</div>
-        <h2 id="loginBrandTitle">Gestão de Depósito</h2>
-        <div class="login-badge-360">ACESSO RESTRITO & PDV 360°</div>
+        <div class="login-icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h2 id="loginBrandTitle">Gestão de Negócios <span class="login-pill-360">360°</span></h2>
+        </div>
+        <p class="login-subtitle">Plataforma multimodal de gestão para o seu negócio</p>
       </div>
 
       <div id="loginAlertBox" class="login-alert" style="display: none;"></div>
 
-      <form id="formLoginWeb" onsubmit="executarLoginWeb(event)">
+      <form id="formLoginWeb" onsubmit="executarLoginWeb(event); return false;">
         <div class="login-input-group">
-          <label for="loginUsuarioInput">👤 Usuário ou E-mail</label>
-          <input type="text" id="loginUsuarioInput" class="login-input" placeholder="Ex: admin ou seu_usuario" autocomplete="username" required>
+          <label for="loginUsuarioInput">Usuário</label>
+          <input type="text" id="loginUsuarioInput" class="login-input" placeholder="Usuário" autocomplete="username" required>
         </div>
 
         <div class="login-input-group">
-          <label for="loginSenhaInput">🔑 Senha de Acesso</label>
+          <label for="loginSenhaInput">Senha</label>
           <div style="position: relative;">
-            <input type="password" id="loginSenhaInput" class="login-input" placeholder="Digite sua senha" autocomplete="current-password" required style="padding-right: 42px;">
+            <input type="password" id="loginSenhaInput" class="login-input" placeholder="Senha" autocomplete="current-password" required style="padding-right: 42px;">
             <button type="button" class="btn-toggle-pass" onclick="alternarVisibilidadeSenhaLogin()" tabindex="-1" title="Ver / Ocultar Senha">👁️</button>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0 20px 0; font-size: 13px; color: var(--text-muted);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0 22px 0; font-size: 13px; color: #94a3b8;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="loginLembrarCheckbox" checked style="accent-color: var(--primary); width: 16px; height: 16px;">
-            <span>Manter conectado neste aparelho</span>
+            <input type="checkbox" id="loginLembrarCheckbox" checked style="accent-color: #7c3aed; width: 16px; height: 16px;">
+            <span>Manter conectado</span>
           </label>
         </div>
 
         <button type="submit" id="btnLoginSubmit" class="btn-login-submit">
-          <span id="btnLoginText">Entrar no Sistema 🚀</span>
+          <span id="btnLoginText">Acessar Painel</span>
           <span id="btnLoginSpinner" class="login-spinner" style="display: none;"></span>
         </button>
       </form>
 
+      <!-- 🌟 BOAS-VINDAS / CADASTRO INICIAL DO DONO (EXCLUSIVO PARA NOVA EMPRESA) -->
+      <form id="formSetupBoasVindas" onsubmit="executarSetupBoasVindas(event); return false;" style="display: none;">
+        <div style="background: rgba(124, 58, 237, 0.14); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 12px; color: #ddd6fe; line-height: 1.45;">
+          <strong>Bem-vindo!</strong> Cadastre os dados iniciais da sua empresa e crie seu acesso de <strong>Dono</strong> para começar.
+        </div>
+        <div class="login-input-group">
+          <label for="setupNomeEmpresa">Nome da Empresa</label>
+          <input type="text" id="setupNomeEmpresa" class="login-input" placeholder="Ex: Minha Empresa" required>
+        </div>
+        <div class="login-input-group">
+          <label for="setupNomeDono">Usuário do Dono</label>
+          <input type="text" id="setupNomeDono" class="login-input" placeholder="Usuário" required>
+        </div>
+        <div class="login-input-group">
+          <label for="setupEmailDono">E-mail (opcional)</label>
+          <input type="email" id="setupEmailDono" class="login-input" placeholder="contato@suaempresa.com">
+        </div>
+        <div class="login-input-group">
+          <label for="setupSenhaDono">Senha de Acesso</label>
+          <input type="password" id="setupSenhaDono" class="login-input" placeholder="Mínimo 4 caracteres" minlength="4" required>
+        </div>
+        <button type="submit" id="btnSetupSubmit" class="btn-login-submit">
+          <span id="btnSetupText">Concluir Cadastro e Acessar</span>
+          <span id="btnSetupSpinner" class="login-spinner" style="display: none;"></span>
+        </button>
+      </form>
+
       <div class="login-footer">
-        🔒 Acesso seguro criptografado com SHA-256 e sessões gerenciadas.
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>Acesso seguro</span>
       </div>
     </div>
   </div>
@@ -1684,7 +1833,7 @@
       <div class="brand-icon">📦</div>
       <div>
         <div class="brand-title">
-          <span id="nomeDepositoTitle">Gestão de Depósito</span>
+          <span id="nomeDepositoTitle">Gestão de Negócios</span>
           <span class="badge-360">PANORAMA 360°</span>
         </div>
         <div class="brand-sub">Terminal Executivo de Controle, Estoque & PDV Inteligente</div>
@@ -1692,6 +1841,13 @@
     </div>
 
     <div class="header-actions">
+      <!-- 🏢 SELETOR DE EMPRESAS / FILIAIS (SÓ APARECE SE HOUVER PELO MENOS 1 FILIAL CADASTRADA) -->
+      <div id="containerSeletorUnidade" style="display: none; align-items: center; gap: 6px; background: rgba(124, 58, 237, 0.16); border: 1px solid rgba(139, 92, 246, 0.45); border-radius: 10px; padding: 4px 10px;">
+        <span style="font-size: 13px;" title="Unidade Ativa">🏢</span>
+        <select id="selectUnidadeAtiva" onchange="trocarUnidadeAtiva(this.value)" style="background: transparent; color: #f8fafc; border: none; outline: none; font-size: 12px; font-weight: 700; cursor: pointer; max-width: 190px;">
+        </select>
+      </div>
+
       <!-- BOTÃO DE OBRIGAÇÕES FINANCEIRAS PENDENTES (DONO / GERENTE / ADMIN - SÓ EXIBE SE HOUVER PENDÊNCIAS) -->
       <button id="btnHeaderFinanceiro" class="btn-action" style="display: none; background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5;" onclick="trocarAba('tabFinanceiro')" title="Ver Obrigações a Pagar e Fiados a Receber">
         <span>🪙</span> Obrigações (<span id="headerObrigacoesCount">0</span>)
@@ -1754,10 +1910,12 @@
     </div>
   </section>
 
-  <!-- NAVIGATION TABS -->
+  <!-- WORKSPACE LATERAL + VIEWPORT -->
+  <div class="workspace-shell">
   <nav class="tabs-bar">
+    <div class="nav-section-label">Vendas &amp; Atendimento</div>
     <button class="tab-btn active" id="btnTabPdv" onclick="trocarAba('tabPdv')">
-      <span>⚡</span> PDV Balcão (Caixa Rápido)
+      <span>⚡</span> PDV Balcão
     </button>
     <button class="tab-btn" id="btnTabComandas" onclick="trocarAba('tabComandas')">
       <span>🧾</span> Comandas Balcão <span class="tab-badge" id="tabComandasBadge" style="background:#f59e0b; color:#000;">0</span>
@@ -1765,24 +1923,29 @@
     <button class="tab-btn" id="btnTabDelivery" onclick="trocarAba('tabDelivery')">
       <span>🛵</span> Módulo Delivery <span class="tab-badge" id="tabDelBadge">0</span>
     </button>
+
+    <div class="nav-section-label">Gestão &amp; Financeiro</div>
     <button class="tab-btn" id="btnTabVisao360" onclick="trocarAba('tabVisao360')">
       <span>📊</span> Panorama 360°
     </button>
     <button class="tab-btn" id="btnTabEstoque" onclick="trocarAba('tabEstoque')">
-      <span>📦</span> Estoque & Preços
+      <span>📦</span> Estoque &amp; Preços
     </button>
-    <!-- BOTÕES DE GESTÃO: FINANCEIRO, EQUIPE, PAINEL INTELIGENTE E CONFIGURAÇÃO -->
     <button class="tab-btn" id="btnTabFinanceiro" onclick="trocarAba('tabFinanceiro')" style="display: none;">
-      <span>🪙</span> Financeiro & Obrigações <span class="tab-badge" id="tabFinanceiroBadge" style="background:#ef4444; color:#fff; display:none;">0</span>
+      <span>🪙</span> Financeiro &amp; Obrigações <span class="tab-badge" id="tabFinanceiroBadge" style="background:#ef4444; color:#fff; display:none;">0</span>
     </button>
-    <button class="tab-btn" id="btnTabEquipe" onclick="trocarAba('tabEquipe')" style="display: none;">
-      <span>👥</span> Equipe
-    </button>
+
+    <div class="nav-section-label">Controle &amp; Fechamento</div>
     <button class="tab-btn" id="btnTabInteligente" onclick="trocarAba('tabPainelInteligente')">
       <span>🧠</span> Painel Inteligente
     </button>
+
+    <div class="nav-section-label">Administração</div>
+    <button class="tab-btn" id="btnTabEquipe" onclick="trocarAba('tabEquipe')" style="display: none;">
+      <span>👥</span> Equipe
+    </button>
     <button class="tab-btn" id="btnTabConfig" onclick="trocarAba('tabConfig')">
-      <span>⚙️</span> Config
+      <span>⚙️</span> Configuração
     </button>
   </nav>
 
@@ -2370,16 +2533,16 @@
             <span>💾</span> Salvar Configurações Gerais
           </button>
 
-          <!-- SEÇÃO EXCLUSIVA DO ADMINISTRADOR TÉCNICO (LOGIN 'admin') -->
+          <!-- SEÇÃO DE EXPANSÃO / REPLICAÇÃO (DONO: CRIAR FILIAL | ADMIN: CRIAR FILIAL OU NOVA EMPRESA) -->
           <div id="secaoAdminReplicacao" style="display: none; margin-top: 24px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.15);">
             <div class="config-section-title" style="color: #a78bfa; font-size: 13px; margin-bottom: 8px;">
-              <span>🛠️</span> Painel Técnico do Administrador
+              <span>🏢</span> <span id="tituloSecaoReplicacao">Expansão de Rede & Replicação</span>
             </div>
-            <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px; line-height: 1.4;">
-              Recurso exclusivo do suporte/admin para criar uma nova empresa limpa ou nova filial mantendo catálogo.
+            <p id="descSecaoReplicacao" style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px; line-height: 1.4;">
+              Crie novas filiais vinculadas ao seu painel ou replique o ambiente para uma nova empresa.
             </p>
             <button type="button" class="btn-action" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; width: 100%; justify-content: center; padding: 10px; font-weight: 700;" onclick="abrirModalReplicarEmpresa()">
-              <span>📦</span> Replicar Nova Empresa / Planilha Virgem
+              <span>📦</span> <span id="btnTextoReplicacao">Criar Nova Filial / Replicar</span>
             </button>
           </div>
         </div>
@@ -2676,6 +2839,7 @@
     </div>
 
   </main>
+  </div>
 
   <!-- MODAL: DETALHES COMPLETOS DA COMANDA BALCÃO (ITENS CONSUMIDOS, ADIÇÃO & EXCLUSÃO DONO) -->
   <div id="modalDetalhesComanda" class="modal-backdrop" style="display: none;">
@@ -3518,6 +3682,8 @@
     let USUARIO_LOGADO = null;
     let DIALOG_HARMONIZADO_CALLBACK = null;
     let RELATORIO_ATUAL_DADOS = null;
+    let UNIDADE_ATIVA_ID = 'MATRIZ';
+    let UNIDADES_REDE = [];
 
     // ========================================================
     // 🔢 HELPERS DE STEPPER (+ / -)
@@ -3614,7 +3780,7 @@
           esconderLoader();
           showToast('Erro ao obter relatório: ' + err.message, 'error');
         })
-        .obterPreviaRelatorio360(TOKEN_SESSAO, TIPO_RELATORIO_ATUAL, FILTROS_RELATORIO_ATUAL);
+        .obterPreviaRelatorio360(TOKEN_SESSAO, TIPO_RELATORIO_ATUAL, FILTROS_RELATORIO_ATUAL, UNIDADE_ATIVA_ID);
     }
 
     function alterarModoFiltroRelatorio() {
@@ -3815,7 +3981,7 @@
           showToast('✅ Link do PDF copiado! Abrindo WhatsApp...', 'success');
         }).catch(() => {});
       }
-      const urlZap = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoZap)}`;
+      const urlZap = 'https:' + '/' + '/api.whatsapp.com/send?text=' + encodeURIComponent(textoZap);
       window.open(urlZap, '_blank');
     }
 
@@ -4133,10 +4299,11 @@
               TOKEN_SESSAO = token;
               USUARIO_LOGADO = res.usuario;
               document.getElementById('overlayLogin').style.display = 'none';
-              atualizarHeaderUsuario(res.usuario);
-              aplicarPermissoesPerfil(res.usuario);
-              sincronizarPainel();
-              try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eSync) {}
+              try { atualizarHeaderUsuario(res.usuario); } catch(eHead) { console.warn('Erro header:', eHead); }
+              try { aplicarPermissoesPerfil(res.usuario); } catch(ePerm) { console.warn('Erro permissoes:', ePerm); }
+              try { carregarUnidadesRede(); } catch(eUni) {}
+              try { sincronizarPainel(); } catch(eSync) { console.warn('Erro sincronizarPainel:', eSync); }
+              try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eDrive) {}
             } else {
               localStorage.removeItem('deposito360_token');
               sessionStorage.removeItem('deposito360_token');
@@ -4156,75 +4323,234 @@
 
     function exibirOverlayLogin() {
       document.getElementById('overlayLogin').style.display = 'flex';
+      const formLogin = document.getElementById('formLoginWeb');
+      const formSetup = document.getElementById('formSetupBoasVindas');
+      if (formLogin) formLogin.style.display = 'block';
+      if (formSetup) formSetup.style.display = 'none';
+
+      // Verifica se é uma Nova Empresa aguardando cadastro inicial do Dono (Boas-Vindas)
+      try {
+        google.script.run
+          .withSuccessHandler(st => {
+            if (st && st.precisaSetupDono && formLogin && formSetup) {
+              formLogin.style.display = 'none';
+              formSetup.style.display = 'block';
+              const inpEmp = document.getElementById('setupNomeEmpresa');
+              if (inpEmp && st.nomeEmpresa) inpEmp.value = st.nomeEmpresa;
+              if (inpEmp) inpEmp.focus();
+            }
+          })
+          .verificarSetupInicial360();
+      } catch(eSetup) {}
+
       setTimeout(() => {
         const inp = document.getElementById('loginUsuarioInput');
-        if (inp) inp.focus();
+        if (inp && formLogin && formLogin.style.display !== 'none') inp.focus();
       }, 300);
     }
 
-    function executarLoginWeb(e) {
-      if (e) e.preventDefault();
-      const login = document.getElementById('loginUsuarioInput').value.trim();
-      const pass = document.getElementById('loginSenhaInput').value;
-      const lembrar = document.getElementById('loginLembrarCheckbox').checked;
+    function executarSetupBoasVindas(e) {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
+      const nomeEmpresa = (document.getElementById('setupNomeEmpresa') || {}).value ? document.getElementById('setupNomeEmpresa').value.trim() : '';
+      const nomeDono = (document.getElementById('setupNomeDono') || {}).value ? document.getElementById('setupNomeDono').value.trim() : '';
+      const emailDono = (document.getElementById('setupEmailDono') || {}).value ? document.getElementById('setupEmailDono').value.trim() : '';
+      const senhaDono = (document.getElementById('setupSenhaDono') || {}).value ? document.getElementById('setupSenhaDono').value : '';
       const alertBox = document.getElementById('loginAlertBox');
-      const btnText = document.getElementById('btnLoginText');
-      const spinner = document.getElementById('btnLoginSpinner');
-      const btnSubmit = document.getElementById('btnLoginSubmit');
+      const btnText = document.getElementById('btnSetupText');
+      const spinner = document.getElementById('btnSetupSpinner');
+      const btnSubmit = document.getElementById('btnSetupSubmit');
 
-      if (!login || !pass) {
+      if (!nomeEmpresa || !nomeDono || !senhaDono || senhaDono.length < 4) {
         alertBox.className = 'login-alert error';
-        alertBox.innerHTML = '<span>⚠️</span> Preencha o usuário e a senha.';
+        alertBox.innerHTML = '<span>⚠️</span> Preencha o nome da empresa, o usuário do Dono e uma senha com no mínimo 4 caracteres.';
         alertBox.style.display = 'flex';
-        return;
+        return false;
       }
 
       alertBox.style.display = 'none';
-      btnText.style.display = 'none';
-      spinner.style.display = 'inline-block';
-      btnSubmit.disabled = true;
+      if (btnText) btnText.style.display = 'none';
+      if (spinner) spinner.style.display = 'inline-block';
+      if (btnSubmit) btnSubmit.disabled = true;
 
       google.script.run
         .withSuccessHandler(res => {
-          btnText.style.display = 'inline';
-          spinner.style.display = 'none';
-          btnSubmit.disabled = false;
+          if (btnText) btnText.style.display = 'inline';
+          if (spinner) spinner.style.display = 'none';
+          if (btnSubmit) btnSubmit.disabled = false;
 
           if (res && res.ok && res.usuario) {
             TOKEN_SESSAO = res.token;
             USUARIO_LOGADO = res.usuario;
-
-            if (lembrar) {
-              localStorage.setItem('deposito360_token', res.token);
-            } else {
-              sessionStorage.setItem('deposito360_token', res.token);
-              localStorage.removeItem('deposito360_token');
-            }
-
+            try { localStorage.setItem('deposito360_token', res.token); } catch(eS) {}
             document.getElementById('overlayLogin').style.display = 'none';
-            document.getElementById('loginSenhaInput').value = '';
-            atualizarHeaderUsuario(res.usuario);
-            aplicarPermissoesPerfil(res.usuario);
-            sincronizarPainel();
-            try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eSync) {}
-            showToast(`Bem-vindo de volta, ${res.usuario.nome}!`, 'success');
+            try { atualizarHeaderUsuario(res.usuario); } catch(eH) {}
+            try { aplicarPermissoesPerfil(res.usuario); } catch(eP) {}
+            try { carregarUnidadesRede(); } catch(eU) {}
+            try { sincronizarPainel(); } catch(eSy) {}
+            showToast(`Bem-vindo, ${res.usuario.nome}! Empresa configurada com sucesso.`, 'success');
+          } else if (res && res.ok) {
+            document.getElementById('formSetupBoasVindas').style.display = 'none';
+            document.getElementById('formLoginWeb').style.display = 'block';
+            alertBox.className = 'login-alert success';
+            alertBox.innerHTML = '<span>✅</span> Cadastro concluído! Entre com seu usuário e senha.';
+            alertBox.style.display = 'flex';
           } else {
             alertBox.className = 'login-alert error';
-            alertBox.innerHTML = `<span>❌</span> ${res ? res.msg : 'Usuário ou senha inválidos.'}`;
+            alertBox.innerHTML = `<span>❌</span> ${res ? res.msg : 'Não foi possível concluir o cadastro.'}`;
             alertBox.style.display = 'flex';
-            document.getElementById('loginSenhaInput').focus();
           }
         })
         .withFailureHandler(err => {
-          btnText.style.display = 'inline';
-          spinner.style.display = 'none';
-          btnSubmit.disabled = false;
-
+          if (btnText) btnText.style.display = 'inline';
+          if (spinner) spinner.style.display = 'none';
+          if (btnSubmit) btnSubmit.disabled = false;
           alertBox.className = 'login-alert error';
-          alertBox.innerHTML = `<span>❌</span> Erro de conexão: ${err.message}`;
+          alertBox.innerHTML = `<span>❌</span> Erro: ${err.message}`;
           alertBox.style.display = 'flex';
         })
-        .autenticarWebPainel(login, pass, lembrar);
+        .concluirSetupBoasVindas360({ nomeEmpresa, nomeDono, emailDono, senhaDono });
+      return false;
+    }
+
+    function carregarUnidadesRede() {
+      if (!TOKEN_SESSAO) return;
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && (res.ok || res.sucesso) && Array.isArray(res.unidades)) {
+            UNIDADES_REDE = res.unidades;
+            renderizarSeletorUnidades();
+          } else {
+            UNIDADES_REDE = [];
+            renderizarSeletorUnidades();
+          }
+        })
+        .withFailureHandler(() => {
+          UNIDADES_REDE = [];
+          renderizarSeletorUnidades();
+        })
+        .listarUnidadesRede360(TOKEN_SESSAO);
+    }
+
+    function renderizarSeletorUnidades() {
+      const container = document.getElementById('containerSeletorUnidade');
+      const select = document.getElementById('selectUnidadeAtiva');
+      if (!container || !select) return;
+
+      // Regra estrita: o seletor SÓ aparece se houver pelo menos 1 filial (mais de 1 unidade na rede)
+      if (!UNIDADES_REDE || UNIDADES_REDE.length <= 1) {
+        container.style.display = 'none';
+        UNIDADE_ATIVA_ID = 'MATRIZ';
+        return;
+      }
+
+      const salvo = sessionStorage.getItem('deposito360_unidade_id') || '';
+      select.innerHTML = UNIDADES_REDE.map(u => {
+        const prefixo = u.ehMatriz ? '🏢 Matriz — ' : '🏪 Filial — ';
+        return `<option value="${u.id}" style="background:#0f172a; color:#f8fafc;">${prefixo}${u.nome}</option>`;
+      }).join('');
+
+      const existeSalvo = UNIDADES_REDE.some(u => u.id === salvo);
+      if (existeSalvo) {
+        UNIDADE_ATIVA_ID = salvo;
+      } else {
+        const matriz = UNIDADES_REDE.find(u => u.ehMatriz) || UNIDADES_REDE[0];
+        UNIDADE_ATIVA_ID = matriz ? matriz.id : 'MATRIZ';
+      }
+      select.value = UNIDADE_ATIVA_ID;
+      container.style.display = 'flex';
+    }
+
+    function trocarUnidadeAtiva(novaUnidadeId) {
+      if (!novaUnidadeId) return;
+      UNIDADE_ATIVA_ID = novaUnidadeId;
+      try { sessionStorage.setItem('deposito360_unidade_id', novaUnidadeId); } catch(e) {}
+      const u = UNIDADES_REDE.find(item => item.id === novaUnidadeId);
+      const nomeU = u ? u.nome : 'Unidade selecionada';
+      showToast(`Alternando painel para: ${nomeU}...`, 'info');
+      sincronizarPainel();
+      const tabFin = document.getElementById('tabFinanceiro');
+      if (tabFin && tabFin.classList.contains('active')) {
+        try { carregarDadosFinanceiro(); } catch(eF) {}
+      }
+    }
+
+    function executarLoginWeb(e) {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
+      try {
+        const login = document.getElementById('loginUsuarioInput').value.trim();
+        const pass = document.getElementById('loginSenhaInput').value;
+        const lembrar = document.getElementById('loginLembrarCheckbox').checked;
+        const alertBox = document.getElementById('loginAlertBox');
+        const btnText = document.getElementById('btnLoginText');
+        const spinner = document.getElementById('btnLoginSpinner');
+        const btnSubmit = document.getElementById('btnLoginSubmit');
+
+        if (!login || !pass) {
+          alertBox.className = 'login-alert error';
+          alertBox.innerHTML = '<span>⚠️</span> Preencha o usuário e a senha.';
+          alertBox.style.display = 'flex';
+          return false;
+        }
+
+        alertBox.style.display = 'none';
+        btnText.style.display = 'none';
+        spinner.style.display = 'inline-block';
+        btnSubmit.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(res => {
+            btnText.style.display = 'inline';
+            spinner.style.display = 'none';
+            btnSubmit.disabled = false;
+
+            if (res && res.ok && res.usuario) {
+              TOKEN_SESSAO = res.token;
+              USUARIO_LOGADO = res.usuario;
+
+              try {
+                if (lembrar) {
+                  localStorage.setItem('deposito360_token', res.token);
+                } else {
+                  sessionStorage.setItem('deposito360_token', res.token);
+                  localStorage.removeItem('deposito360_token');
+                }
+              } catch(eStorage) {}
+
+              document.getElementById('overlayLogin').style.display = 'none';
+              document.getElementById('loginSenhaInput').value = '';
+              try { atualizarHeaderUsuario(res.usuario); } catch(eHead) { console.warn('Erro header:', eHead); }
+              try { aplicarPermissoesPerfil(res.usuario); } catch(ePerm) { console.warn('Erro permissoes:', ePerm); }
+              try { carregarUnidadesRede(); } catch(eUni) {}
+              try { sincronizarPainel(); } catch(eSync) { console.warn('Erro sincronizarPainel:', eSync); }
+              try { google.script.run.sincronizarPastaRaizEmpresa360(TOKEN_SESSAO); } catch(eDrive) {}
+              showToast(`Bem-vindo de volta, ${res.usuario.nome}!`, 'success');
+            } else {
+              alertBox.className = 'login-alert error';
+              alertBox.innerHTML = `<span>❌</span> ${res ? res.msg : 'Usuário ou senha inválidos.'}`;
+              alertBox.style.display = 'flex';
+              document.getElementById('loginSenhaInput').focus();
+            }
+          })
+          .withFailureHandler(err => {
+            btnText.style.display = 'inline';
+            spinner.style.display = 'none';
+            btnSubmit.disabled = false;
+
+            alertBox.className = 'login-alert error';
+            alertBox.innerHTML = `<span>❌</span> Erro de conexão: ${err.message}`;
+            alertBox.style.display = 'flex';
+          })
+          .autenticarWebPainel(login, pass, lembrar);
+      } catch(errGeral) {
+        console.error('Erro em executarLoginWeb:', errGeral);
+      }
+      return false;
     }
 
     function fazerLogoutWeb() {
@@ -4423,7 +4749,7 @@
           esconderLoader();
           showToast('Falha na conexão: ' + err.message, 'error');
         })
-        .obterDadosPainel360();
+        .obterDadosPainel360(UNIDADE_ATIVA_ID);
     }
 
     // RENDERIZAÇÃO COMPLETA
@@ -5415,9 +5741,16 @@
           }).join('');
       }
 
-      // Reseta inputs de adição rápida
+      // Reseta inputs de adição rápida e bloqueia edição de valor unitário para não-DONO/ADMIN
+      const perfilLogado = USUARIO_LOGADO ? String(USUARIO_LOGADO.perfil || '').toUpperCase() : '';
+      const podeAlterarValor = (perfilLogado === 'ADMIN' || perfilLogado === 'DONO');
       document.getElementById('modalAddQtd').value = 1;
-      document.getElementById('modalAddUnit').value = '0.00';
+      const inputUnitModal = document.getElementById('modalAddUnit');
+      inputUnitModal.value = '0.00';
+      inputUnitModal.readOnly = !podeAlterarValor;
+      inputUnitModal.disabled = !podeAlterarValor;
+      inputUnitModal.style.opacity = podeAlterarValor ? '1' : '0.72';
+      inputUnitModal.style.cursor = podeAlterarValor ? 'text' : 'not-allowed';
       document.getElementById('modalAddSubtotal').innerText = 'R$ 0,00';
       document.getElementById('secaoAddProdutoComandaCorpo').style.display = 'none';
       document.getElementById('setaSecaoAddComanda').innerText = '▼';
@@ -5566,11 +5899,13 @@
 
     function atualizarPrecoModalAdd() {
       const sel = document.getElementById('modalAddSelectProduto');
+      const perfilLogado = USUARIO_LOGADO ? String(USUARIO_LOGADO.perfil || '').toUpperCase() : '';
+      const podeAlterarValor = (perfilLogado === 'ADMIN' || perfilLogado === 'DONO');
       if (sel.selectedIndex > 0) {
         const opt = sel.options[sel.selectedIndex];
         const precoPadrao = Number(opt.getAttribute('data-preco')) || 0;
         const inputUnit = document.getElementById('modalAddUnit');
-        if (Number(inputUnit.value) === 0 || inputUnit.getAttribute('data-user-modified') !== 'true') {
+        if (!podeAlterarValor || Number(inputUnit.value) === 0 || inputUnit.getAttribute('data-user-modified') !== 'true') {
           inputUnit.value = precoPadrao.toFixed(2);
         }
       }
@@ -5587,8 +5922,13 @@
         showToast('Selecione um produto para adicionar!', 'error');
         return;
       }
+      const opt = sel.selectedIndex > 0 ? sel.options[sel.selectedIndex] : null;
+      const precoPadrao = opt ? (Number(opt.getAttribute('data-preco')) || 0) : 0;
+      const perfilLogado = USUARIO_LOGADO ? String(USUARIO_LOGADO.perfil || '').toUpperCase() : '';
+      const podeAlterarValor = (perfilLogado === 'ADMIN' || perfilLogado === 'DONO');
       const qtd = Number(document.getElementById('modalAddQtd').value) || 1;
-      const unit = Number(document.getElementById('modalAddUnit').value) || 0;
+      const unitInput = Number(document.getElementById('modalAddUnit').value) || 0;
+      const unit = podeAlterarValor && unitInput > 0 ? unitInput : precoPadrao;
 
       // Trava Anti-Duplo Clique
       const btn = document.getElementById('btnConfirmarAddComanda');
@@ -5705,11 +6045,24 @@
       atualizarCalculoModalFechar();
     }
 
+    function obterValorParcialEfetivoModalFechar() {
+      if (!COMANDA_EM_FECHAMENTO) return 0;
+      const fin = COMANDA_EM_FECHAMENTO.financeiro || { saldo: Number(COMANDA_EM_FECHAMENTO.total) || 0 };
+      const saldoDevedor = Number(fin.saldo) || 0;
+      const valDigitado = Number(document.getElementById('modalFecharValorPagamento')?.value) || 0;
+      const recebido = Number(document.getElementById('modalFecharRecebido')?.value) || 0;
+      if (FORMA_MODAL_FECHAR === 'Dinheiro' && Math.abs(valDigitado - saldoDevedor) < 0.009 && recebido > 0 && recebido < saldoDevedor - 0.009) {
+        return recebido;
+      }
+      return valDigitado;
+    }
+
     function atualizarCalculoModalFechar() {
       if (!COMANDA_EM_FECHAMENTO) return;
       const fin = COMANDA_EM_FECHAMENTO.financeiro || { total: Number(COMANDA_EM_FECHAMENTO.total) || 0, saldo: Number(COMANDA_EM_FECHAMENTO.total) || 0, pagos: 0 };
       const saldoDevedor = Number(fin.saldo) || 0;
       const valDigitado = Number(document.getElementById('modalFecharValorPagamento').value) || 0;
+      const valEfetivo = obterValorParcialEfetivoModalFechar();
       const aviso = document.getElementById('modalFecharAvisoRestante');
       const btnParcial = document.getElementById('btnPagamentoParcialComanda');
       const btnQuitar = document.getElementById('btnQuitarIntegralComanda');
@@ -5724,13 +6077,13 @@
           btnQuitar.disabled = false;
           btnQuitar.style.opacity = '1';
         }
-      } else if (valDigitado <= 0) {
+      } else if (valEfetivo <= 0) {
         aviso.innerHTML = '<span style="color:#ef4444;">Digite um valor válido maior que zero.</span>';
         if (btnParcial) btnParcial.disabled = true;
         if (btnQuitar) btnQuitar.disabled = true;
-      } else if (valDigitado < saldoDevedor - 0.009) {
-        const restanteApos = Math.max(0, saldoDevedor - valDigitado);
-        aviso.innerHTML = `<span style="color:#38bdf8;">💸 Pagamento parcial: restará um saldo de <strong>${formatMoeda(restanteApos)}</strong></span>`;
+      } else if (valEfetivo < saldoDevedor - 0.009) {
+        const restanteApos = Math.max(0, saldoDevedor - valEfetivo);
+        aviso.innerHTML = `<span style="color:#38bdf8;">💸 Pagamento parcial de <strong>${formatMoeda(valEfetivo)}</strong>: restará um saldo de <strong>${formatMoeda(restanteApos)}</strong></span>`;
         if (btnParcial) {
           btnParcial.disabled = false;
           btnParcial.style.opacity = '1';
@@ -5800,9 +6153,33 @@
     function calcularTrocoModalFechar() {
       const valAPagar = Number(document.getElementById('modalFecharValorPagamento')?.value) || 0;
       const recebido = Number(document.getElementById('modalFecharRecebido')?.value) || 0;
-      const troco = Math.max(0, recebido - valAPagar);
       const elTroco = document.getElementById('modalFecharTrocoValor');
-      if (elTroco) elTroco.innerText = 'Troco: ' + formatMoeda(troco);
+      if (recebido > 0 && recebido < valAPagar - 0.009) {
+        if (elTroco) {
+          elTroco.style.color = '#38bdf8';
+          elTroco.innerText = 'Abater: ' + formatMoeda(recebido) + ' (Resta: ' + formatMoeda(valAPagar - recebido) + ')';
+        }
+      } else {
+        const troco = Math.max(0, recebido - valAPagar);
+        if (elTroco) {
+          elTroco.style.color = '#34d399';
+          elTroco.innerText = 'Troco: ' + formatMoeda(troco);
+        }
+      }
+      // Atualiza botão de pagamento parcial caso o operador tenha digitado no campo Valor Entregue
+      const btnParcial = document.getElementById('btnPagamentoParcialComanda');
+      const aviso = document.getElementById('modalFecharAvisoRestante');
+      const fin = COMANDA_EM_FECHAMENTO?.financeiro || { saldo: valAPagar };
+      const saldoDevedor = Number(fin.saldo) || 0;
+      const valEfetivo = obterValorParcialEfetivoModalFechar();
+      if (btnParcial && saldoDevedor > 0.001) {
+        const ehParcial = valEfetivo > 0 && valEfetivo < saldoDevedor - 0.009;
+        btnParcial.disabled = !ehParcial;
+        btnParcial.style.opacity = ehParcial ? '1' : '0.5';
+        if (aviso && ehParcial) {
+          aviso.innerHTML = `<span style="color:#38bdf8;">💸 Pagamento parcial de <strong>${formatMoeda(valEfetivo)}</strong>: restará um saldo de <strong>${formatMoeda(Math.max(0, saldoDevedor - valEfetivo))}</strong></span>`;
+        }
+      }
     }
 
     // Geração do Payload Pix Padrão Banco Central (BR Code Oficial)
@@ -5967,7 +6344,9 @@
       if (!COMANDA_EM_FECHAMENTO) return;
       const pedido = COMANDA_EM_FECHAMENTO.pedido;
       const forma = FORMA_MODAL_FECHAR || 'Dinheiro';
-      const valor = Number(document.getElementById('modalFecharValorPagamento').value) || 0;
+      const valor = isQuitacaoTotal
+        ? (Number(document.getElementById('modalFecharValorPagamento').value) || 0)
+        : obterValorParcialEfetivoModalFechar();
 
       // Se for pagamento parcial (amortização), exige valor positivo
       if (!isQuitacaoTotal && valor <= 0) {
@@ -6989,12 +7368,27 @@
         }
       }
 
-      // Seção exclusiva do Administrador Técnico (login 'admin' ou 'administrador')
+      // Seção de Expansão / Replicação: DONO (cria Filial) e ADMIN (cria Filial ou Nova Empresa)
       const secaoAdmin = document.getElementById('secaoAdminReplicacao');
       if (secaoAdmin) {
+        const perfil = USUARIO_LOGADO ? String(USUARIO_LOGADO.perfil || '').toUpperCase().trim() : '';
         const login = (USUARIO_LOGADO && (USUARIO_LOGADO.login || USUARIO_LOGADO.nome)) ? String(USUARIO_LOGADO.login || USUARIO_LOGADO.nome).toLowerCase().trim() : '';
-        if (login === 'admin' || login === 'administrador') {
+        const isAdmin = (perfil === 'ADMIN' || login === 'admin' || login === 'administrador');
+        const isDono = (perfil === 'DONO' || isAdmin);
+        if (isDono) {
           secaoAdmin.style.display = 'block';
+          const tEl = document.getElementById('tituloSecaoReplicacao');
+          const dEl = document.getElementById('descSecaoReplicacao');
+          const bEl = document.getElementById('btnTextoReplicacao');
+          if (!isAdmin) {
+            if (tEl) tEl.innerText = 'Expansão de Rede — Nova Filial';
+            if (dEl) dEl.innerText = 'Crie uma nova filial vinculada à sua empresa e alterne entre as unidades diretamente pelo Dashboard.';
+            if (bEl) bEl.innerText = 'Criar Nova Filial';
+          } else {
+            if (tEl) tEl.innerText = 'Expansão de Rede & Replicação';
+            if (dEl) dEl.innerText = 'Crie uma Nova Filial (vinculada ao Dashboard) ou uma Nova Empresa 100% independente.';
+            if (bEl) bEl.innerText = 'Criar Nova Filial / Nova Empresa';
+          }
         } else {
           secaoAdmin.style.display = 'none';
         }
@@ -7040,89 +7434,152 @@
     }
 
     /**
-     * 🛠️ Modal Harmonizado exclusivo do Administrador para Replicar Empresa / Filial
+     * 🏢 Modal Harmonizado para Replicação:
+     * - DONO: pode criar NOVA FILIAL (aparece automaticamente no Seletor do Dashboard)
+     * - ADMIN: pode criar NOVA FILIAL ou NOVA EMPRESA (independente)
      */
     function abrirModalReplicarEmpresa() {
+      const perfil = USUARIO_LOGADO ? String(USUARIO_LOGADO.perfil || '').toUpperCase().trim() : '';
       const login = (USUARIO_LOGADO && (USUARIO_LOGADO.login || USUARIO_LOGADO.nome)) ? String(USUARIO_LOGADO.login || USUARIO_LOGADO.nome).toLowerCase().trim() : '';
-      if (login !== 'admin' && login !== 'administrador') {
-        showToast('Apenas o Administrador Técnico pode replicar o sistema.', 'error');
+      const isAdmin = (perfil === 'ADMIN' || login === 'admin' || login === 'administrador');
+      const isDono = (perfil === 'DONO' || isAdmin);
+
+      if (!isDono) {
+        showToast('Apenas o Dono da empresa ou o Administrador podem criar novas unidades.', 'error');
         return;
       }
 
+      const opcoesTipo = isAdmin
+        ? `
+          <option value="FILIAL">🏪 NOVA FILIAL (Vinculada ao Dashboard, mesmo login do Dono)</option>
+          <option value="NOVA_EMPRESA">🏢 NOVA EMPRESA (Independente, cliente cadastra o Dono nas Boas-Vindas)</option>
+        `
+        : `<option value="FILIAL">🏪 NOVA FILIAL (Vinculada ao seu Dashboard com mesmo login e senha)</option>`;
+
       const msgHtml = `
         <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
-          <p style="color:#cbd5e1; font-size:13px; margin:0; line-height:1.4;">
-            Esta rotina criará uma pasta dedicada no Google Drive contendo a nova planilha limpa, subpastas estruturadas (<code>Notas</code>, <code>Backup</code>, <code>Relatórios</code>, <code>Logs</code>) e o lançador <strong>👑 Acessar Painel 360.html</strong>.
+          <p style="color:#cbd5e1; font-size:12.5px; margin:0; line-height:1.45;">
+            Cria toda a estrutura no Google Drive (<code>Compras</code>, <code>Relatorios</code>, <code>Backup</code>, <code>Logs</code>), o atalho <strong>Painel Executivo 360.lnk</strong> e a conexão nativa ao banco de dados com <code>EMPRESA_ID</code> exclusivo.
           </p>
           <div>
-            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">TIPO DE REPLICAÇÃO</label>
-            <select id="modalReplicaTipo" class="cart-select" style="width:100%;" onchange="document.getElementById('grupoManterProd').style.display = this.value === 'FILIAL' ? 'block' : 'none';">
-              <option value="NOVA_EMPRESA">🏢 NOVA EMPRESA (Setup do Zero, Novo Dono e Banco Isolado)</option>
-              <option value="FILIAL">🏪 NOVA FILIAL (Mesma Empresa / Nova Unidade)</option>
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">TIPO DE UNIDADE</label>
+            <select id="modalReplicaTipo" class="cart-select" style="width:100%;" onchange="atualizarCamposModalReplica()">
+              ${opcoesTipo}
             </select>
           </div>
           <div>
-            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">NOME DA NOVA EMPRESA / FILIAL *</label>
-            <input type="text" id="modalReplicaNome" class="cart-input" placeholder="Ex: Depósito São Francisco - Filial 2" style="width:100%;">
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">NOME DA FILIAL / EMPRESA *</label>
+            <input type="text" id="modalReplicaNome" class="cart-input" placeholder="Ex: Unidade Centro - Filial 2" style="width:100%;">
           </div>
-          <div id="grupoManterProd" style="display:none;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">PASTA DE DESTINO NO GOOGLE DRIVE (OPCIONAL)</label>
+            <input type="text" id="modalReplicaPasta" class="cart-input" placeholder="Deixe em branco para usar a pasta padrão automática" style="width:100%;">
+            <div id="dicaPastaDestino" style="font-size:11px; color:#94a3b8; margin-top:4px; line-height:1.35;">
+              Em branco: cria em <strong>Filiais/</strong> dentro da pasta da Matriz. (Para Nova Empresa, cria direto na raiz principal do Meu Drive.)
+            </div>
+          </div>
+          <div id="grupoOpcoesFilial" style="display:flex; flex-direction:column; gap:8px; background:rgba(124,58,237,0.1); border:1px solid rgba(139,92,246,0.28); padding:10px 12px; border-radius:10px;">
             <label style="font-size:12px; color:#cbd5e1; display:flex; align-items:center; gap:8px; cursor:pointer;">
-              <input type="checkbox" id="modalReplicaManterProd" checked style="width:16px; height:16px;">
-              Copiar catálogo de produtos (zerando os estoques)
+              <input type="checkbox" id="modalReplicaManterProd" checked style="width:16px; height:16px; accent-color:#7c3aed;">
+              Copiar catálogo de produtos (com estoques zerados)
+            </label>
+            <label style="font-size:12px; color:#cbd5e1; display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="modalReplicaManterClientes" style="width:16px; height:16px; accent-color:#7c3aed;">
+              Copiar base de clientes da Matriz
             </label>
           </div>
         </div>
       `;
 
       abrirDialogHarmonizado({
-        icone: '📦',
-        titulo: 'Replicar Planilha Virgem & Criar Empresa',
+        icone: '🏢',
+        titulo: isAdmin ? 'Criar Nova Filial ou Nova Empresa' : 'Criar Nova Filial',
         mensagem: msgHtml,
-        textoConfirmar: 'Criar Réplica no Drive',
+        textoConfirmar: 'Criar Unidade',
         textoCancelar: 'Cancelar',
         onConfirm: () => {
           const tipoEl = document.getElementById('modalReplicaTipo');
           const nomeEl = document.getElementById('modalReplicaNome');
+          const pastaEl = document.getElementById('modalReplicaPasta');
           const manterProdEl = document.getElementById('modalReplicaManterProd');
+          const manterCliEl = document.getElementById('modalReplicaManterClientes');
 
-          const tipo = tipoEl ? tipoEl.value : 'NOVA_EMPRESA';
+          const tipo = (isAdmin && tipoEl) ? tipoEl.value : 'FILIAL';
           const nome = nomeEl ? nomeEl.value.trim() : '';
-          const manterProd = (tipo === 'FILIAL' && manterProdEl) ? manterProdEl.checked : false;
+          const pastaDestino = pastaEl ? pastaEl.value.trim() : '';
+          const manterProdutos = (tipo === 'FILIAL' && manterProdEl) ? manterProdEl.checked : false;
+          const manterClientes = (tipo === 'FILIAL' && manterCliEl) ? manterCliEl.checked : false;
 
           if (!nome) {
-            showToast('Informe o nome da nova empresa/filial.', 'warning');
+            showToast('Informe o nome da nova unidade/empresa.', 'warning');
             return;
           }
 
-          mostrarLoader('Criando réplica, pastas no Drive e configurando ambiente...');
+          mostrarLoader(tipo === 'FILIAL'
+            ? 'Criando filial, pastas no Drive e vinculando ao Dashboard...'
+            : 'Criando nova empresa isolada no Drive e preparando ambiente...');
+
           google.script.run
             .withSuccessHandler(res => {
               esconderLoader();
-              if (res && res.sucesso) {
+              if (res && (res.sucesso || res.ok)) {
+                if (tipo === 'FILIAL') {
+                  if (Array.isArray(res.unidades)) {
+                    UNIDADES_REDE = res.unidades;
+                    renderizarSeletorUnidades();
+                  } else {
+                    carregarUnidadesRede();
+                  }
+                }
+                const infoExtra = tipo === 'FILIAL'
+                  ? 'A filial já está disponível no <strong>Seletor de Unidades</strong> no topo do seu Dashboard (mesmo login e senha do Dono).'
+                  : 'No primeiro acesso desta Nova Empresa, a tela de <strong>Boas-Vindas</strong> permitirá ao cliente cadastrar o próprio usuário Dono.';
+
                 abrirDialogHarmonizado({
                   icone: '🎉',
-                  titulo: 'Empresa Replicada com Sucesso!',
+                  titulo: tipo === 'FILIAL' ? 'Nova Filial Criada com Sucesso!' : 'Nova Empresa Criada com Sucesso!',
                   mensagem: `
-                    A nova empresa foi configurada com sucesso!<br><br>
-                    📊 <strong>Planilha:</strong> <a href="${res.url}" target="_blank" style="color:#38bdf8; font-weight:bold; text-decoration:underline;">Abrir Planilha Replicada</a><br>
+                    Unidade <strong>${res.nome || nome}</strong> configurada com sucesso!<br><br>
+                    📊 <strong>Planilha:</strong> <a href="${res.url}" target="_blank" style="color:#38bdf8; font-weight:bold; text-decoration:underline;">Abrir Planilha</a><br>
                     📁 <strong>Pasta Drive:</strong> <a href="${res.pastaUrl}" target="_blank" style="color:#34d399; font-weight:bold; text-decoration:underline;">Abrir Pasta no Google Drive</a><br><br>
-                    O lançador <strong>👑 Acessar Painel 360.html</strong> já está pronto na pasta raiz para uso imediato pelo cliente.
+                    ${infoExtra}<br><br>
+                    O atalho oficial <strong>Painel Executivo 360.lnk</strong> foi salvo na pasta raiz.
                   `,
                   textoConfirmar: 'Concluir',
                   somenteAviso: true,
                   onConfirm: () => {}
                 });
               } else {
-                showToast(res ? res.msg : 'Erro ao replicar planilha', 'error');
+                showToast(res && res.msg ? res.msg : 'Erro ao criar unidade/empresa.', 'error');
               }
             })
             .withFailureHandler(err => {
               esconderLoader();
               showToast('Erro: ' + err.message, 'error');
             })
-            .executarReplicacaoPlanilhaVirgem(nome, manterProd, tipo, false);
+            .replicarEmpresaOuFilial360(TOKEN_SESSAO, {
+              tipo: tipo,
+              nome: nome,
+              pastaDestino: pastaDestino,
+              manterProdutos: manterProdutos,
+              manterClientes: manterClientes
+            });
         }
       });
+    }
+
+    function atualizarCamposModalReplica() {
+      const tipoEl = document.getElementById('modalReplicaTipo');
+      const grupoFilial = document.getElementById('grupoOpcoesFilial');
+      const dica = document.getElementById('dicaPastaDestino');
+      if (!tipoEl) return;
+      const ehFilial = (tipoEl.value === 'FILIAL');
+      if (grupoFilial) grupoFilial.style.display = ehFilial ? 'flex' : 'none';
+      if (dica) {
+        dica.innerHTML = ehFilial
+          ? 'Em branco: cria automaticamente em <strong>Filiais/</strong> dentro da pasta da Matriz.'
+          : 'Em branco: cria automaticamente na <strong>pasta principal (raiz) do Meu Drive</strong>, isolada da empresa atual.';
+      }
     }
 
     // ATALHOS DE TECLADO
@@ -7204,7 +7661,7 @@
           esconderLoader();
           showToast('Falha: ' + err.message, 'error');
         })
-        .obterDadosFinanceiroObrigacoes360(TOKEN_SESSAO);
+        .obterDadosFinanceiroObrigacoes360(TOKEN_SESSAO, UNIDADE_ATIVA_ID);
     }
 
     function renderizarPainelFinanceiroCompleto() {
@@ -7586,8 +8043,8 @@
       }
 
       const url = numLimpo
-        ? ('https:' + '//wa.me/' + numLimpo + '?text=' + encodeURIComponent(texto))
-        : ('https:' + '//api.whatsapp.com/send?text=' + encodeURIComponent(texto));
+        ? ('https:\x2f\x2fwa.me/' + numLimpo + '?text=' + encodeURIComponent(texto))
+        : ('https:\x2f\x2fapi.whatsapp.com/send?text=' + encodeURIComponent(texto));
 
       window.open(url, '_blank');
     }

@@ -245,7 +245,10 @@
             ui.createMenu('🖥️ Configurações & Sistema')
               .addSubMenu(
                 ui.createMenu('⚡ Banco de Dados (Supabase)')
+                  .addItem('🔄 Sincronizar Bidirecional (Planilha ↔ Supabase)', 'sincronizarTudoBidirecionalComUi')
+                  .addItem('⬇️ Puxar Dados do Supabase para a Planilha', 'sincronizarSupabaseParaPlanilhaComUi')
                   .addItem('🚀 Migrar Dados da Planilha para o Supabase', 'migrarTudoPlanilhaParaSupabase')
+                  .addItem('⏱️ Ativar Sincronização Automática (5 min)', 'instalarGatilhoSyncSupabase')
                   .addItem('🧪 Testar Conexão Supabase', 'testarConexaoSupabase')
               )
               .addSubMenu(
@@ -3020,15 +3023,16 @@
   function inserirLinhaSeparadoraCaixa(texto, valorPeriodo){
       const cx = SpreadsheetApp.getActive().getSheetByName('CAIXA');
 
-      cx.appendRow([
+      cx.insertRowBefore(2);
+      cx.getRange(2, 1, 1, 5).setValues([[
         `---------- ${texto} ----------`,
         '',
         valorPeriodo || '',
         '',
         ''
-      ]);
+      ]]);
 
-      const r = cx.getLastRow();
+      const r = 2;
 
       // 🔒 força formato correto de data na coluna A
       cx.getRange(r,1).setNumberFormat('@');
@@ -3307,12 +3311,9 @@
     // Recria as linhas consolidadas
     const novasLinhas = [];
     mapa.forEach(item => {
-      let status = '🟢   OK   🔋';
-      if(item.qtd <= 0 || item.qtd <= item.minimo){
-        status = '🔴 Crítico🪫';
-      } else if(item.qtd <= item.minimo * 2){
-        status = '🟡 Baixo';
-      }
+      const status = typeof calcularStatusEstoquePadrao === 'function'
+        ? calcularStatusEstoquePadrao(item.qtd, item.minimo)
+        : (item.qtd <= 0 ? '🚫 ESGOTADO' : item.qtd < item.minimo ? '🔴 Crítico🪫' : '🟢   OK   🔋');
       novasLinhas.push([
         item.nome,
         item.qtd,
@@ -3424,13 +3425,9 @@
       for(let i = 1; i < estoqueDados.length; i++){
         const qtd = Number(estoqueDados[i][1]) || 0;
         const min = Number(estoqueDados[i][2]) || 0;
-        let status = '🟢   OK   🔋';
-        if(qtd <= 0 || qtd <= min){
-          status = '🔴 Crítico🪫';
-        } else if(qtd <= min * 2){
-          status = '🟡 Baixo';
-        }
-        estoqueDados[i][3] = status;
+        estoqueDados[i][3] = typeof calcularStatusEstoquePadrao === 'function'
+          ? calcularStatusEstoquePadrao(qtd, min)
+          : (qtd <= 0 ? '🚫 ESGOTADO' : qtd < min ? '🔴 Crítico🪫' : '🟢   OK   🔋');
       }
 
       // 🔹 Grava a matriz inteira de ESTOQUE em 1 única chamada
@@ -3548,12 +3545,9 @@
           const novaQtd  = qtdAtual + quantidade;
 
           // 🧠 calcula STATUS
-          let status = '🟢   OK   🔋';
-          if(novaQtd <= 0){
-            status = '🔴 Crítico🪫';
-          }else if(novaQtd <= minimo * 2){
-            status = '🟡 Baixo';
-          }    
+          const status = typeof calcularStatusEstoquePadrao === 'function'
+            ? calcularStatusEstoquePadrao(novaQtd, minimo)
+            : (novaQtd <= 0 ? '🚫 ESGOTADO' : novaQtd < minimo ? '🔴 Crítico🪫' : '🟢   OK   🔋');
 
           sh.getRange(i+1, 2).setValue(novaQtd);            // Quantidade (B)
           sh.getRange(i+1, 4).setValue(status);             // Status (D)
@@ -4640,7 +4634,8 @@
     validarEstoqueCarrinho(itens);
     // 🔒 BLOQUEIO FIADO
     if(pagamento === '🧾 Fiado'){
-      validarClienteFiado(cliente);
+      const totalCartFiado = (itens || []).reduce((s, it) => s + (Number(it.qtd || it.quantidade || 1) * Number(it.valor || it.preco || 0)), 0);
+      validarClienteFiado(cliente, totalCartFiado);
     }
     const ss = SpreadsheetApp.getActive();
     garantirDeliveryItens();
@@ -4900,12 +4895,53 @@
     }
 
     if(totalGeral > 0){
+      const foundDeliv = pedidos.find((p, idx) => idx > 0 && p[0] == pedido);
+      const taxaDeliv = foundDeliv ? (Number(foundDeliv[4]) || 0) : 0;
+      const motoboyDeliv = foundDeliv && foundDeliv[8] ? String(foundDeliv[8]).trim() : 'Motoboy';
+      const ehDinheiroDeliv = String(pagamento || '').toUpperCase().indexOf('DINHEIRO') !== -1;
+
+      const registrarOuAcumularTxePlanilha = (nomeMoto, pedCod, valTaxa) => {
+        if (!(valTaxa > 0)) return;
+        const shPag = ss.getSheetByName('CONTAS_A_PAGAR');
+        if (!shPag) return;
+        const dP = shPag.getDataRange().getValues();
+        const motoKey = String(nomeMoto || 'Motoboy').trim().toLowerCase();
+        let maxTxe = 0;
+        let rowPend = -1;
+        for (let r = 1; r < dP.length; r++) {
+          const idP = String(dP[r][0] || '').trim();
+          const m = idP.match(/^TXE-0*(\d+)$/i);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxTxe) maxTxe = n;
+          }
+          const stP = String(dP[r][5] || '').toUpperCase().trim();
+          if (/^TXE-/i.test(idP) && stP !== 'PAGO' && stP !== 'CANCELADO' && String(dP[r][1] || '').trim().toLowerCase() === motoKey) {
+            rowPend = r + 1;
+          }
+        }
+        if (rowPend > 0) {
+          const valAtual = Number(dP[rowPend - 1][2]) || 0;
+          shPag.getRange(rowPend, 3).setValue(Number((valAtual + valTaxa).toFixed(2)));
+          shPag.getRange(rowPend, 5).setValue(new Date());
+        } else {
+          const novoId = 'TXE-' + String(maxTxe + 1).padStart(3, '0');
+          inserirLinhaNoTopo('CONTAS_A_PAGAR', [
+            novoId,
+            nomeMoto || 'Motoboy',
+            Number(valTaxa.toFixed(2)),
+            'Dinheiro',
+            new Date(),
+            'PENDENTE',
+            ''
+          ]);
+        }
+      };
 
       // 🧾 FIADO → CONTAS A RECEBER
       if(pagamento === '🧾 Fiado'){
-
-        var found = pedidos.find(p => p[0] == pedido);
-        const cliente = found ? found[2] : '';
+        const cliente = foundDeliv ? foundDeliv[2] : '';
+        validarClienteFiado(cliente, totalGeral);
 
         criarContaAReceber(
           'DELIVERY',
@@ -4914,17 +4950,27 @@
           totalGeral,
           'FIADO'
         );
+        if (taxaDeliv > 0) registrarOuAcumularTxePlanilha(motoboyDeliv, idVenda, taxaDeliv);
 
       } else {
+        const valorEntrada = ehDinheiroDeliv && taxaDeliv > 0
+          ? Number(Math.max(0, totalGeral - taxaDeliv).toFixed(2))
+          : totalGeral;
+        const descCaixaDeliv = ehDinheiroDeliv && taxaDeliv > 0
+          ? `DELIVERY ${idVenda} (Sem taxa R$ ${taxaDeliv.toFixed(2)} motoboy)`
+          : `DELIVERY ${idVenda}`;
 
         // 💰 OUTRAS FORMAS → CAIXA
         registrarCaixa(
           new Date(),
           'Entrada',
-          totalGeral,
+          valorEntrada,
           pagamento,
-          `DELIVERY ${idVenda}`
+          descCaixaDeliv
         );
+        if (!ehDinheiroDeliv && taxaDeliv > 0) {
+          registrarOuAcumularTxePlanilha(motoboyDeliv, idVenda, taxaDeliv);
+        }
       }
     }
     atualizarEstoque();
@@ -9889,7 +9935,7 @@
     function criarContaAPagar(idCompra,fornecedor,valor,forma,data){
       const sh = garantirContasAPagar();
 
-      sh.appendRow([
+      inserirLinhaPadronizadaNoTopo(sh, [
         idCompra,
         fornecedor,
         Number(valor),
@@ -9899,7 +9945,7 @@
         ''
       ]);
 
-      const last = sh.getLastRow();
+      const last = 2;
       sh.getRange(last, 3).setNumberFormat('R$ #,##0.00');
       sh.getRange(last, 5).setNumberFormat('dd/MM/yyyy');
       sh.getRange(last, 6).setHorizontalAlignment('center');
@@ -9995,13 +10041,13 @@
   function garantirAtalhoDesktopNoDrive(pastaDestino, nomeDeposito) {
     if (!pastaDestino) return;
 
-    // 1. 🗑️ Exclui arquivos HTML antigos de lançador
+    // 1. 🗑️ Exclui arquivos HTML antigos de lançador ("Acessar Painel 360.html" ou similares)
     try {
       const arquivos = pastaDestino.getFiles();
       while (arquivos.hasNext()) {
         const arq = arquivos.next();
-        const nomeArq = arq.getName();
-        if (nomeArq.includes('Acessar Painel 360') && nomeArq.toLowerCase().endsWith('.html')) {
+        const nomeArq = arq.getName().toLowerCase();
+        if ((nomeArq.includes('acessar') || nomeArq.includes('painel')) && nomeArq.endsWith('.html')) {
           arq.setTrashed(true);
         }
       }
@@ -10009,20 +10055,21 @@
       console.warn('Aviso ao remover html antigo:', eTrash.message);
     }
 
-    // 2. 🚀 Garante o arquivo executivo de atalho (.lnk) na pasta raiz do Drive
+    // 2. 🚀 Garante o arquivo executivo de atalho (.lnk) na pasta raiz do Drive (idêntico ao da Área de Trabalho)
     const nomeAtalho = 'Painel Executivo 360.lnk';
-    const itLnk = pastaDestino.getFilesByName(nomeAtalho);
-    if (!itLnk.hasNext()) {
-      try {
-        const bytes = Utilities.base64Decode(BASE64_ATALHO_LNK_PAINEL);
-        const blob = Utilities.newBlob(bytes, 'application/x-ms-shortcut', nomeAtalho);
-        pastaDestino.createFile(blob);
-        if (typeof registrarLog === 'function') {
-          registrarLog('CRIAR_ARQUIVO_RAIZ', 'Atalho .lnk criado na pasta raiz do Drive', '', nomeAtalho);
-        }
-      } catch(eLnk) {
-        console.warn('Aviso ao criar atalho .lnk no Drive:', eLnk.message);
+    try {
+      const itLnk = pastaDestino.getFilesByName(nomeAtalho);
+      while (itLnk.hasNext()) {
+        try { itLnk.next().setTrashed(true); } catch(eTrOld) {}
       }
+      const bytes = Utilities.base64Decode(BASE64_ATALHO_LNK_PAINEL);
+      const blob = Utilities.newBlob(bytes, 'application/x-ms-shortcut', nomeAtalho);
+      pastaDestino.createFile(blob);
+      if (typeof registrarLog === 'function') {
+        registrarLog('CRIAR_ARQUIVO_RAIZ', 'Atalho .lnk criado na pasta raiz do Drive', '', nomeAtalho);
+      }
+    } catch(eLnk) {
+      console.warn('Aviso ao criar atalho .lnk no Drive:', eLnk.message);
     }
   }
 
@@ -10191,7 +10238,7 @@
       notasMesId: mesFolder.getId(),
       planilhaNome: planilhaNome,
       planilhaId: planilhaId,
-      lancadorCriado: lancadorCriado,
+      atalhoLnkCriado: true,
       infoCriado: infoCriado
     };
   }
@@ -10399,7 +10446,7 @@
 
     const usuario = Session.getActiveUser().getEmail() || "Desconhecido";
 
-    aba.appendRow([
+    inserirLinhaPadronizadaNoTopo(aba, [
       Utilities.formatDate(data, Session.getScriptTimeZone(), "yyyy-MM-dd"),
       Utilities.formatDate(data, Session.getScriptTimeZone(), "HH:mm:ss"),
       usuario,
@@ -11088,7 +11135,7 @@
       ? `FIXA_${dados.fornecedor.toUpperCase().replace(/\s+/g,'_')}`
       : `AVULSA_${String(proximo).padStart(4,'0')}`;
 
-    sh.appendRow([
+    inserirLinhaPadronizadaNoTopo(sh, [
       id,
       dados.fornecedor,
       dados.valor,
@@ -11098,7 +11145,7 @@
       ''
     ]);
 
-    const linha = sh.getLastRow();
+    const linha = 2;
 
     // 🎨 FORMATAÇÃO PADRÃO
     sh.getRange(linha,1,1,sh.getLastColumn())
@@ -11799,45 +11846,185 @@
   }
 
   /**
-   * Executa a replicação criando uma pasta dedicada no Drive com a nova planilha e subpastas (Notas, Backup, Relatorios, Logs)
+   * 🏢 Garante a existência da aba UNIDADES_REDE e o registro da Matriz na linha 2
    */
-  function executarReplicacaoPlanilhaVirgem(nomeNovoDeposito, manterProdutos, tipoReplicacao, manterClientes) {
+  function garantirAbaUnidadesRede(ssAlvo) {
+    const ss = ssAlvo || SpreadsheetApp.getActive();
+    if (!ss) return null;
+
+    let aba = ss.getSheetByName('UNIDADES_REDE');
+    const cabecalho = ['ID_UNIDADE', 'NOME', 'TIPO', 'PLANILHA_ID', 'PASTA_DRIVE_URL', 'GRUPO_ID', 'STATUS', 'DATA_CRIACAO'];
+    if (!aba) {
+      aba = ss.insertSheet('UNIDADES_REDE');
+      aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho]);
+      aba.getRange(1, 1, 1, cabecalho.length).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+      aba.setFrozenRows(1);
+    } else if (aba.getLastRow() === 0) {
+      aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho]);
+    }
+
+    // Garante que a Matriz atual esteja registrada
+    const dados = aba.getDataRange().getValues();
+    const idPlanilhaAtual = ss.getId();
+    let achouMatriz = false;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][3] || '').trim() === idPlanilhaAtual) {
+        achouMatriz = true;
+        break;
+      }
+    }
+
+    if (!achouMatriz) {
+      let empresaIdAtual = '';
+      let grupoIdAtual = '';
+      let driveUrlAtual = '';
+      let nomeAtual = 'Matriz';
+      try {
+        const abaCfg = ss.getSheetByName('CONFIG');
+        if (abaCfg) {
+          const cfgs = abaCfg.getDataRange().getValues();
+          for (let i = 1; i < cfgs.length; i++) {
+            const k = String(cfgs[i][0] || '').trim().toUpperCase();
+            const v = String(cfgs[i][1] || '').trim();
+            if (k === 'EMPRESA_ID' && v) empresaIdAtual = v;
+            if (k === 'GRUPO_ID' && v) grupoIdAtual = v;
+            if (k === 'DRIVE_URL' && v) driveUrlAtual = v;
+            if (k === 'NOME_DEPOSITO' && v) nomeAtual = v;
+          }
+          const agora = new Date();
+          if (!empresaIdAtual) {
+            empresaIdAtual = 'EMP-MATRIZ-' + Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyyMMdd');
+            abaCfg.appendRow(['EMPRESA_ID', empresaIdAtual, 'Identificador exclusivo da empresa no banco de dados']);
+          }
+          if (!grupoIdAtual) {
+            grupoIdAtual = 'GRP-' + Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyyMMdd') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+            abaCfg.appendRow(['GRUPO_ID', grupoIdAtual, 'Identificador do grupo empresarial (Matriz + Filiais)']);
+          }
+        }
+      } catch(eCfgM) {}
+
+      aba.appendRow([
+        empresaIdAtual || 'MATRIZ',
+        nomeAtual,
+        'MATRIZ',
+        idPlanilhaAtual,
+        driveUrlAtual,
+        grupoIdAtual,
+        'ATIVA',
+        new Date()
+      ]);
+    }
+
+    return aba;
+  }
+
+  /**
+   * 📁 Resolve a pasta de destino no Google Drive para replicação:
+   * - Se pastaDestinoOpcional for preenchida (URL do Drive, ID ou nome), utiliza exatamente essa pasta.
+   * - Se em branco:
+   *    - NOVA_EMPRESA -> Raiz principal do Google Drive do usuário (DriveApp.getRootFolder()).
+   *    - FILIAL       -> Subpasta "Filiais" dentro da pasta raiz da Matriz.
+   */
+  function resolverPastaDestinoReplicacao(pastaDestinoOpcional, tipo, ssOrigem) {
+    const entrada = String(pastaDestinoOpcional || '').trim();
+
+    if (entrada) {
+      // 1. Tenta extrair ID de URL do Drive (ex: https://drive.google.com/drive/folders/ID...)
+      let idCandidato = entrada;
+      const matchUrl = entrada.match(/folders\/([a-zA-Z0-9_-]+)/);
+      if (matchUrl && matchUrl[1]) {
+        idCandidato = matchUrl[1];
+      }
+      // Tenta abrir por ID diretamente
+      if (/^[a-zA-Z0-9_-]{15,}$/.test(idCandidato)) {
+        try {
+          return DriveApp.getFolderById(idCandidato);
+        } catch(eId) {}
+      }
+      // Se não era ID válido, busca pasta por nome no Drive ou cria na raiz principal
+      try {
+        const itNome = DriveApp.getFoldersByName(entrada);
+        if (itNome.hasNext()) return itNome.next();
+        return DriveApp.getRootFolder().createFolder(entrada);
+      } catch(eNome) {}
+    }
+
+    // Sem pasta informada: comportamento inteligente por tipo
+    if (tipo === 'NOVA_EMPRESA') {
+      return DriveApp.getRootFolder();
+    }
+
+    // Para FILIAL: cria dentro de [Pasta da Matriz] / Filiais
+    let pastaMatriz = null;
+    try {
+      const fileOrigem = DriveApp.getFileById(ssOrigem.getId());
+      const pais = fileOrigem.getParents();
+      if (pais.hasNext()) pastaMatriz = pais.next();
+    } catch(ePai) {}
+
+    if (!pastaMatriz) pastaMatriz = DriveApp.getRootFolder();
+
+    const itFiliais = pastaMatriz.getFoldersByName('Filiais');
+    return itFiliais.hasNext() ? itFiliais.next() : pastaMatriz.createFolder('Filiais');
+  }
+
+  /**
+   * Executa a replicação diferenciando rigorosamente FILIAL vs NOVA_EMPRESA:
+   * - Destino Drive inteligente (pasta principal do Drive ou pasta definida pelo usuário)
+   * - Supabase nativo (herda URL e Key, muda apenas EMPRESA_ID e GRUPO_ID)
+   * - Governança estrita de usuários (1 único ADMIN; Filial mantém DONO; Nova Empresa cadastra DONO nas Boas-Vindas)
+   * - Registro automático na aba UNIDADES_REDE para acesso pelo seletor do Dashboard
+   */
+  function executarReplicacaoPlanilhaVirgem(nomeNovoDeposito, manterProdutos, tipoReplicacao, manterClientes, pastaDestinoOpcional) {
     try {
       const ssOrigem = SpreadsheetApp.getActive();
       const fileOrigem = DriveApp.getFileById(ssOrigem.getId());
-      
-      const tipo = tipoReplicacao || 'FILIAL';
-      const nomeFinal = (nomeNovoDeposito || (tipo === 'FILIAL' ? 'Gestão de Depósito - Nova Filial' : 'Gestão de Depósito - Nova Empresa')).trim();
+      const tipo = (String(tipoReplicacao || 'FILIAL').toUpperCase().trim() === 'NOVA_EMPRESA') ? 'NOVA_EMPRESA' : 'FILIAL';
+      const nomeFinal = String(nomeNovoDeposito || (tipo === 'FILIAL' ? 'Gestão de Negócios - Nova Filial' : 'Gestão de Negócios - Nova Empresa')).trim();
 
-      // =========================================================================
-      // 📁 CRIA A PASTA DEDICADA DA NOVA EMPRESA / FILIAL NO DRIVE COM SUBPASTAS
-      // =========================================================================
-      let parentDestino = null;
+      // Garante aba UNIDADES_REDE e obtém GRUPO_ID / MATRIZ_ID da origem
+      const abaUnidadesMatriz = (tipo === 'FILIAL') ? garantirAbaUnidadesRede(ssOrigem) : null;
+      let grupoIdMatriz = '';
+      let matrizId = '';
       try {
-        const pais = fileOrigem.getParents();
-        if (pais.hasNext()) {
-          parentDestino = pais.next();
+        const abaCfgOrig = ssOrigem.getSheetByName('CONFIG');
+        if (abaCfgOrig) {
+          const rowsCfg = abaCfgOrig.getDataRange().getValues();
+          for (let i = 1; i < rowsCfg.length; i++) {
+            const k = String(rowsCfg[i][0] || '').trim().toUpperCase();
+            if (k === 'GRUPO_ID') grupoIdMatriz = String(rowsCfg[i][1] || '').trim();
+            if (k === 'EMPRESA_ID') matrizId = String(rowsCfg[i][1] || '').trim();
+          }
         }
-      } catch(eParent) {}
+      } catch(eGrp) {}
 
-      // Cria a pasta raiz da nova unidade no Drive
-      const pastaReplica = parentDestino ? parentDestino.createFolder(nomeFinal) : DriveApp.createFolder(nomeFinal);
-
-      // Cria as 4 subpastas essenciais dentro da pasta da réplica
-      const pastaNotas = pastaReplica.createFolder('Notas');
-      const pastaComprasNotas = pastaNotas.createFolder('Compras');
       const dataAtual = new Date();
-      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-      const ano = Utilities.formatDate(dataAtual, "America/Sao_Paulo", "yyyy");
-      const mesNum = Utilities.formatDate(dataAtual, "America/Sao_Paulo", "MM");
-      const mesNome = meses[dataAtual.getMonth()];
-      pastaComprasNotas.createFolder(`${mesNum} - ${mesNome} ${ano}`);
+      if (tipo === 'FILIAL' && !grupoIdMatriz) {
+        grupoIdMatriz = 'GRP-' + Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'yyyyMMdd') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      }
 
-      const pastaBackup = pastaReplica.createFolder('Backup');
+      // =========================================================================
+      // 📁 1. CRIA A PASTA DEDICADA NO DESTINO CORRETO DO GOOGLE DRIVE
+      // =========================================================================
+      const parentDestino = resolverPastaDestinoReplicacao(pastaDestinoOpcional, tipo, ssOrigem);
+      const pastaReplica = parentDestino.createFolder(nomeFinal);
+
+      // Estrutura de subpastas 100% padronizada
+      const ano = Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'yyyy');
+      const mesNum = Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'MM');
+
+      const pastaCompras = pastaReplica.createFolder('Compras');
+      const pastaComprasNotas = pastaCompras.createFolder('Notas');
+      const pastaNotasAno = pastaComprasNotas.createFolder(ano);
+      pastaNotasAno.createFolder(mesNum);
+
+      pastaReplica.createFolder('Backup');
+
       const pastaRelatorios = pastaReplica.createFolder('Relatorios');
       pastaRelatorios.createFolder('Financeiro');
       pastaRelatorios.createFolder('Estoque');
       pastaRelatorios.createFolder('Compras');
+      pastaRelatorios.createFolder('Auditoria_Logs');
 
       const pastaLogs = pastaReplica.createFolder('Logs');
       pastaLogs.createFolder('PDF');
@@ -11847,7 +12034,7 @@
       const ssNova = SpreadsheetApp.openById(copia.getId());
 
       // =========================================================================
-      // 🚀 CRIA O ATALHO DA ÁREA DE TRABALHO (.LNK) E INFORMAÇÕES NA PASTA RAIZ DO DRIVE
+      // 🚀 2. ATALHO EXECUTIVO (.LNK) E ARQUIVO INFORMATIVO NA PASTA RAIZ
       // =========================================================================
       let webAppUrl = '';
       try {
@@ -11859,17 +12046,16 @@
         webAppUrl = 'https://script.google.com/macros/s/AKfycbzsVlZgA_M9Xqf_VCmA57XHH3iEa_YHOo0-qfSNvl3F5Xrtiuf-9QJ_sm97atoPureH/exec';
       }
 
-      // Garante atalho executivo de aplicativo (.lnk) e exclui qualquer .html antigo
       garantirAtalhoDesktopNoDrive(pastaReplica, nomeFinal);
 
-      // Cria arquivo informativo na pasta raiz da réplica
       try {
-        const dataReplicacao = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+        const dataReplicacao = Utilities.formatDate(dataAtual, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
         const infoConteudoReplica = [
           '=============================================================',
-          '👑 SISTEMA DE GESTÃO DE DEPÓSITO 360° & PDV',
+          'GESTÃO DE NEGÓCIOS 360° — PLATAFORMA MULTIMODAL',
           '=============================================================',
-          'Empresa: ' + nomeFinal,
+          'Unidade / Empresa: ' + nomeFinal,
+          'Tipo: ' + (tipo === 'FILIAL' ? 'Filial vinculada à Matriz' : 'Nova Empresa independente'),
           'Data de Criação: ' + dataReplicacao,
           '',
           '📍 LINKS DE ACESSO OFICIAIS:',
@@ -11877,17 +12063,17 @@
           '🌐 Painel 360° Web & PDV:',
           '   ' + webAppUrl,
           '',
-          '📁 Pasta Raiz da Empresa no Google Drive:',
+          '📁 Pasta Raiz no Google Drive:',
           '   ' + pastaReplica.getUrl(),
           '',
           '📊 Planilha de Gestão:',
           '   ' + copia.getName() + ' (ID: ' + copia.getId() + ')',
           '',
           '-------------------------------------------------------------',
-          '📌 ESTRUTURA DE ARQUIVOS NA PASTA RAIZ:',
-          '1. \'Painel Executivo 360.lnk\' -> Atalho oficial para abrir o sistema em janela própria (copie para a Área de Trabalho se desejar)',
-          '2. \'' + copia.getName() + '\' -> Planilha de banco de dados e controle interno',
-          '3. Subpastas: Backup, Logs, Relatórios e Compras',
+          '📌 ESTRUTURA NA PASTA RAIZ:',
+          '1. \'Painel Executivo 360.lnk\' -> Atalho oficial para abrir o sistema em janela própria',
+          '2. \'' + copia.getName() + '\' -> Planilha de gestão e espelho de dados',
+          '3. Subpastas: Backup, Logs, Relatorios (Financeiro, Estoque, Compras, Auditoria_Logs) e Compras',
           '============================================================='
         ].join('\n');
         pastaReplica.createFile('📄 Informações e Acesso - ' + nomeFinal + '.txt', infoConteudoReplica, MimeType.PLAIN_TEXT);
@@ -11895,35 +12081,17 @@
         console.warn('Aviso ao criar arquivo informativo na pasta da réplica:', eInfo.message);
       }
 
-      // 1. Limpa abas transacionais mantendo o cabeçalho (Linha 1)
+      // =========================================================================
+      // 🧹 3. LIMPEZA DE ABAS TRANSACIONAIS (MANTENDO CABEÇALHO)
+      // =========================================================================
       const abasParaLimparTotal = [
-        'COMANDAS',
-        'COMANDA_ITENS',
-        'DELIVERY',
-        'DELIVERY_ITENS',
-        'VENDAS',
-        'CAIXA',
-        'CONFERENCIA_CAIXA',
-        'CAIXA_FECHAMENTO',
-        'FECHAMENTO_FISCAL',
-        'CAIXA_FISCAL',
-        'AUDITORIA_USUARIOS',
-        'AUDITORIA',
-        'SESSOES',
-        'CONTAS_A_RECEBER',
-        'CONTAS_A_PAGAR',
-        'COMPRAS',
-        'LOGS',
-        'LOG_SISTEMA',
-        'HISTORICO_PAGAMENTOS',
-        'CLIENTES_FIADOS',
-        'USUARIOS_TELEGRAM',
-        'RELATORIO_FINANCEIRO',
-        'RELATORIO_COMPRAS',
-        'RELATORIO_ESTOQUE',
-        'RELATORIO_LOGS',
-        'ESTOQUE_VALORES',
-        'ESTOQUE_INICIAL'
+        'COMANDAS', 'COMANDA_ITENS', 'DELIVERY', 'DELIVERY_ITENS', 'VENDAS',
+        'CAIXA', 'CONFERENCIA_CAIXA', 'CAIXA_FECHAMENTO', 'FECHAMENTO_FISCAL',
+        'CAIXA_FISCAL', 'AUDITORIA_USUARIOS', 'AUDITORIA', 'SESSOES',
+        'CONTAS_A_RECEBER', 'CONTAS_A_PAGAR', 'COMPRAS', 'LOGS', 'LOG_SISTEMA',
+        'HISTORICO_PAGAMENTOS', 'CLIENTES_FIADOS', 'USUARIOS_TELEGRAM',
+        'RELATORIO_FINANCEIRO', 'RELATORIO_COMPRAS', 'RELATORIO_ESTOQUE',
+        'RELATORIO_LOGS', 'ESTOQUE_VALORES', 'ESTOQUE_INICIAL', 'UNIDADES_REDE'
       ];
 
       abasParaLimparTotal.forEach(nomeAba => {
@@ -11933,10 +12101,11 @@
         }
       });
 
-      // 2. Aba PRODUTOS: Se manterProdutos for true, zera o estoque (Coluna L / 12) e mantém a lista de produtos. Se false, limpa do row 2 em diante.
+      // PRODUTOS e ESTOQUE (apenas FILIAL pode optar por manter catálogo com estoque zerado)
+      const copiarCatalogo = (tipo === 'FILIAL' && Boolean(manterProdutos));
       const abaProd = ssNova.getSheetByName('PRODUTOS');
       if (abaProd && abaProd.getLastRow() > 1) {
-        if (manterProdutos) {
+        if (copiarCatalogo) {
           const totalRows = abaProd.getLastRow() - 1;
           const colQtd = 12;
           if (abaProd.getLastColumn() >= colQtd) {
@@ -11949,10 +12118,9 @@
         }
       }
 
-      // 2.1. Aba ESTOQUE: Se manterProdutos for true, zera as quantidades. Se false, limpa do row 2 em diante.
       const abaEst = ssNova.getSheetByName('ESTOQUE');
       if (abaEst && abaEst.getLastRow() > 1) {
-        if (manterProdutos) {
+        if (copiarCatalogo) {
           for (let i = 2; i <= abaEst.getLastRow(); i++) {
             abaEst.getRange(i, 2).setValue(0);
             abaEst.getRange(i, 4).setValue('🔴 Zerado🪫');
@@ -11962,91 +12130,155 @@
         }
       }
 
-      // 3. Aba CLIENTES: Se não for para manter clientes, limpa do row 2 em diante
-      if (!manterClientes) {
+      // CLIENTES (apenas FILIAL pode manter base de clientes se marcado)
+      const copiarClientes = (tipo === 'FILIAL' && Boolean(manterClientes));
+      if (!copiarClientes) {
         const abaClientes = ssNova.getSheetByName('CLIENTES');
         if (abaClientes && abaClientes.getLastRow() > 1) {
           abaClientes.getRange(2, 1, abaClientes.getLastRow() - 1, abaClientes.getLastColumn()).clearContent();
         }
       }
 
-      // 4. Aba CONFIG: Atualiza DRIVE_URL com a pasta dedicada, NOME_DEPOSITO, EMPRESA_ID e reseta parâmetros
+      // =========================================================================
+      // ⚙️ 4. CONFIGURAÇÕES (SUPABASE NATIVO + ISOLAMENTO POR EMPRESA_ID / GRUPO_ID)
+      // =========================================================================
       const abaConfig = ssNova.getSheetByName('CONFIG');
       const novoEmpresaId = 'EMP-' + Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'yyyyMMdd') + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+      const novoGrupoId = (tipo === 'FILIAL')
+        ? grupoIdMatriz
+        : ('GRP-' + Utilities.formatDate(dataAtual, 'America/Sao_Paulo', 'yyyyMMdd') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase());
 
       if (abaConfig) {
         const dadosCfg = abaConfig.getDataRange().getValues();
-        let achouSetup = false;
-        let achouDrive = false;
-        let achouEmpresaId = false;
+        const encontrados = {};
 
         for (let i = 1; i < dadosCfg.length; i++) {
           const chave = String(dadosCfg[i][0] || '').trim().toUpperCase();
+          if (!chave) continue;
+          encontrados[chave] = true;
+
           if (chave === 'NOME_DEPOSITO') {
-            abaConfig.getRange(i + 1, 2).setValue(tipo === 'NOVA_EMPRESA' ? '' : nomeFinal);
+            abaConfig.getRange(i + 1, 2).setValue(nomeFinal);
           } else if (chave === 'DRIVE_URL') {
             abaConfig.getRange(i + 1, 2).setValue(pastaReplica.getUrl());
-            achouDrive = true;
           } else if (chave === 'EMPRESA_ID') {
             abaConfig.getRange(i + 1, 2).setValue(novoEmpresaId);
-            achouEmpresaId = true;
+          } else if (chave === 'GRUPO_ID') {
+            abaConfig.getRange(i + 1, 2).setValue(novoGrupoId);
+          } else if (chave === 'MATRIZ_ID') {
+            abaConfig.getRange(i + 1, 2).setValue(tipo === 'FILIAL' ? (matrizId || ssOrigem.getId()) : '');
+          } else if (chave === 'TIPO_UNIDADE') {
+            abaConfig.getRange(i + 1, 2).setValue(tipo === 'FILIAL' ? 'FILIAL' : 'MATRIZ');
+          } else if (chave === 'SETUP_CONCLUIDO') {
+            // Filial já nasce operacional com dados da rede; Nova Empresa abre Boas-Vindas para cadastrar DONO
+            abaConfig.getRange(i + 1, 2).setValue(tipo === 'FILIAL' ? 'SIM' : 'NAO');
           } else if (chave === 'TELEGRAM_WEBHOOK_URL' || chave === 'TELEGRAM_BOT_TOKEN') {
             if (tipo === 'NOVA_EMPRESA' || chave === 'TELEGRAM_WEBHOOK_URL') {
               abaConfig.getRange(i + 1, 2).setValue('');
             }
-          } else if (chave === 'SUPABASE_KEY' || chave === 'SUPABASE_URL') {
-            if (tipo === 'NOVA_EMPRESA') {
-              abaConfig.getRange(i + 1, 2).setValue('');
-            }
-          } else if (chave === 'SETUP_CONCLUIDO') {
-            abaConfig.getRange(i + 1, 2).setValue('NAO');
-            achouSetup = true;
-          } else if (tipo === 'NOVA_EMPRESA' && (chave === 'DONO' || chave === 'CNPJ' || chave === 'ENDERECO' || chave === 'TELEFONE' || chave === 'CIDADE' || chave === 'CHAVE_PIX' || chave === 'MENSAGEM_RODAPE' || chave === 'TELEGRAM_DONO_CHAT_ID')) {
+          } else if (tipo === 'NOVA_EMPRESA' && (
+            chave === 'DONO' || chave === 'CNPJ' || chave === 'ENDERECO' ||
+            chave === 'TELEFONE' || chave === 'CIDADE' || chave === 'CHAVE_PIX' ||
+            chave === 'MENSAGEM_RODAPE' || chave === 'TELEGRAM_DONO_CHAT_ID'
+          )) {
             abaConfig.getRange(i + 1, 2).setValue('');
           }
+          // ⚠️ SUPABASE_URL e SUPABASE_KEY são preservados NATIVAMENTE em ambos os modos!
         }
 
-        if (!achouDrive) {
-          abaConfig.appendRow(['DRIVE_URL', pastaReplica.getUrl(), 'URL da pasta do Drive']);
+        if (!encontrados['DRIVE_URL']) abaConfig.appendRow(['DRIVE_URL', pastaReplica.getUrl(), 'URL da pasta do Drive']);
+        if (!encontrados['EMPRESA_ID']) abaConfig.appendRow(['EMPRESA_ID', novoEmpresaId, 'Identificador exclusivo da empresa no banco de dados']);
+        if (!encontrados['GRUPO_ID']) abaConfig.appendRow(['GRUPO_ID', novoGrupoId, 'Identificador do grupo empresarial']);
+        if (!encontrados['MATRIZ_ID']) abaConfig.appendRow(['MATRIZ_ID', tipo === 'FILIAL' ? (matrizId || ssOrigem.getId()) : '', 'ID da unidade Matriz']);
+        if (!encontrados['TIPO_UNIDADE']) abaConfig.appendRow(['TIPO_UNIDADE', tipo === 'FILIAL' ? 'FILIAL' : 'MATRIZ', 'Tipo de unidade (MATRIZ ou FILIAL)']);
+        if (!encontrados['SETUP_CONCLUIDO']) abaConfig.appendRow(['SETUP_CONCLUIDO', tipo === 'FILIAL' ? 'SIM' : 'NAO', 'Status do cadastro inicial']);
+      }
+
+      // =========================================================================
+      // 👥 5. GOVERNANÇA DE USUÁRIOS (1 ADMIN ÚNICO | FILIAL MANTÉM DONO | NOVA EMPRESA CADASTRA DONO NAS BOAS-VINDAS)
+      // =========================================================================
+      const abaUsers = ssNova.getSheetByName('USUARIOS');
+      if (abaUsers && abaUsers.getLastRow() > 1) {
+        const dadosU = abaUsers.getDataRange().getValues();
+        const cabecalhoU = dadosU[0];
+        const linhasManter = [];
+        let adminJaIncluido = false;
+
+        for (let i = 1; i < dadosU.length; i++) {
+          const row = dadosU[i];
+          const idU = String(row[0] || '').trim();
+          const nomeU = String(row[1] || '').trim().toLowerCase();
+          const perfilU = String(row[4] || '').trim().toUpperCase();
+          if (!idU && !nomeU) continue;
+
+          const ehAdminUnico = (perfilU === 'ADMIN' || nomeU === 'admin' || nomeU === 'administrador');
+
+          if (ehAdminUnico) {
+            if (!adminJaIncluido) {
+              const rowAdmin = row.slice();
+              rowAdmin[4] = 'ADMIN';
+              rowAdmin[5] = 'SIM';
+              if (rowAdmin.length >= 9) rowAdmin[8] = ''; // limpa token de sessão
+              linhasManter.push(rowAdmin);
+              adminJaIncluido = true;
+            }
+          } else if (tipo === 'FILIAL') {
+            // Filial mantém o DONO com exatamente o mesmo login e senha + GERENTES da rede
+            if (perfilU === 'DONO' || perfilU === 'GERENTE') {
+              const rowKeep = row.slice();
+              if (rowKeep.length >= 9) rowKeep[8] = ''; // limpa token de sessão
+              linhasManter.push(rowKeep);
+            }
+          }
+          // Se NOVA_EMPRESA: não copia nenhum DONO nem equipe — o cliente cria seu próprio DONO na tela de Boas-Vindas!
         }
-        if (!achouEmpresaId) {
-          abaConfig.appendRow(['EMPRESA_ID', novoEmpresaId, 'Identificador exclusivo da empresa no banco de dados']);
+
+        // Garante que existe exatamente 1 ADMIN técnico oculto mesmo se a origem não tivesse
+        if (!adminJaIncluido) {
+          const hashAdmin = (typeof gerarHashSenha === 'function') ? gerarHashSenha('admin123') : 'admin123';
+          const linhaAdmin = new Array(cabecalhoU.length).fill('');
+          linhaAdmin[0] = 'U-ADMIN-01';
+          linhaAdmin[1] = 'admin';
+          linhaAdmin[2] = 'admin@sistema.local';
+          linhaAdmin[3] = hashAdmin;
+          linhaAdmin[4] = 'ADMIN';
+          linhaAdmin[5] = 'SIM';
+          linhaAdmin[6] = dataAtual;
+          linhaAdmin[7] = dataAtual;
+          linhasManter.unshift(linhaAdmin);
         }
-        if (!achouSetup) {
-          abaConfig.appendRow(['SETUP_CONCLUIDO', 'NAO', 'Configuração inicial pendente']);
+
+        // Reescreve a aba USUARIOS limpa e sem linhas vazias no meio
+        abaUsers.getRange(2, 1, abaUsers.getLastRow() - 1, abaUsers.getLastColumn()).clearContent();
+        if (linhasManter.length > 0) {
+          abaUsers.getRange(2, 1, linhasManter.length, linhasManter[0].length).setValues(linhasManter);
         }
       }
 
-      // 5. Aba USUARIOS:
-      // Se FILIAL: Mantém os administradores / gerentes e limpa pendentes/vendedores da filial antiga.
-      // Se NOVA_EMPRESA: Mantém apenas a conta admin padrão resetada e limpa todos os outros.
-      const abaUsers = ssNova.getSheetByName('USUARIOS');
-      if (abaUsers && abaUsers.getLastRow() > 1) {
-        if (tipo === 'NOVA_EMPRESA') {
-          if (abaUsers.getLastRow() > 2) {
-            abaUsers.getRange(3, 1, abaUsers.getLastRow() - 2, abaUsers.getLastColumn()).clearContent();
-          }
-          const hashPadrao = (typeof gerarHashSenha === 'function') ? gerarHashSenha('admin123') : 'admin123';
-          abaUsers.getRange(2, 1).setValue('admin');
-          abaUsers.getRange(2, 2).setValue('Administrador');
-          abaUsers.getRange(2, 3).setValue('admin@sistema.local');
-          abaUsers.getRange(2, 4).setValue(hashPadrao);
-          abaUsers.getRange(2, 5).setValue('DONO');
-          abaUsers.getRange(2, 6).setValue('SIM');
-          if (abaUsers.getLastColumn() >= 9) {
-            abaUsers.getRange(2, 9).setValue('');
-          }
-        } else {
-          if (abaUsers.getLastRow() > 2) {
-            const dadosU = abaUsers.getDataRange().getValues();
-            for (let i = 2; i < dadosU.length; i++) {
-              const perfilU = String(dadosU[i][4] || '').toUpperCase();
-              if (perfilU !== 'DONO' && perfilU !== 'GERENCIAL' && perfilU !== 'ADMIN') {
-                abaUsers.getRange(i + 1, 1, 1, abaUsers.getLastColumn()).clearContent();
-              }
-            }
-          }
-        }
+      // =========================================================================
+      // 🔗 6. SE FOR FILIAL, REGISTRA AUTOMATICAMENTE NA ABA UNIDADES_REDE DA MATRIZ
+      // =========================================================================
+      const dadosUnidadeCriada = {
+        id: novoEmpresaId,
+        nome: nomeFinal,
+        tipo: tipo,
+        planilhaId: copia.getId(),
+        pastaDriveUrl: pastaReplica.getUrl(),
+        grupoId: novoGrupoId,
+        status: 'ATIVA'
+      };
+
+      if (tipo === 'FILIAL' && abaUnidadesMatriz) {
+        abaUnidadesMatriz.appendRow([
+          novoEmpresaId,
+          nomeFinal,
+          'FILIAL',
+          copia.getId(),
+          pastaReplica.getUrl(),
+          novoGrupoId,
+          'ATIVA',
+          dataAtual
+        ]);
       }
 
       // 🎨 Aplica a Padronização Visual Estrita em todas as abas da nova planilha
@@ -12061,16 +12293,20 @@
       SpreadsheetApp.flush();
 
       if (typeof registrarLog === 'function') {
-        registrarLog('REPLICACAO_PLANILHA', `Planilha virgem (${tipo}) criada com pasta e subpastas: ${nomeFinal}`, copia.getId(), Session.getActiveUser().getEmail());
+        registrarLog('REPLICACAO_PLANILHA', `Unidade (${tipo}) criada com sucesso: ${nomeFinal} [${novoEmpresaId}]`, copia.getId(), Session.getActiveUser().getEmail());
       }
 
       return {
         ok: true,
+        sucesso: true,
         url: copia.getUrl(),
         pastaUrl: pastaReplica.getUrl(),
         id: copia.getId(),
         nome: nomeFinal,
-        tipo: tipo
+        tipo: tipo,
+        empresaId: novoEmpresaId,
+        grupoId: novoGrupoId,
+        unidade: dadosUnidadeCriada
       };
     } catch(err) {
       return { ok: false, msg: err.message };
@@ -12858,7 +13094,7 @@
 
     const id = 'CR-' + String(seq).padStart(6,'0');
 
-    sh.appendRow([
+    inserirLinhaPadronizadaNoTopo(sh, [
       id,
       origem,           // COMANDA | DELIVERY
       idVenda,          // C-000012 | D-000008
@@ -12877,7 +13113,7 @@
 
     return id;
   }
-  function validarClienteFiado(cliente){
+  function validarClienteFiado(cliente, valorNovoFiado){
     if(!cliente || String(cliente).trim().toUpperCase() === 'CONSUMIDOR BALCÃO' || String(cliente).trim().toUpperCase() === 'CONSUMIDOR'){
       throw new Error('Informe o nome do cliente na comanda para registrar como fiado.');
     }
@@ -12891,15 +13127,41 @@
     }
 
     const dadosCli = shCli.getDataRange().getValues();
+    const hdr = (dadosCli[0] || []).map(h => String(h || '').toUpperCase().trim());
+    const colLim = hdr.findIndex(h => h.includes('LIMITE'));
+    const colStat = hdr.findIndex(h => h.includes('STATUS'));
     const safeNorm = str => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
     const nomeNorm = safeNorm(cliente);
-    const existe = dadosCli.slice(1).some(l => safeNorm(l[0]) === nomeNorm);
+    const rowCli = dadosCli.slice(1).find(l => safeNorm(l[0]) === nomeNorm);
 
-    if(!existe){
+    if(!rowCli){
       shCli.appendRow([String(cliente).trim(), '', '', agoraBrasil()]);
+      return true;
     }
 
-    // ✅ NÃO BLOQUEIA NOVO FIADO
+    if (colStat !== -1 && String(rowCli[colStat] || 'ATIVO').toUpperCase().trim() !== 'ATIVO') {
+      throw new Error(`Cliente "${rowCli[0]}" está BLOQUEADO para compras no Fiado.`);
+    }
+
+    const limite = colLim !== -1 ? (Number(String(rowCli[colLim] || 0).replace(',', '.')) || 0) : 0;
+    const novoVal = Number(valorNovoFiado) || 0;
+    if (limite > 0 && novoVal > 0) {
+      const shCR = ss.getSheetByName('CONTAS_A_RECEBER');
+      let aberto = 0;
+      if (shCR) {
+        const dCR = shCR.getDataRange().getValues();
+        for (let i = 1; i < dCR.length; i++) {
+          const st = safeNorm(dCR[i][8]);
+          if (st !== 'PAGO' && st !== 'QUITADO' && safeNorm(dCR[i][2]) === nomeNorm) {
+            aberto += Number(dCR[i][6]) || Number(dCR[i][4]) || 0;
+          }
+        }
+      }
+      if (aberto + novoVal > limite + 0.01) {
+        throw new Error(`Limite de fiado excedido para "${rowCli[0]}"! Limite: R$ ${limite.toFixed(2)} | Em aberto: R$ ${aberto.toFixed(2)}.`);
+      }
+    }
+
     return true;
   }
   function receberParcialContaAReceber(id, valor, forma){
@@ -13163,93 +13425,349 @@
       Utilities.formatDate(fim, Session.getScriptTimeZone(), 'yyyy-MM-dd')
     );
   }
-    function gerarRelatorioFinanceiroCompletoSilencioso() {
+    function gerarRelatorioFinanceiroCompletoSilencioso(registrarNoDrive) {
+    const deveSalvarDrive = registrarNoDrive !== false;
     const ss = SpreadsheetApp.getActive();
     const caixa = ss.getSheetByName('CAIXA');
     const vendas = ss.getSheetByName('VENDAS');
     const compras = ss.getSheetByName('COMPRAS');
     const contasReceber = ss.getSheetByName('CONTAS_A_RECEBER');
     const contasPagar = ss.getSheetByName('CONTAS_A_PAGAR');
+    const shProdutos = ss.getSheetByName('PRODUTOS');
+    const shEstoque = ss.getSheetByName('ESTOQUE');
 
     let sh = ss.getSheetByName('RELATORIO_FINANCEIRO');
-    if(!sh){
+    if (!sh) {
       sh = ss.insertSheet('RELATORIO_FINANCEIRO');
     }
     sh.clear();
 
-    const dadosCaixa = caixa ? caixa.getDataRange().getValues().slice(1) : [];
-    const dadosVendas = vendas ? vendas.getDataRange().getValues().slice(1) : [];
-    const dadosCompras = compras ? compras.getDataRange().getValues().slice(1) : [];
-    const dadosCR = contasReceber ? contasReceber.getDataRange().getValues().slice(1) : [];
-    const dadosCP = contasPagar ? contasPagar.getDataRange().getValues().slice(1) : [];
+    const normTxt = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const parseDt = val => {
+      if (val instanceof Date && !isNaN(val.getTime())) return val;
+      const str = String(val || '').trim();
+      if (!str || str.startsWith('---')) return null;
+      const mBr = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+      if (mBr) {
+        return new Date(Number(mBr[3]), Number(mBr[2]) - 1, Number(mBr[1]), Number(mBr[4] || 0), Number(mBr[5] || 0), Number(mBr[6] || 0));
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const normForma = f => {
+      const s = normTxt(f);
+      if (s.includes('PIX')) return 'PIX';
+      if (s.includes('DINHEIRO')) return 'Dinheiro';
+      if (s.includes('DEBITO')) return 'Cartão Débito';
+      if (s.includes('CREDITO')) return 'Cartão Crédito';
+      if (s.includes('FIADO')) return 'Fiado';
+      return 'Outros';
+    };
 
-    const totalEntradas = dadosCaixa
-      .filter(l => String(l[1]).toUpperCase() === 'ENTRADA')
-      .reduce((s, l) => s + (Number(l[2]) || 0), 0);
+    const agora = new Date();
+    const hojeYmd = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy-MM-dd');
+    const mesAtualYm = Utilities.formatDate(agora, 'America/Sao_Paulo', 'yyyy-MM');
 
-    const totalSaidas = dadosCaixa
-      .filter(l => String(l[1]).toUpperCase() === 'SAIDA' || String(l[1]).toUpperCase() === 'SAÍDA')
-      .reduce((s, l) => s + (Number(l[2]) || 0), 0);
+    const dadosCaixa = caixa && caixa.getLastRow() > 1 ? caixa.getRange(2, 1, caixa.getLastRow() - 1, Math.min(caixa.getLastColumn(), 6)).getValues() : [];
+    const dadosVendas = vendas && vendas.getLastRow() > 1 ? vendas.getRange(2, 1, vendas.getLastRow() - 1, Math.min(vendas.getLastColumn(), 7)).getValues() : [];
+    const dadosCompras = compras && compras.getLastRow() > 1 ? compras.getRange(2, 1, compras.getLastRow() - 1, Math.min(compras.getLastColumn(), 8)).getValues() : [];
+    const dadosCR = contasReceber && contasReceber.getLastRow() > 1 ? contasReceber.getRange(2, 1, contasReceber.getLastRow() - 1, Math.min(contasReceber.getLastColumn(), 10)).getValues() : [];
+    const dadosCP = contasPagar && contasPagar.getLastRow() > 1 ? contasPagar.getRange(2, 1, contasPagar.getLastRow() - 1, Math.min(contasPagar.getLastColumn(), 7)).getValues() : [];
+    const dadosProd = shProdutos && shProdutos.getLastRow() > 1 ? shProdutos.getRange(2, 1, shProdutos.getLastRow() - 1, Math.min(shProdutos.getLastColumn(), 12)).getValues() : [];
+    const dadosEst = shEstoque && shEstoque.getLastRow() > 1 ? shEstoque.getRange(2, 1, shEstoque.getLastRow() - 1, Math.min(shEstoque.getLastColumn(), 4)).getValues() : [];
 
-    const totalVendas = dadosVendas.reduce((s, l) => s + (Number(l[3]) || 0), 0);
-    const totalCompras = dadosCompras.reduce((s, l) => s + ((Number(l[2]) || 0) * (Number(l[3]) || 0)), 0);
+    // Mapa de custo médio e preço de venda por produto (somente leitura)
+    const mapaProd = {};
+    dadosProd.forEach(p => {
+      const nk = normTxt(p[0]);
+      if (!nk) return;
+      mapaProd[nk] = {
+        preco: Number(p[4]) || 0,
+        custo: Number(p[6]) || 0
+      };
+    });
+
+    // Patrimônio em estoque
+    let estoqueCusto = 0;
+    let estoqueVenda = 0;
+    dadosEst.forEach(e => {
+      const nk = normTxt(e[0]);
+      const q = Number(e[1]) || 0;
+      if (!nk || q <= 0) return;
+      const info = mapaProd[nk];
+      if (info) {
+        estoqueCusto += q * info.custo;
+        estoqueVenda += q * info.preco;
+      }
+    });
+
+    // Acumuladores por período (Hoje / Mês Atual / Geral)
+    const acc = {
+      entHoje: 0, entMes: 0, entGeral: 0,
+      saiHoje: 0, saiMes: 0, saiGeral: 0,
+      vndHoje: 0, vndMes: 0, vndGeral: 0,
+      cmvHoje: 0, cmvMes: 0, cmvGeral: 0,
+      cmpHoje: 0, cmpMes: 0, cmpGeral: 0
+    };
+
+    const formasKeys = ['Dinheiro', 'PIX', 'Cartão Débito', 'Cartão Crédito', 'Fiado', 'Outros'];
+    const formasHoje = {};
+    const formasMes = {};
+    const formasGeral = {};
+    formasKeys.forEach(k => { formasHoje[k] = 0; formasMes[k] = 0; formasGeral[k] = 0; });
+
+    const mensal = {};
+    const garantirMes = ym => {
+      if (!mensal[ym]) mensal[ym] = { ym: ym, vendas: 0, entradas: 0, saidas: 0 };
+      return mensal[ym];
+    };
+
+    // 1. VENDAS + CMV
+    const comandasVendasHoje = {};
+    const comandasVendasMes = {};
+    dadosVendas.forEach(l => {
+      const prod = String(l[1] || '').trim();
+      if (!prod) return;
+      const dt = parseDt(l[0]);
+      const qtd = Number(l[2]) || 0;
+      const val = Number(l[3]) || 0;
+      const forma = normForma(l[4]);
+      const orig = normTxt(l[5]);
+      const ref = String(l[6] || '').trim();
+      const mCmd = ref.match(/^(?:C-0*|#)?(\d+)$/i);
+      const numCmd = (orig.includes('COMANDA') && mCmd) ? String(Number(mCmd[1])) : '';
+
+      const custoUnit = (mapaProd[normTxt(prod)] && mapaProd[normTxt(prod)].custo) ? mapaProd[normTxt(prod)].custo : 0;
+      const cmv = qtd * custoUnit;
+
+      acc.vndGeral += val;
+      acc.cmvGeral += cmv;
+      if (forma === 'Fiado') formasGeral['Fiado'] += val;
+
+      if (dt) {
+        const ymd = Utilities.formatDate(dt, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        const ym = ymd.slice(0, 7);
+        garantirMes(ym).vendas += val;
+        if (ym === mesAtualYm) {
+          acc.vndMes += val;
+          acc.cmvMes += cmv;
+          if (forma === 'Fiado') formasMes['Fiado'] += val;
+          if (numCmd) comandasVendasMes[numCmd] = true;
+        }
+        if (ymd === hojeYmd) {
+          acc.vndHoje += val;
+          acc.cmvHoje += cmv;
+          if (forma === 'Fiado') formasHoje['Fiado'] += val;
+          if (numCmd) comandasVendasHoje[numCmd] = true;
+        }
+      }
+    });
+
+    // 2. CAIXA (ENTRADAS, SAÍDAS, FORMAS DE PAGAMENTO E ABATIMENTOS DE COMANDAS ABERTAS)
+    dadosCaixa.forEach(l => {
+      const tipo = normTxt(l[1]);
+      if (tipo !== 'ENTRADA' && tipo !== 'SAIDA') return;
+      if (normTxt(l[3]) === 'CANCELADO') return;
+      const dt = parseDt(l[0]);
+      const val = Number(l[2]) || 0;
+      const forma = normForma(l[3]);
+      const textoCmd = `${l[4] || ''} ${l[5] || ''}`;
+
+      if (tipo === 'ENTRADA') {
+        acc.entGeral += val;
+        formasGeral[forma] = (formasGeral[forma] || 0) + val;
+      } else {
+        acc.saiGeral += val;
+      }
+
+      if (dt) {
+        const ymd = Utilities.formatDate(dt, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        const ym = ymd.slice(0, 7);
+        if (tipo === 'ENTRADA') {
+          garantirMes(ym).entradas += val;
+          if (ym === mesAtualYm) {
+            acc.entMes += val;
+            formasMes[forma] = (formasMes[forma] || 0) + val;
+          }
+          if (ymd === hojeYmd) {
+            acc.entHoje += val;
+            formasHoje[forma] = (formasHoje[forma] || 0) + val;
+          }
+          // Abatimento parcial em comanda ainda aberta entra no faturamento do período sem duplicar
+          if (/comanda/i.test(textoCmd)) {
+            const mCx = textoCmd.match(/Comanda\s*(?:C-0*)?#?(\d+)/i) || textoCmd.match(/#(\d+)/);
+            const numCx = mCx ? String(Number(mCx[1])) : '';
+            if (numCx) {
+              if (ymd === hojeYmd && !comandasVendasHoje[numCx]) acc.vndHoje += val;
+              if (ym === mesAtualYm && !comandasVendasMes[numCx]) acc.vndMes += val;
+            }
+          }
+        } else {
+          garantirMes(ym).saidas += val;
+          if (ym === mesAtualYm) acc.saiMes += val;
+          if (ymd === hojeYmd) acc.saiHoje += val;
+        }
+      }
+    });
+
+    // 3. COMPRAS ATIVAS (COLUNA D JÁ É VALOR TOTAL — SEM MULTIPLICAR POR QTD!)
+    dadosCompras.forEach(l => {
+      const st = normTxt(l[6]);
+      if (st === 'CANCELADO') return;
+      const valTotal = Number(l[3]) || 0;
+      if (valTotal <= 0) return;
+      const dt = parseDt(l[0]);
+      acc.cmpGeral += valTotal;
+      if (dt) {
+        const ymd = Utilities.formatDate(dt, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        const ym = ymd.slice(0, 7);
+        if (ym === mesAtualYm) acc.cmpMes += valTotal;
+        if (ymd === hojeYmd) acc.cmpHoje += valTotal;
+      }
+    });
+
+    // 4. CONTAS A RECEBER EM ABERTO & CONTAS A PAGAR PENDENTES
     const totalCRAberto = dadosCR
-      .filter(l => String(l[8]).toUpperCase() !== 'QUITADO')
+      .filter(l => {
+        const st = normTxt(l[8]);
+        return st !== 'QUITADO' && st !== 'PAGO' && (Number(l[6]) || 0) > 0;
+      })
       .reduce((s, l) => s + (Number(l[6]) || 0), 0);
+
     const totalCPendente = dadosCP
-      .filter(l => String(l[5]).toUpperCase() === 'ABERTO' || String(l[5]).toUpperCase() === 'PENDENTE')
+      .filter(l => {
+        const st = normTxt(l[5]);
+        const formaP = normTxt(l[3]);
+        return st !== 'PAGO' && st !== 'QUITADO' && !st.includes('CANCEL') && formaP !== 'CANCELADO' && (Number(l[2]) || 0) > 0;
+      })
       .reduce((s, l) => s + (Number(l[2]) || 0), 0);
 
-    const linhasResumo = [
-      ['RELATÓRIO FINANCEIRO COMPLETO', '', ''],
-      ['Gerado em', new Date(), ''],
-      ['', '', ''],
-      ['Métrica', 'Valor', 'Observação'],
-      ['Entradas no Caixa', totalEntradas, 'Somatório CAIXA tipo Entrada'],
-      ['Saídas no Caixa', totalSaidas, 'Somatório CAIXA tipo Saída'],
-      ['Resultado Caixa', totalEntradas - totalSaidas, 'Entradas - Saídas'],
-      ['Total Vendas', totalVendas, 'Somatório VENDAS coluna Valor'],
-      ['Total Compras (Qtd*Valor)', totalCompras, 'Somatório COMPRAS'],
-      ['Contas a Receber em Aberto', totalCRAberto, 'CONTAS_A_RECEBER não quitadas'],
-      ['Contas a Pagar Pendentes', totalCPendente, 'CONTAS_A_PAGAR abertas/pendentes'],
-      ['Resultado Gerencial Estimado', totalVendas - totalCompras - totalCPendente + totalCRAberto, 'Vendas - Compras - CP + CR']
+    const saldoCaixaHoje = acc.entHoje - acc.saiHoje;
+    const saldoCaixaMes = acc.entMes - acc.saiMes;
+    const saldoCaixaGeral = acc.entGeral - acc.saiGeral;
+    const lucroBrutoHoje = acc.vndHoje - acc.cmvHoje;
+    const lucroBrutoMes = acc.vndMes - acc.cmvMes;
+    const lucroBrutoGeral = acc.vndGeral - acc.cmvGeral;
+    const margemHoje = acc.vndHoje > 0 ? lucroBrutoHoje / acc.vndHoje : 0;
+    const margemMes = acc.vndMes > 0 ? lucroBrutoMes / acc.vndMes : 0;
+    const margemGeral = acc.vndGeral > 0 ? lucroBrutoGeral / acc.vndGeral : 0;
+    const saldoProjetado = saldoCaixaGeral + totalCRAberto - totalCPendente;
+
+    // MONTAGEM DA PLANILHA EXECUTIVA (5 COLUNAS: A..E)
+    const rows = [
+      ['📊 RELATÓRIO FINANCEIRO EXECUTIVO 360°', '', '', '', ''],
+      ['Atualizado em', agora, '', 'Competência', mesAtualYm],
+      ['', '', '', '', ''],
+      ['1. RESUMO OPERACIONAL & DRE', 'Hoje', 'Mês Atual', 'Total Geral', 'Observação'],
+      ['Entradas no Caixa', acc.entHoje, acc.entMes, acc.entGeral, 'Recebimentos efetivados (CAIXA)'],
+      ['Saídas no Caixa', acc.saiHoje, acc.saiMes, acc.saiGeral, 'Pagamentos e compras (CAIXA)'],
+      ['Saldo / Resultado Caixa', saldoCaixaHoje, saldoCaixaMes, saldoCaixaGeral, 'Entradas - Saídas no período'],
+      ['Faturamento Bruto (Vendas)', acc.vndHoje, acc.vndMes, acc.vndGeral, 'Vendas concluídas + parciais abertas'],
+      ['CMV Estimado (Custo Vendido)', acc.cmvHoje, acc.cmvMes, acc.cmvGeral, 'Qtd vendida × Custo Médio atual'],
+      ['Lucro Bruto Estimado', lucroBrutoHoje, lucroBrutoMes, lucroBrutoGeral, 'Faturamento - CMV'],
+      ['Margem Bruta Média (%)', margemHoje, margemMes, margemGeral, 'Lucro Bruto ÷ Faturamento'],
+      ['Compras de Mercadoria (Ativas)', acc.cmpHoje, acc.cmpMes, acc.cmpGeral, 'Soma real da coluna Valor Total (COMPRAS)'],
+      ['', '', '', '', ''],
+      ['2. RECEBIMENTOS POR FORMA DE PAGAMENTO', 'Hoje', 'Mês Atual', 'Total Geral', 'Participação (Mês)']
     ];
 
-    sh.getRange(1, 1, linhasResumo.length, 3).setValues(linhasResumo);
+    const totalFormasMes = formasKeys.reduce((s, k) => s + (formasMes[k] || 0), 0);
+    const rowFormasInicio = rows.length + 1;
+    formasKeys.forEach(k => {
+      const partMes = totalFormasMes > 0 ? (formasMes[k] || 0) / totalFormasMes : 0;
+      rows.push([k, formasHoje[k] || 0, formasMes[k] || 0, formasGeral[k] || 0, partMes]);
+    });
+    const rowFormasFim = rows.length;
 
-    sh.getRange('A1:C1').merge()
+    rows.push(['', '', '', '', '']);
+    const rowSaudeHeader = rows.length + 1;
+    rows.push(['3. POSIÇÃO FINANCEIRA, OBRIGAÇÕES & PATRIMÔNIO', 'Valor', '', '', 'Observação']);
+    const rowSaudeInicio = rows.length + 1;
+    rows.push(['Contas a Receber em Aberto (Fiados)', totalCRAberto, '', '', 'Saldo pendente em CONTAS_A_RECEBER']);
+    rows.push(['Contas a Pagar Pendentes', totalCPendente, '', '', 'Boletos/fornecedores em aberto em CONTAS_A_PAGAR']);
+    rows.push(['Saldo de Caixa Projetado', saldoProjetado, '', '', 'Saldo Caixa Geral + A Receber - A Pagar']);
+    rows.push(['Patrimônio em Estoque (Preço de Custo)', estoqueCusto, '', '', 'Capital investido parado em estoque']);
+    rows.push(['Patrimônio em Estoque (Preço de Venda)', estoqueVenda, '', '', 'Valor potencial de venda do estoque atual']);
+    rows.push(['Lucro Potencial no Estoque', estoqueVenda - estoqueCusto, '', '', 'Estoque a Venda - Estoque a Custo']);
+    const rowSaudeFim = rows.length;
+
+    rows.push(['', '', '', '', '']);
+    const rowMensalHeader = rows.length + 1;
+    rows.push(['4. EVOLUÇÃO MENSAL (MAIS RECENTE NO TOPO)', 'Faturamento Vendas', 'Entradas Caixa', 'Saídas Caixa', 'Resultado Caixa']);
+    const rowMensalInicio = rows.length + 1;
+    const mesesOrdenados = Object.keys(mensal).sort().reverse();
+    mesesOrdenados.forEach(ym => {
+      const m = mensal[ym];
+      const [anoStr, mesStr] = ym.split('-');
+      rows.push([`${mesStr}/${anoStr}`, m.vendas, m.entradas, m.saidas, m.entradas - m.saidas]);
+    });
+    const rowMensalFim = rows.length;
+
+    sh.getRange(1, 1, rows.length, 5).setValues(rows);
+
+    // Estilo executivo limpo
+    sh.getRange(1, 1, rows.length, 5)
+      .setBackground('#ffffff')
+      .setFontColor('#000000')
+      .setFontWeight('normal')
+      .setVerticalAlignment('middle');
+
+    sh.getRange('A1:E1').merge()
       .setFontWeight('bold')
+      .setFontSize(12)
       .setBackground('#020617')
       .setFontColor('#ffffff')
       .setHorizontalAlignment('center');
 
-    sh.getRange('A4:C4')
-      .setFontWeight('bold')
-      .setBackground('#1e293b')
-      .setFontColor('#ffffff');
+    [4, 14, rowSaudeHeader, rowMensalHeader].forEach(rHdr => {
+      sh.getRange(rHdr, 1, 1, 5)
+        .setFontWeight('bold')
+        .setBackground('#1e293b')
+        .setFontColor('#ffffff');
+    });
 
-    sh.getRange(5, 2, linhasResumo.length - 4, 1).setNumberFormat('R$ #,##0.00');
+    // Formatação numérica
     sh.getRange('B2').setNumberFormat('dd/MM/yyyy HH:mm');
+    sh.getRange(5, 2, 6, 3).setNumberFormat('R$ #,##0.00'); // Linhas 5..10
+    sh.getRange(11, 2, 1, 3).setNumberFormat('0.0%');      // Margem Bruta %
+    sh.getRange(12, 2, 1, 3).setNumberFormat('R$ #,##0.00'); // Compras
 
-    sh.setColumnWidth(1, 300);
-    sh.setColumnWidth(2, 170);
-    sh.setColumnWidth(3, 360);
+    sh.getRange(rowFormasInicio, 2, rowFormasFim - rowFormasInicio + 1, 3).setNumberFormat('R$ #,##0.00');
+    sh.getRange(rowFormasInicio, 5, rowFormasFim - rowFormasInicio + 1, 1).setNumberFormat('0.0%');
 
-    aplicarFormatacaoPadrao(sh);
+    sh.getRange(rowSaudeInicio, 2, rowSaudeFim - rowSaudeInicio + 1, 1).setNumberFormat('R$ #,##0.00');
 
-    registrarInformacaoImportanteNoDrive(
-      'RELATORIO',
-      'Relatório financeiro completo',
-      [
-        `Entradas caixa: R$ ${totalEntradas.toFixed(2)}`,
-        `Saídas caixa: R$ ${totalSaidas.toFixed(2)}`,
-        `Total vendas: R$ ${totalVendas.toFixed(2)}`,
-        `Total compras: R$ ${totalCompras.toFixed(2)}`,
-        `CR em aberto: R$ ${totalCRAberto.toFixed(2)}`,
-        `CP pendente: R$ ${totalCPendente.toFixed(2)}`
-      ].join('\n'),
-      { subcategoria: 'Financeiro' }
-    );
+    if (mesesOrdenados.length > 0) {
+      sh.getRange(rowMensalInicio, 2, rowMensalFim - rowMensalInicio + 1, 4).setNumberFormat('R$ #,##0.00');
+    }
+
+    // Destaques sutis em linhas-chave
+    [7, 10, rowSaudeInicio + 2].forEach(rDest => {
+      sh.getRange(rDest, 1, 1, 5).setFontWeight('bold').setBackground('#f1f5f9');
+    });
+
+    sh.setColumnWidth(1, 310);
+    sh.setColumnWidth(2, 150);
+    sh.setColumnWidth(3, 150);
+    sh.setColumnWidth(4, 150);
+    sh.setColumnWidth(5, 310);
+
+    if (deveSalvarDrive && typeof registrarInformacaoImportanteNoDrive === 'function') {
+      registrarInformacaoImportanteNoDrive(
+        'RELATORIO',
+        'Relatório financeiro completo',
+        [
+          `Entradas caixa (Geral): R$ ${acc.entGeral.toFixed(2)}`,
+          `Saídas caixa (Geral): R$ ${acc.saiGeral.toFixed(2)}`,
+          `Saldo caixa (Geral): R$ ${saldoCaixaGeral.toFixed(2)}`,
+          `Faturamento vendas (Geral): R$ ${acc.vndGeral.toFixed(2)}`,
+          `Compras ativas (Geral): R$ ${acc.cmpGeral.toFixed(2)}`,
+          `CR em aberto: R$ ${totalCRAberto.toFixed(2)}`,
+          `CP pendente: R$ ${totalCPendente.toFixed(2)}`
+        ].join('\n'),
+        { subcategoria: 'Financeiro' }
+      );
+    }
   }
 
   function gerarRelatorioFinanceiroCompleto() {

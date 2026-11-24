@@ -1954,13 +1954,19 @@ function criarSessao(idUser){
   
   const idSessao = 'S-' + String(maxSessao + 1).padStart(8, '0');
   
-  shSessoes.appendRow([
+  const linhaSessao = [
     idSessao,
     idUser,
     new Date(),
     '',
     'SIM'
-  ]);
+  ];
+  if (typeof inserirLinhaPadronizadaNoTopo === 'function') {
+    inserirLinhaPadronizadaNoTopo(shSessoes, linhaSessao);
+  } else {
+    shSessoes.insertRowBefore(2);
+    shSessoes.getRange(2, 1, 1, linhaSessao.length).setValues([linhaSessao]);
+  }
   
   // Salva em propriedades de script para acesso rápido
   const props = PropertiesService.getUserProperties();
@@ -2138,14 +2144,20 @@ function registrarAuditoria(idUser, acao, detalhe){
     
     if(!shAuditoria) return;
     
-    shAuditoria.appendRow([
+    const linhaAud = [
       new Date(),
       idUser,
       acao,
       detalhe || '',
       Session.getActiveUser().getEmail() || 'LOCAL',
       'OK'
-    ]);
+    ];
+    if (typeof inserirLinhaPadronizadaNoTopo === 'function') {
+      inserirLinhaPadronizadaNoTopo(shAuditoria, linhaAud);
+    } else {
+      shAuditoria.insertRowBefore(2);
+      shAuditoria.getRange(2, 1, 1, linhaAud.length).setValues([linhaAud]);
+    }
     
   } catch(e){
     console.error('Erro ao registrar auditoria:', e);
