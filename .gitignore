@@ -7,5 +7,11 @@ saas-app/node_modules/
 saas-app/dist/
 saas-app/dist-gas/
 saas-app/release/
+saas-app/android/.gradle/
+saas-app/android/app/build/
+saas-app/android/build/
+saas-app/android/keystore.properties
+*.jks
+*.keystore
 saas-app/.env
 saas-app/.env.local

@@ -1,4 +1,5 @@
 saas-app/**
+planilha-conector/**
 node_modules/**
 documento/**
 .git/**

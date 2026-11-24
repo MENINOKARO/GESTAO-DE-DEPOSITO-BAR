@@ -1,14 +1,52 @@
 {
   "name": "gestao-negocios-360-saas",
   "version": "2.0.0",
+  "description": "Sistema de Gestão de Negócios 360°",
+  "author": "Gestão de Negócios 360°",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "icons": "node scripts/generate-icons.mjs",
+    "dist:win": "npm run icons && npm run build && electron-builder --win nsis",
+    "android:sync": "npm run icons && npm run build && npx cap sync android"
+  },
+  "build": {
+    "appId": "br.com.gestaonegocios360.desktop",
+    "productName": "Gestao de Negocios 360",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gestão de Negócios 360°",
+      "artifactName": "Gestao-Negocios-360-Setup-${version}.${ext}"
+    }
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "@supabase/supabase-js": "^2.49.4",
     "@types/qrcode": "^1.5.6",
     "jspdf": "^2.5.2",
@@ -19,9 +57,14 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "vite-plugin-singlefile": "^2.3.4"

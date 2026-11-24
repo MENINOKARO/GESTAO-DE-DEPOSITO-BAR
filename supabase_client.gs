@@ -6,8 +6,8 @@
  */
 
 const SUPABASE_CONFIG = {
-  URL: 'https://qohqsrgvxwkzsprggkvs.supabase.co',
-  KEY: '' // Lido dinamicamente de ScriptProperties ou da aba CONFIG
+  URL: '', // Lido dinamicamente de ScriptProperties (SUPABASE_URL) ou aba CONFIG
+  KEY: ''  // Lido dinamicamente de ScriptProperties (SUPABASE_KEY) ou aba CONFIG
 };
 
 const WEBAPP_SYNC_URL_PADRAO =
@@ -54,9 +54,18 @@ function obterSupabaseKey() {
     const cfg = getConfig('SUPABASE_KEY');
     if (cfg && String(cfg).trim()) return String(cfg).trim();
   }
-  const kPart1 = 'sb_secret_LOvSF9c';
-  const kPart2 = 'ISMDhZ2Bu1MHVKw_7rzjjS86';
-  return kPart1 + kPart2;
+  return '';
+}
+
+function configurarCredenciaisSupabaseSeguras(supabaseUrl, supabaseKey) {
+  const props = PropertiesService.getScriptProperties();
+  if (supabaseUrl && String(supabaseUrl).trim()) {
+    props.setProperty('SUPABASE_URL', String(supabaseUrl).trim().replace(/\/+$/, ''));
+  }
+  if (supabaseKey && String(supabaseKey).trim()) {
+    props.setProperty('SUPABASE_KEY', String(supabaseKey).trim());
+  }
+  return { ok: true, msg: 'Credenciais salvas com segurança em ScriptProperties.' };
 }
 
 function obterEmpresaId() {
