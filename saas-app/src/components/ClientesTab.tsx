@@ -16,7 +16,7 @@ import {
   editarCliente
 } from '../services/dataRepository';
 import type { Cliente, PainelSnapshot, SessaoAtiva } from '../types/domain';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, formatarTelefoneBr, formatarTextoInicialMaiuscula } from '../utils/formatters';
 
 interface ClientesTabProps {
   sessao: SessaoAtiva;
@@ -447,7 +447,7 @@ export function ClientesTab({
                   className="field-input"
                   required
                   value={nome}
-                  onChange={(e) => setNome(e.target.value)}
+                  onChange={(e) => setNome(formatarTextoInicialMaiuscula(e.target.value))}
                   placeholder="Ex.: João da Silva"
                 />
               </div>
@@ -458,7 +458,7 @@ export function ClientesTab({
                   <input
                     className="field-input"
                     value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
+                    onChange={(e) => setTelefone(formatarTelefoneBr(e.target.value))}
                     placeholder="(71) 99999-0000"
                   />
                 </div>
@@ -481,7 +481,7 @@ export function ClientesTab({
                 <input
                   className="field-input"
                   value={endereco}
-                  onChange={(e) => setEndereco(e.target.value)}
+                  onChange={(e) => setEndereco(formatarTextoInicialMaiuscula(e.target.value))}
                   placeholder="Rua, número, bairro, referência"
                 />
               </div>

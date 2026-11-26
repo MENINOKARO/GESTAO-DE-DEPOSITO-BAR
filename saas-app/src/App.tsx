@@ -59,6 +59,7 @@ import { ClientesTab } from './components/ClientesTab';
 import { ConfigTab } from './components/ConfigTab';
 import { AdminMasterTab } from './components/AdminMasterTab';
 import { PagamentoAssinaturaCard } from './components/PagamentoAssinaturaCard';
+import { BoasVindasOnboarding } from './components/BoasVindasOnboarding';
 
 type AbaAtiva =
   | 'pdv'
@@ -76,6 +77,7 @@ type AbaAtiva =
 
 export function App() {
   const [sessao, setSessao] = useState<SessaoAtiva | null>(() => recuperarSessaoLocal());
+  const [boasVindasTick, setBoasVindasTick] = useState(0);
   const [setupInfo, setSetupInfo] = useState<{
     precisaSetupDono: boolean;
     empresaId: string;
@@ -83,6 +85,7 @@ export function App() {
   }>({ precisaSetupDono: false, empresaId: '', nomeEmpresa: '' });
   const [snapshot, setSnapshot] = useState<PainelSnapshot | null>(null);
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('pdv');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [financeiroSubAba, setFinanceiroSubAba] = useState<'caixa' | 'pagar' | 'receber'>('caixa');
   const [financeiroNavTick, setFinanceiroNavTick] = useState(0);
   const [abrirFiscalAoEntrar, setAbrirFiscalAoEntrar] = useState(false);
@@ -443,6 +446,31 @@ export function App() {
       </div>
     );
   }
+
+  const boasVindasPendente = (() => {
+    if (isAdmin) return false;
+    void boasVindasTick;
+    try {
+      return localStorage.getItem(`gn360_boas_vindas_${sessao.unidadeAtivaId}`) === '1';
+    } catch {
+      return false;
+    }
+  })();
+
+  if (boasVindasPendente) {
+    return (
+      <BoasVindasOnboarding
+        sessao={sessao}
+        empresa={empresaAtiva}
+        onNotify={notify}
+        onConcluido={async () => {
+          setBoasVindasTick((n) => n + 1);
+          await carregarDados(sessao);
+        }}
+      />
+    );
+  }
+
   const hojeYmd = new Date().toISOString().slice(0, 10);
   const comandasAbertasCount = snapshot
     ? snapshot.comandas.filter((c) => c.status === 'ABERTA').length
@@ -474,6 +502,8 @@ export function App() {
         podeVerFinanceiro={!isOperador && (!isAdmin || modoSuporteAdmin)}
         isMasterAdminMode={isAdmin && !modoSuporteAdmin}
         linkExternoPlanilhaOuDrive={isAdmin && !modoSuporteAdmin ? '' : linkExterno}
+        mobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
         onTrocarUnidade={handleTrocarUnidade}
         onSincronizar={() => void handleSincronizarManual()}
         onIrParaFinanceiro={() => {
@@ -632,7 +662,32 @@ export function App() {
       )}
 
       <div className="saas-workspace">
-        <nav className="nav-tabs no-print">
+        {mobileMenuOpen && (
+          <div
+            className="mobile-sidebar-backdrop no-print"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <nav
+          className={`nav-tabs no-print ${mobileMenuOpen ? 'mobile-open' : ''}`}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest('button.nav-tab-btn')) {
+              setMobileMenuOpen(false);
+            }
+          }}
+        >
+          <div className="mobile-sidebar-header">
+            <strong style={{ fontSize: 14, color: 'var(--text-main)' }}>Menu do Sistema</strong>
+            <button
+              type="button"
+              className="mobile-sidebar-close"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Fechar menu"
+            >
+              ✕
+            </button>
+          </div>
           {(!isAdmin || modoSuporteAdmin) && (
             <>
               <div className="nav-section-label">Vendas &amp; Atendimento</div>

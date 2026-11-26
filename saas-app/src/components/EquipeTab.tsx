@@ -15,6 +15,7 @@ import {
   criarUsuarioEquipe,
   editarUsuarioEquipe
 } from '../services/dataRepository';
+import { formatarTextoInicialMaiuscula } from '../utils/formatters';
 
 interface EquipeTabProps {
   sessao: SessaoAtiva;
@@ -265,7 +266,7 @@ export function EquipeTab({ sessao, usuarios, onNotify, onAtualizar }: EquipeTab
                   className="field-input"
                   placeholder="Nome do colaborador"
                   value={novoNome}
-                  onChange={(e) => setNovoNome(e.target.value)}
+                  onChange={(e) => setNovoNome(formatarTextoInicialMaiuscula(e.target.value))}
                   required
                 />
               </div>
@@ -428,7 +429,7 @@ export function EquipeTab({ sessao, usuarios, onNotify, onAtualizar }: EquipeTab
                   className="field-input"
                   required
                   value={editNome}
-                  onChange={(e) => setEditNome(e.target.value)}
+                  onChange={(e) => setEditNome(formatarTextoInicialMaiuscula(e.target.value))}
                 />
               </div>
 

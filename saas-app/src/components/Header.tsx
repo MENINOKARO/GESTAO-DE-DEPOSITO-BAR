@@ -7,7 +7,9 @@ import {
   FileSpreadsheet,
   Layers,
   LogOut,
-  RefreshCw
+  Menu,
+  RefreshCw,
+  X
 } from 'lucide-react';
 import type { SessaoAtiva, StatusSync } from '../types/domain';
 
@@ -20,6 +22,8 @@ interface HeaderProps {
   podeVerFinanceiro: boolean;
   isMasterAdminMode?: boolean;
   linkExternoPlanilhaOuDrive?: string;
+  mobileMenuOpen?: boolean;
+  onToggleMobileMenu?: () => void;
   onTrocarUnidade: (unidadeId: string) => void;
   onSincronizar: () => void;
   onIrParaFinanceiro: () => void;
@@ -36,6 +40,8 @@ export function Header({
   podeVerFinanceiro,
   isMasterAdminMode = false,
   linkExternoPlanilhaOuDrive,
+  mobileMenuOpen = false,
+  onToggleMobileMenu,
   onTrocarUnidade,
   onSincronizar,
   onIrParaFinanceiro,
@@ -66,17 +72,28 @@ export function Header({
   return (
     <header className="app-header no-print">
       <div className="header-brand">
+        {onToggleMobileMenu && (
+          <button
+            type="button"
+            className="mobile-menu-btn"
+            onClick={onToggleMobileMenu}
+            aria-label={mobileMenuOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+            title="Menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        )}
         <div className="header-logo">
           <Layers size={22} />
         </div>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <strong className="brand-heading" style={{ fontSize: 18 }}>
               {nomeUnidadeAtiva || 'Gestão de Negócios'}
             </strong>
             <span className="badge badge-purple">PANORAMA 360°</span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          <div className="header-subtitle" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Terminal Executivo de Controle, Estoque &amp; PDV Inteligente
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, Layers, Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
+import { formatarTelefoneBr } from '../utils/formatters';
 import type { SessaoAtiva } from '../types/domain';
 import {
   autenticarUsuario,
@@ -165,15 +166,25 @@ export function LoginScreen({
     <div id="overlayLogin" className="login-backdrop">
       <div className="login-card">
         <div className="login-brand">
-          <div className="login-icon" aria-hidden="true">
-            <Layers size={28} />
-          </div>
+          <img
+            src="./logo-mk.png"
+            alt="MK Gestão de Negócios 360° — MeninoKaro"
+            style={{
+              width: 112,
+              height: 112,
+              objectFit: 'cover',
+              borderRadius: 18,
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              boxShadow: '0 8px 28px rgba(15, 23, 42, 0.55)',
+              marginBottom: 4
+            }}
+          />
           <div>
             <h2 id="loginBrandTitle">
-              Gestão de Negócios <span className="login-pill-360">360°</span>
+              MK Gestão de Negócios <span className="login-pill-360">360°</span>
             </h2>
           </div>
-          <p className="login-subtitle">Plataforma multimodal de gestão para o seu negócio</p>
+          <p className="login-subtitle">MeninoKaro Tecnologia • Gestão Empresarial</p>
         </div>
 
         {alerta && <div className={`login-alert ${alerta.tipo}`}>{alerta.texto}</div>}
@@ -321,7 +332,7 @@ export function LoginScreen({
               </div>
               <div className="login-input-group">
                 <label>WhatsApp</label>
-                <input className="login-input" placeholder="(11) 99999-9999" value={telefoneDono} onChange={(e) => setTelefoneDono(e.target.value)} />
+                <input className="login-input" placeholder="(11) 99999-9999" value={telefoneDono} onChange={(e) => setTelefoneDono(formatarTelefoneBr(e.target.value))} />
               </div>
             </div>
             <div className="login-input-group">
@@ -343,7 +354,7 @@ export function LoginScreen({
         ) : modoTela === 'recuperar' ? (
           <form onSubmit={recCodigoEnviado ? handleRedefinirSenha : handleEnviarCodigoRecuperacao}>
             <div style={{ fontSize: 12.5, color: '#cbd5e1', marginBottom: 12, lineHeight: 1.45 }}>
-              Informe seu <strong>usuário ou e-mail</strong> para receber um código de 6 dígitos no <strong>Telegram</strong> cadastrado na empresa.
+              Informe seu <strong>usuário ou e-mail</strong> para receber um código de 6 dígitos no seu <strong>E-mail</strong> ou <strong>Telegram</strong>.
             </div>
             <div className="login-input-group">
               <label>Usuário ou E-mail *</label>
@@ -359,7 +370,7 @@ export function LoginScreen({
             {recCodigoEnviado && (
               <>
                 <div className="login-input-group">
-                  <label>Código recebido no Telegram *</label>
+                  <label>Código recebido *</label>
                   <input
                     className="login-input"
                     placeholder="000000"
@@ -387,7 +398,7 @@ export function LoginScreen({
                 ? 'Processando...'
                 : recCodigoEnviado
                 ? 'Redefinir Senha'
-                : 'Enviar Código no Telegram'}
+                : 'Enviar Código de Recuperação'}
             </button>
             <button
               type="button"

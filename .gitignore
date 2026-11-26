@@ -15,3 +15,6 @@ saas-app/android/keystore.properties
 *.keystore
 saas-app/.env
 saas-app/.env.local
+saas-app/supabase/.temp/
+saas-app/ios/App/build/
+saas-app/ios/App/DerivedData/

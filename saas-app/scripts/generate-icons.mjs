@@ -15,6 +15,12 @@ const svgBuffer = fs.readFileSync(svgPath);
 await sharp(svgBuffer).resize(512, 512).png().toFile(path.join(buildDir, 'icon.png'));
 await sharp(svgBuffer).resize(512, 512).png().toFile(path.join(publicDir, 'icon-512.png'));
 await sharp(svgBuffer).resize(192, 192).png().toFile(path.join(publicDir, 'icon-192.png'));
+await sharp(svgBuffer).resize(180, 180).png().toFile(path.join(publicDir, 'apple-touch-icon.png'));
+
+const iosIconDir = path.join(root, 'ios', 'App', 'App', 'Assets.xcassets', 'AppIcon.appiconset');
+if (fs.existsSync(iosIconDir)) {
+  await sharp(svgBuffer).resize(1024, 1024).flatten({ background: '#0b1120' }).png().toFile(path.join(iosIconDir, 'AppIcon-512@2x.png'));
+}
 
 const ico256 = await sharp(svgBuffer).resize(256, 256).png().toBuffer();
 const icoBuf = await pngToIco([ico256]);

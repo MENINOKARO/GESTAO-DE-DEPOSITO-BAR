@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { UserPlus, X } from 'lucide-react';
 import type { Cliente, SessaoAtiva } from '../types/domain';
 import { cadastrarCliente } from '../services/dataRepository';
+import { formatarTelefoneBr, formatarTextoInicialMaiuscula } from '../utils/formatters';
 
 interface ClienteQuickModalProps {
   sessao: SessaoAtiva;
@@ -84,12 +85,12 @@ export function ClienteQuickModal({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <label className="field-label">Nome Completo *</label>
-            <input className="field-input" placeholder="Ex: João da Silva" value={nome} onChange={(e) => setNome(e.target.value)} required />
+            <input className="field-input" placeholder="Ex: João da Silva" value={nome} onChange={(e) => setNome(formatarTextoInicialMaiuscula(e.target.value))} required />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <label className="field-label">Telefone / WhatsApp</label>
-              <input className="field-input" placeholder="(11) 99999-0000" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+              <input className="field-input" placeholder="(11) 99999-0000" value={telefone} onChange={(e) => setTelefone(formatarTelefoneBr(e.target.value))} />
             </div>
             <div>
               <label className="field-label">Limite Fiado (R$)</label>
@@ -98,7 +99,7 @@ export function ClienteQuickModal({
           </div>
           <div>
             <label className="field-label">Endereço</label>
-            <input className="field-input" placeholder="Rua, número, bairro..." value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+            <input className="field-input" placeholder="Rua, número, bairro..." value={endereco} onChange={(e) => setEndereco(formatarTextoInicialMaiuscula(e.target.value))} />
           </div>
           <div>
             <label className="field-label">Observações</label>

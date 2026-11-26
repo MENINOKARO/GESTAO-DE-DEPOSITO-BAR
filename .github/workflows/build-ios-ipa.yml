@@ -1,0 +1,62 @@
+name: Build iOS (.ipa) — Gestão de Negócios 360°
+
+on:
+  workflow_dispatch:
+    inputs:
+      export_mode:
+        description: 'Modo de build (unsigned para AltStore/Sideloadly ou signed com certificados Apple)'
+        required: true
+        default: 'unsigned'
+        type: choice
+        options:
+          - unsigned
+          - signed
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: saas-app
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependências e gerar build web + iOS
+        run: |
+          npm ci
+          npm run icons
+          npm run build
+          npx cap sync ios
+
+      - name: Instalar CocoaPods (se existir Podfile)
+        working-directory: saas-app/ios/App
+        run: |
+          if [ -f "Podfile" ]; then
+            pod install --repo-update
+          fi
+
+      - name: Compilar IPA (Unsigned — para AltStore / Sideloadly / assinatura posterior)
+        if: ${{ inputs.export_mode == 'unsigned' || github.event_name != 'workflow_dispatch' }}
+        working-directory: saas-app/ios/App
+        run: |
+          if [ -d "App.xcworkspace" ]; then
+            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          else
+            xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          fi
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r Gestao-Negocios-360-v2.0.1-unsigned.ipa Payload
+
+      - name: Publicar artefato IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gestao-Negocios-360-iOS-v2.0.1
+          path: saas-app/ios/App/*.ipa

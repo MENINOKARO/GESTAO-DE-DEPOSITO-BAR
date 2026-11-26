@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { Bike, CheckCircle2, MapPin, Minus, Phone, Plus, Trash2, UserPlus, X, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Bike, CheckCircle2, MapPin, Minus, Phone, Plus, Printer, Trash2, UserPlus, X, XCircle } from 'lucide-react';
 import type {
   Cliente,
   DeliveryPedido,
@@ -10,9 +10,14 @@ import type {
   StatusDelivery
 } from '../types/domain';
 import { atualizarStatusDelivery, criarPedidoDelivery } from '../services/dataRepository';
-import { formatarDataHoraBr, formatarMoeda } from '../utils/formatters';
+import { formatarDataHoraBr, formatarMoeda, formatarTelefoneBr, formatarTextoInicialMaiuscula } from '../utils/formatters';
 import { beep, beepErro } from '../utils/soundFeedback';
 import { ClienteQuickModal } from './ClienteQuickModal';
+import {
+  getAutoPrintDeliveryEmpresa,
+  imprimirCupomTermicoDelivery,
+  setAutoPrintDeliveryEmpresa
+} from '../services/thermalPrintService';
 
 interface DeliveryTabProps {
   sessao: SessaoAtiva;
@@ -47,6 +52,24 @@ export function DeliveryTab({
   onNotify,
   onAtualizar
 }: DeliveryTabProps) {
+  const [autoPrint, setAutoPrint] = useState<boolean>(() => getAutoPrintDeliveryEmpresa(sessao.unidadeAtivaId));
+  const seenPedidosRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    const idsAtuais = new Set(pedidos.map((p) => p.id));
+    if (seenPedidosRef.current === null) {
+      seenPedidosRef.current = idsAtuais;
+      return;
+    }
+    if (autoPrint) {
+      const novos = pedidos.filter((p) => !seenPedidosRef.current!.has(p.id) && p.status === 'PENDENTE');
+      for (const novo of novos) {
+        beep();
+        imprimirCupomTermicoDelivery(novo, sessao.empresa);
+      }
+    }
+    seenPedidosRef.current = idsAtuais;
+  }, [pedidos, autoPrint, sessao.empresa]);
   const [cliente, setCliente] = useState('');
   const [telefone, setTelefone] = useState('');
   const [endereco, setEndereco] = useState('');
@@ -282,7 +305,7 @@ export function DeliveryTab({
                 className="field-input"
                 placeholder="(00) 00000-0000"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={(e) => setTelefone(formatarTelefoneBr(e.target.value))}
               />
             </div>
             <div>
@@ -291,7 +314,7 @@ export function DeliveryTab({
                 className="field-input"
                 placeholder="Ex: Próximo à praça"
                 value={referencia}
-                onChange={(e) => setReferencia(e.target.value)}
+                onChange={(e) => setReferencia(formatarTextoInicialMaiuscula(e.target.value))}
               />
             </div>
           </div>
@@ -303,7 +326,7 @@ export function DeliveryTab({
               className="field-input"
               placeholder="Rua, Número, Bairro, Complemento..."
               value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
+              onChange={(e) => setEndereco(formatarTextoInicialMaiuscula(e.target.value))}
               required
             />
           </div>
@@ -543,7 +566,19 @@ export function DeliveryTab({
           <h3 style={{ fontSize: 16 }}>
             📋 Fila de Pedidos Delivery ({pedidosExibidos.length})
           </h3>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#cbd5e1' }}>
+              <input
+                type="checkbox"
+                checked={autoPrint}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setAutoPrint(v);
+                  setAutoPrintDeliveryEmpresa(sessao.unidadeAtivaId, v);
+                }}
+              />
+              <span>Auto-imprimir novos</span>
+            </label>
             <button
               type="button"
               className={`btn btn-xs ${filtroFila === 'PENDENTES' ? 'btn-primary' : ''}`}
@@ -627,7 +662,16 @@ export function DeliveryTab({
                       ({ped.forma_pagamento}) {ped.entregador ? `• 🛵 ${ped.entregador}` : ''}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ padding: '6px 10px', fontSize: 12 }}
+                      onClick={() => imprimirCupomTermicoDelivery(ped, sessao.empresa)}
+                      title="Imprimir cupom em impressora térmica (58mm/80mm)"
+                    >
+                      <Printer size={13} /> Imprimir
+                    </button>
                     {prox && (
                       <button
                         type="button"

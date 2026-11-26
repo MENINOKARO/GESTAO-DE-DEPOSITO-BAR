@@ -374,6 +374,12 @@ export interface ConfigMasterSaas {
   link_checkout_pix: string;
   formas_pagamento_ativas?: string[];
   instrucoes_pagamento?: string;
+  evolution_api_url?: string;
+  evolution_api_key?: string;
+  evolution_instancia_padrao?: string;
+  resend_dominio?: string;
+  resend_remetente?: string;
+  github_repo?: string;
 }
 
 export interface MasterSaasSnapshot {

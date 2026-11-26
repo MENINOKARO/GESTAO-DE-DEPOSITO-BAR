@@ -5,13 +5,19 @@ import {
   Clock,
   Crown,
   Eye,
+  FileDown,
   LogIn,
+  MessageCircle,
+  Printer,
   Receipt,
   RefreshCw,
   Save,
   Search,
+  Send,
+  Server,
   Shield,
   ShieldAlert,
+  Trash2,
   UserPlus,
   Users,
   WifiOff,
@@ -19,6 +25,7 @@ import {
   XCircle
 } from 'lucide-react';
 import {
+  APP_VERSION_SAAS,
   alternarStatusUsuario,
   analisarComprovanteSaasAdmin,
   atualizarLicencaEmpresaAdmin,
@@ -26,12 +33,18 @@ import {
   criarUsuarioEquipe,
   derrubarSessoesUsuarioAdmin,
   editarUsuarioEquipe,
+  excluirEmpresaAdmin,
   obterDadosMasterSaasAdmin,
   registrarFaturaSaasAdmin,
   salvarConfigMasterSaasAdmin,
   salvarMeuPerfilAdmin,
   solicitarCodigoSuporteAdmin
 } from '../services/dataRepository';
+import { enviarMensagemTelegram } from '../services/telegramService';
+import { baixarPdfRelatorio } from '../services/pdfReportService';
+import { imprimirRelatorioTermico } from '../services/thermalPrintService';
+import { getSupabaseConfig, saveSupabaseConfig } from '../services/supabaseClient';
+import { getGoogleClientId, saveGoogleClientId } from '../services/googleDriveMirrorService';
 import type {
   ComprovantePagamentoSaas,
   ConfigMasterSaas,
@@ -43,7 +56,7 @@ import type {
   StatusAssinatura,
   Usuario
 } from '../types/domain';
-import { formatarDataBr, formatarMoeda } from '../utils/formatters';
+import { formatarCidadeUf, formatarCpfCnpjBr, formatarDataBr, formatarMoeda, formatarTelefoneBr } from '../utils/formatters';
 
 interface AdminMasterTabProps {
   sessao: SessaoAtiva;
@@ -52,7 +65,7 @@ interface AdminMasterTabProps {
   onAcessarUnidadeSuporte: (empresa: Empresa) => Promise<void>;
 }
 
-type SubAbaMaster = 'licencas' | 'usuarios' | 'pagamentos' | 'perfil';
+type SubAbaMaster = 'licencas' | 'usuarios' | 'pagamentos' | 'perfil' | 'infra';
 
 function addDiasIso(baseYmd: string | undefined, dias: number): string {
   const hoje = new Date();
@@ -150,6 +163,11 @@ export function AdminMasterTab({
     instrucoes_pagamento: ''
   });
 
+  // Infraestrutura Técnica (editável pelo Admin)
+  const [infraSupaUrl, setInfraSupaUrl] = useState(() => getSupabaseConfig().url);
+  const [infraSupaKey, setInfraSupaKey] = useState(() => getSupabaseConfig().anonKey);
+  const [infraGoogleId, setInfraGoogleId] = useState(() => getGoogleClientId());
+
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
@@ -205,6 +223,22 @@ export function AdminMasterTab({
     };
   }, [dados, cfgMaster]);
 
+  const empresasVencendo = useMemo(() => {
+    const agora = Date.now();
+    return (dados?.empresas || [])
+      .filter((e) => {
+        const st = String(e.status_assinatura || '').toUpperCase();
+        if (st === 'BLOQUEADO' || !e.valido_ate) return false;
+        const diff = Math.ceil((new Date(e.valido_ate).getTime() - agora) / 86400000);
+        return diff <= 5;
+      })
+      .map((e) => ({
+        empresa: e,
+        dias: Math.ceil((new Date(e.valido_ate!).getTime() - agora) / 86400000)
+      }))
+      .sort((a, b) => a.dias - b.dias);
+  }, [dados]);
+
   const empresasFiltradas = useMemo(() => {
     const q = buscaEmp.trim().toLowerCase();
     return (dados?.empresas || []).filter((e) => {
@@ -259,6 +293,97 @@ export function AdminMasterTab({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleExcluirEmpresa(emp: Empresa) {
+    const conf = window.prompt(
+      `ATENÇÃO: Isso excluirá permanentemente a empresa "${emp.nome}" e todos os dados vinculados.\n\nDigite EXCLUIR para confirmar:`
+    );
+    if (conf?.trim().toUpperCase() !== 'EXCLUIR') {
+      onNotify('Exclusão cancelada.', 'info');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await excluirEmpresaAdmin(sessao, emp.id);
+      onNotify(res.msg, res.ok ? 'success' : 'error');
+      if (res.ok) await carregar();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function abrirWhatsAppEmpresa(emp: Empresa, textoCustom?: string) {
+    const fone = String(emp.telefone || '').replace(/\D/g, '');
+    if (!fone) {
+      onNotify(`A empresa "${emp.nome}" não tem telefone/WhatsApp cadastrado.`, 'warning');
+      return;
+    }
+    const numero = fone.startsWith('55') ? fone : `55${fone}`;
+    const url = textoCustom
+      ? `https://wa.me/${numero}?text=${encodeURIComponent(textoCustom)}`
+      : `https://wa.me/${numero}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function conversarTelegramEmpresa(emp: Empresa) {
+    if (!emp.telegram_bot_token || !emp.telegram_chat_id) {
+      window.open('https://web.telegram.org/', '_blank', 'noopener,noreferrer');
+      onNotify(`Telegram da empresa "${emp.nome}" não configurado; abrindo Telegram Web.`, 'info');
+      return;
+    }
+    const msg = window.prompt(
+      `Enviar mensagem no Telegram para ${emp.dono_nome || emp.nome}:`
+    );
+    if (!msg || !msg.trim()) return;
+    const res = await enviarMensagemTelegram(
+      emp,
+      `💬 <b>Mensagem do Suporte MK Gestão 360°</b>\n${msg.trim()}`
+    );
+    onNotify(res.msg, res.ok ? 'success' : 'error');
+  }
+
+  async function enviarLembreteTelegramEmpresa(emp: Empresa, dias?: number) {
+    if (!emp.telegram_bot_token || !emp.telegram_chat_id) {
+      onNotify(`A empresa "${emp.nome}" não tem Telegram configurado.`, 'warning');
+      return;
+    }
+    const aviso =
+      dias !== undefined
+        ? dias <= 0
+          ? `sua licença venceu em ${formatarDataBr(emp.valido_ate)}`
+          : `sua licença vence em ${dias} dia(s) (${formatarDataBr(emp.valido_ate)})`
+        : `lembrete de acompanhamento da sua assinatura (${emp.plano})`;
+    const res = await enviarMensagemTelegram(
+      emp,
+      `⏳ <b>Lembrete MK Gestão 360°</b>\nOlá <b>${emp.dono_nome || emp.nome}</b>, ${aviso}.\nRegularize pelo painel em <i>Configurações</i> para evitar bloqueio.`
+    );
+    onNotify(res.msg, res.ok ? 'success' : 'error');
+  }
+
+  function gerarRelatorioMasterSnapshot() {
+    const emps = dados?.empresas || [];
+    return {
+      titulo: 'Relatório Gerencial SaaS — Empresas',
+      categoria: 'Financeiro' as const,
+      periodoLabel: `Posição em ${formatarDataBr(new Date().toISOString().slice(0, 10))}`,
+      subpastaMes: new Date().toISOString().slice(0, 7),
+      nomeArquivoPdf: `Relatorio_Master_Empresas_${new Date().toISOString().slice(0, 10)}.pdf`,
+      resumo: [
+        { label: 'Total Cadastradas', valor: String(kpis.total) },
+        { label: 'Ativas', valor: String(kpis.ativas) },
+        { label: 'Em Trial', valor: String(kpis.trial) },
+        { label: 'Receita Mensal Estimada', valor: formatarMoeda(kpis.mrr) }
+      ],
+      colunas: ['Empresa', 'Dono', 'Plano', 'Status', 'Validade'],
+      linhas: emps.map((e) => [
+        e.nome,
+        e.dono_nome || '-',
+        e.plano || 'PRO',
+        e.status_assinatura || 'ATIVO',
+        e.valido_ate ? formatarDataBr(e.valido_ate) : 'Sem limite'
+      ])
+    };
   }
 
   async function handleAlternarBloqueioEmp(emp: Empresa) {
@@ -564,7 +689,7 @@ export function AdminMasterTab({
           </div>
         </div>
         <div className="kpi-card kpi-left-ok">
-          <div className="kpi-label">💰 MRR Estimado ({kpis.usuariosTotal} users)</div>
+          <div className="kpi-label">💰 Receita Mensal Estimada ({kpis.usuariosTotal} users)</div>
           <div className="kpi-value" style={{ color: '#38bdf8' }}>
             {formatarMoeda(kpis.mrr)}
           </div>
@@ -590,11 +715,79 @@ export function AdminMasterTab({
         <button type="button" className={`btn ${subAba === 'perfil' ? 'btn-primary' : ''}`} onClick={() => setSubAba('perfil')}>
           <Shield size={15} /> Meu Perfil Admin &amp; Config SaaS
         </button>
+        <button type="button" className={`btn ${subAba === 'infra' ? 'btn-primary' : ''}`} onClick={() => setSubAba('infra')}>
+          <Server size={15} /> Infra &amp; Config Técnica
+        </button>
       </div>
 
       {/* SUB-ABA 1: LICENÇAS & EMPRESAS */}
       {subAba === 'licencas' && (
         <div className="panel-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {empresasVencendo.length > 0 && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6
+              }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fcd34d' }}>
+                ⏳ Lembrete de Vencimentos ({empresasVencendo.length} empresa(s) vencendo em até 5 dias ou vencidas)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {empresasVencendo.map(({ empresa: ev, dias }) => (
+                  <div
+                    key={ev.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      fontSize: 12
+                    }}
+                  >
+                    <span>
+                      <strong>{ev.nome}</strong> ({ev.plano}) —{' '}
+                      {dias <= 0 ? (
+                        <span style={{ color: '#f87171', fontWeight: 700 }}>Vencida ({formatarDataBr(ev.valido_ate)})</span>
+                      ) : (
+                        <span style={{ color: '#fbbf24' }}>Vence em {dias} dia(s) ({formatarDataBr(ev.valido_ate)})</span>
+                      )}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        type="button"
+                        className="btn btn-xs btn-success"
+                        onClick={() =>
+                          abrirWhatsAppEmpresa(
+                            ev,
+                            `Olá ${ev.dono_nome || ev.nome}! Lembrete do sistema MK Gestão 360°: sua assinatura (${ev.plano}) ${
+                              dias <= 0 ? 'venceu' : `vence em ${dias} dia(s)`
+                            } (${formatarDataBr(ev.valido_ate)}). Envie o comprovante pelo painel para evitar bloqueio.`
+                          )
+                        }
+                      >
+                        <MessageCircle size={12} /> Avisar WhatsApp
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        onClick={() => void enviarLembreteTelegramEmpresa(ev, dias)}
+                      >
+                        <Send size={12} /> Avisar Telegram
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {['TODOS', 'ATIVO', 'TRIAL', 'INADIMPLENTE', 'BLOQUEADO'].map((st) => (
@@ -609,7 +802,7 @@ export function AdminMasterTab({
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', minWidth: 220 }}>
+              <div style={{ position: 'relative', minWidth: 200 }}>
                 <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   className="field-input"
@@ -619,6 +812,22 @@ export function AdminMasterTab({
                   onChange={(e) => setBuscaEmp(e.target.value)}
                 />
               </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => baixarPdfRelatorio(gerarRelatorioMasterSnapshot(), 'MK Gestão 360° Master')}
+                title="Baixar Relatório Gerencial em PDF"
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => imprimirRelatorioTermico(gerarRelatorioMasterSnapshot(), { id: 'MASTER', nome: 'MK Gestão 360° Master' })}
+                title="Imprimir Relatório Gerencial na Térmica"
+              >
+                <Printer size={14} /> Térmica
+              </button>
               <button type="button" className="btn btn-primary" onClick={() => setModalNovaEmp(true)}>
                 <Building2 size={14} /> + Nova Empresa
               </button>
@@ -654,7 +863,31 @@ export function AdminMasterTab({
                         <div style={{ color: 'var(--text-muted)' }}>{emp.telefone || emp.cnpj || '-'}</div>
                       </td>
                       <td>
-                        <span className="badge badge-purple">{emp.plano || 'PRO'}</span>
+                        <select
+                          className="field-select"
+                          style={{ padding: '4px 8px', fontSize: 12, minWidth: 112 }}
+                          value={emp.plano || 'PRO'}
+                          disabled={busy}
+                          onChange={async (e) => {
+                            const novoPlano = e.target.value as PlanoSaas;
+                            setBusy(true);
+                            try {
+                              const res = await atualizarLicencaEmpresaAdmin(sessao, emp.id, {
+                                plano: novoPlano,
+                                status_assinatura: emp.status_assinatura,
+                                valido_ate: emp.valido_ate
+                              });
+                              onNotify(res.msg, res.ok ? 'success' : 'error');
+                              if (res.ok) await carregar();
+                            } finally {
+                              setBusy(false);
+                            }
+                          }}
+                        >
+                          <option value="START">START</option>
+                          <option value="PRO">PRO</option>
+                          <option value="ENTERPRISE">ENTERPRISE</option>
+                        </select>
                       </td>
                       <td>
                         <span
@@ -709,12 +942,39 @@ export function AdminMasterTab({
                           <button
                             type="button"
                             className="btn btn-xs"
+                            title="Conversar no WhatsApp"
+                            onClick={() => abrirWhatsAppEmpresa(emp)}
+                          >
+                            <MessageCircle size={12} color="#34d399" />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-xs"
+                            title="Conversar com o dono no Telegram"
+                            onClick={() => void conversarTelegramEmpresa(emp)}
+                          >
+                            <Send size={12} color="#38bdf8" />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-xs"
                             disabled={busy}
                             title="Entrar na unidade como Suporte (exige confirmação do Dono)"
                             onClick={() => void handleIniciarSuporte(emp)}
                           >
                             <LogIn size={12} /> Suporte
                           </button>
+                          {emp.id !== 'EMP-MATRIZ-DEFAULT' && (
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-danger"
+                              disabled={busy}
+                              title="Excluir empresa permanentemente"
+                              onClick={() => void handleExcluirEmpresa(emp)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1214,6 +1474,142 @@ export function AdminMasterTab({
         </div>
       )}
 
+      {/* SUB-ABA 5: INFRA & CONFIG TÉCNICA (ADMIN) */}
+      {subAba === 'infra' && (
+        <form
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            saveSupabaseConfig({ url: infraSupaUrl.trim(), anonKey: infraSupaKey.trim() });
+            saveGoogleClientId(infraGoogleId.trim());
+            await handleSalvarConfigMaster(e);
+          }}
+        >
+          <div className="panel-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h3 style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <Server size={17} color="#38bdf8" /> Supabase, Resend, Google &amp; Repositório
+            </h3>
+            <div>
+              <label className="field-label">Supabase Project URL</label>
+              <input
+                className="field-input"
+                placeholder="https://xxxxx.supabase.co"
+                value={infraSupaUrl}
+                onChange={(e) => setInfraSupaUrl(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="field-label">Supabase Anon Public Key</label>
+              <input
+                type="password"
+                className="field-input"
+                placeholder="eyJ..."
+                value={infraSupaKey}
+                onChange={(e) => setInfraSupaKey(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label className="field-label">Domínio Resend</label>
+                <input
+                  className="field-input"
+                  placeholder="meninokaro.com.br"
+                  value={cfgMaster.resend_dominio ?? 'meninokaro.com.br'}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, resend_dominio: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="field-label">Remetente E-mail (From)</label>
+                <input
+                  className="field-input"
+                  placeholder="contato@meninokaro.com.br"
+                  value={cfgMaster.resend_remetente ?? 'contato@meninokaro.com.br'}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, resend_remetente: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="field-label">Google OAuth Client ID (Drive / Planilhas)</label>
+              <input
+                className="field-input"
+                placeholder="xxxx.apps.googleusercontent.com"
+                value={infraGoogleId}
+                onChange={(e) => setInfraGoogleId(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px', gap: 8 }}>
+              <div>
+                <label className="field-label">Repositório GitHub</label>
+                <input
+                  className="field-input"
+                  placeholder="MENINOKARO/GESTAO-DE-DEPOSITO-BAR"
+                  value={cfgMaster.github_repo ?? 'MENINOKARO/GESTAO-DE-DEPOSITO-BAR'}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, github_repo: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="field-label">Versão App</label>
+                <input
+                  className="field-input"
+                  value={cfgMaster.versao_minima || APP_VERSION_SAAS}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, versao_minima: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="panel-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h3 style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <MessageCircle size={17} color="#34d399" /> Evolution API (WhatsApp Global / Padrão)
+            </h3>
+            <div>
+              <label className="field-label">URL Base Evolution API</label>
+              <input
+                className="field-input"
+                placeholder="https://sua-evolution-api.com"
+                value={cfgMaster.evolution_api_url || ''}
+                onChange={(e) => setCfgMaster({ ...cfgMaster, evolution_api_url: e.target.value })}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label className="field-label">Instância Padrão</label>
+                <input
+                  className="field-input"
+                  placeholder="Ex.: mk-gestao"
+                  value={cfgMaster.evolution_instancia_padrao || ''}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, evolution_instancia_padrao: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="field-label">API Key Global</label>
+                <input
+                  type="password"
+                  className="field-input"
+                  placeholder="Global API Key"
+                  value={cfgMaster.evolution_api_key || ''}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, evolution_api_key: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="field-label">Link Download Atualização (.exe / .apk)</label>
+              <input
+                className="field-input"
+                placeholder="https://..."
+                value={cfgMaster.link_atualizacao || ''}
+                onChange={(e) => setCfgMaster({ ...cfgMaster, link_atualizacao: e.target.value })}
+              />
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: 8 }}>
+              <button type="submit" className="btn btn-success" disabled={busy} style={{ width: '100%' }}>
+                <Save size={15} /> Salvar Todas Configurações Técnicas
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
       {/* MODAL VISUALIZAR ANEXO DO COMPROVANTE */}
       {comprovanteAnexoModal && (
         <div className="modal-overlay" onClick={() => setComprovanteAnexoModal(null)}>
@@ -1279,16 +1675,16 @@ export function AdminMasterTab({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <div>
-                  <label className="field-label">CNPJ</label>
-                  <input className="field-input" value={novaEmpCnpj} onChange={(e) => setNovaEmpCnpj(e.target.value)} />
+                  <label className="field-label">CNPJ / CPF</label>
+                  <input className="field-input" placeholder="00.000.000/0001-00" value={novaEmpCnpj} onChange={(e) => setNovaEmpCnpj(formatarCpfCnpjBr(e.target.value))} />
                 </div>
                 <div>
                   <label className="field-label">Telefone / WhatsApp</label>
-                  <input className="field-input" value={novaEmpTel} onChange={(e) => setNovaEmpTel(e.target.value)} />
+                  <input className="field-input" placeholder="(11) 99999-9999" value={novaEmpTel} onChange={(e) => setNovaEmpTel(formatarTelefoneBr(e.target.value))} />
                 </div>
                 <div>
                   <label className="field-label">Cidade / UF</label>
-                  <input className="field-input" value={novaEmpCidade} onChange={(e) => setNovaEmpCidade(e.target.value)} />
+                  <input className="field-input" placeholder="Ex.: Salvador / BA" value={novaEmpCidade} onChange={(e) => setNovaEmpCidade(formatarCidadeUf(e.target.value))} />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>

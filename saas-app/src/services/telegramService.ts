@@ -55,3 +55,74 @@ export async function testarTelegramEmpresa(
     `Conexão com o novo painel SaaS validada em ${agora}.`;
   return enviarMensagemTelegram(empresa, texto);
 }
+
+export async function obterInfoBotTelegram(
+  botToken: string
+): Promise<{ ok: boolean; username?: string; firstName?: string; msg?: string }> {
+  const token = String(botToken || '').trim();
+  if (!token) return { ok: false, msg: 'Informe o Token do Bot Telegram.' };
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const data = (await resp.json().catch(() => null)) as {
+      ok?: boolean;
+      result?: { username?: string; first_name?: string };
+      description?: string;
+    } | null;
+    if (!resp.ok || !data?.ok || !data.result?.username) {
+      return { ok: false, msg: data?.description || 'Token inválido ou bot não encontrado.' };
+    }
+    return {
+      ok: true,
+      username: data.result.username,
+      firstName: data.result.first_name
+    };
+  } catch {
+    return { ok: false, msg: 'Erro de rede ao consultar o Telegram.' };
+  }
+}
+
+export async function detectarChatIdTelegram(
+  botToken: string
+): Promise<{ ok: boolean; chatId?: string; nome?: string; msg: string }> {
+  const token = String(botToken || '').trim();
+  if (!token) return { ok: false, msg: 'Informe o Token do Bot Telegram primeiro.' };
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/getUpdates?limit=25`);
+    const data = (await resp.json().catch(() => null)) as {
+      ok?: boolean;
+      result?: Array<{
+        message?: {
+          chat?: { id?: number | string; first_name?: string; title?: string; username?: string };
+          text?: string;
+        };
+      }>;
+      description?: string;
+    } | null;
+
+    if (!resp.ok || !data?.ok) {
+      return { ok: false, msg: data?.description || 'Não foi possível consultar atualizações do Bot.' };
+    }
+
+    const lista = Array.isArray(data.result) ? data.result : [];
+    for (let i = lista.length - 1; i >= 0; i--) {
+      const chat = lista[i]?.message?.chat;
+      if (chat?.id !== undefined && chat?.id !== null) {
+        const chatId = String(chat.id);
+        const nome = chat.title || chat.first_name || chat.username || chatId;
+        return {
+          ok: true,
+          chatId,
+          nome,
+          msg: `Chat ID ${chatId} (${nome}) detectado automaticamente!`
+        };
+      }
+    }
+
+    return {
+      ok: false,
+      msg: 'Nenhuma mensagem encontrada ainda. Leia o QR Code (ou abra o Bot), aperte "Começar" e clique novamente.'
+    };
+  } catch {
+    return { ok: false, msg: 'Erro de rede ao consultar api.telegram.org.' };
+  }
+}

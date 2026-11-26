@@ -1397,8 +1397,9 @@ function migrarTudoPlanilhaParaSupabase(silencioso) {
           const todosDliSupa = supabaseRequest('delivery_itens?select=id', 'GET');
           if (Array.isArray(todosDliSupa)) {
             todosDliSupa.forEach(row => {
-              if (row && row.id && !idsDliUsados.has(String(row.id))) {
-                supabaseRequest(`delivery_itens?id=eq.${encodeURIComponent(String(row.id))}`, 'DELETE');
+              const rid = String(row && row.id ? row.id : '');
+              if (rid && !idsDliUsados.has(rid) && !rid.startsWith('DIT-')) {
+                supabaseRequest(`delivery_itens?id=eq.${encodeURIComponent(rid)}`, 'DELETE');
               }
             });
           }

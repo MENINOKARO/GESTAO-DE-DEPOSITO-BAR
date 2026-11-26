@@ -80,3 +80,56 @@ export async function sha256Hex(texto: string): Promise<string> {
   }
   return String(texto);
 }
+
+export function formatarTelefoneBr(valor: string): string {
+  const digits = String(valor || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+export function formatarCpfCnpjBr(valor: string): string {
+  const digits = String(valor || '').replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 11) {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length <= 12) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  }
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
+export function formatarCidadeUf(valor: string): string {
+  const preps = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+  const partes = String(valor || '').split('/');
+  const cidadeFmt = partes[0]
+    .split(' ')
+    .map((p, idx) => {
+      if (!p) return '';
+      const lower = p.toLowerCase();
+      if (idx > 0 && preps.has(lower)) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+  if (partes.length === 1) return cidadeFmt;
+  const ufFmt = partes.slice(1).join('/').toUpperCase();
+  return `${cidadeFmt}/${ufFmt}`;
+}
+
+export function formatarTextoInicialMaiuscula(valor: string): string {
+  const preps = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+  return String(valor || '')
+    .split(' ')
+    .map((p, idx) => {
+      if (!p) return '';
+      const lower = p.toLowerCase();
+      if (idx > 0 && preps.has(lower)) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}

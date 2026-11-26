@@ -15,6 +15,7 @@ import {
   gerarPdfBlobRelatorio,
   imprimirPdfRelatorioA4
 } from '../services/pdfReportService';
+import { imprimirRelatorioTermico } from '../services/thermalPrintService';
 import { salvarArquivoNaPastaLocal } from '../services/localFolderService';
 import { enviarPdfParaGoogleDrive } from '../services/googleDriveMirrorService';
 
@@ -210,6 +211,15 @@ export function RelatoriosTab({ snapshot, statusSync, onNotify }: RelatoriosTabP
           <button type="button" className="btn" onClick={handleImprimirA4}>
             <Printer size={15} />
             <span>Imprimir A4</span>
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => imprimirRelatorioTermico(relatorio, snapshot.empresa)}
+            title="Imprimir resumo e itens na impressora térmica (58mm/80mm)"
+          >
+            <Printer size={15} />
+            <span>Imprimir Térmica</span>
           </button>
           <button type="button" className="btn btn-success" onClick={handleCompartilhar}>
             <Share2 size={15} />

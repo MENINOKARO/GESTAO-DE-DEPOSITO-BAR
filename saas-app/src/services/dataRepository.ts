@@ -714,46 +714,29 @@ export async function cadastrarNovaEmpresaTrial(payload: {
   if (isSupabaseConfigured()) {
     const client = getSupabaseClient();
     if (client) {
-      const { data: dup } = await client
-        .from('usuarios')
-        .select('id')
-        .eq('username', uname)
-        .limit(1);
-      if (dup && dup.length > 0) {
-        return { ok: false, msg: `O usuário "${uname}" já está em uso. Escolha outro.` };
+      const { data: rpcData, error: rpcErr } = await client.rpc('rpc_cadastrar_empresa_trial', {
+        p_empresa_id: empId,
+        p_grupo_id: grpId,
+        p_usuario_id: usrId,
+        p_nome_empresa: nomeEmp,
+        p_username_dono: payload.usernameDono.trim(),
+        p_email_dono: payload.emailDono.trim().toLowerCase(),
+        p_telefone: payload.telefone?.trim() || '',
+        p_senha_hash: senhaHash,
+        p_valido_ate: validoAteTrial
+      });
+      if (rpcErr) {
+        return {
+          ok: false,
+          msg: rpcErr.message.includes('rpc_cadastrar_empresa_trial')
+            ? 'Execute o SQL saas-app/supabase/migration_p0_rpcs.sql no Supabase SQL Editor para liberar o auto-cadastro.'
+            : rpcErr.message
+        };
       }
-
-      const { error: empErr } = await client.from('empresas').insert({
-        id: empId,
-        grupo_id: grpId,
-        tipo: 'MATRIZ',
-        nome: nomeEmp,
-        dono_nome: payload.usernameDono.trim(),
-        cnpj: '',
-        telefone: payload.telefone?.trim() || '',
-        cidade: '',
-        chave_pix: '',
-        drive_folder_id: '',
-        planilha_espelho_id: '',
-        plano: 'PRO',
-        status_assinatura: 'TRIAL',
-        valido_ate: validoAteTrial,
-        setup_concluido: true
-      });
-      if (empErr) return { ok: false, msg: empErr.message };
-
-      const { error: usrErr } = await client.from('usuarios').insert({
-        id: usrId,
-        empresa_id: empId,
-        grupo_id: grpId,
-        username: uname,
-        nome: payload.usernameDono.trim(),
-        email: payload.emailDono.trim().toLowerCase(),
-        senha_hash: senhaHash,
-        perfil: 'DONO',
-        ativo: true
-      });
-      if (usrErr) return { ok: false, msg: usrErr.message };
+      const resRpc = rpcData as { ok?: boolean; msg?: string } | null;
+      if (!resRpc?.ok) {
+        return { ok: false, msg: resRpc?.msg || 'Não foi possível criar a empresa.' };
+      }
 
       const cfg = await lerChaveConfigSaas<ConfigMasterSaas>(
         client,
@@ -766,6 +749,11 @@ export async function cadastrarNovaEmpresaTrial(payload: {
         `🆕 <b>Nova Empresa Cadastrada (Trial 7 dias)!</b>\nEmpresa: <b>${nomeEmp}</b>\nDono: <code>${uname}</code>\nVálido até: ${formatarDataBr(validoAteTrial)}`
       );
 
+      try {
+        localStorage.setItem(`gn360_boas_vindas_${empId}`, '1');
+      } catch {
+        // ignore
+      }
       return autenticarUsuario(uname, senhaLimpa, true);
     }
   }
@@ -813,29 +801,49 @@ export async function solicitarRecuperacaoSenha(
   const ident = identificadorBruto.trim().toLowerCase();
   if (!ident) return { ok: false, msg: 'Informe seu usuário ou e-mail.' };
 
-  let usuario: Usuario | null = null;
-  let botToken = '';
-  let chatId = '';
-
+  const codigo = String(Math.floor(100000 + Math.random() * 900000));
   const client = isSupabaseConfigured() ? getSupabaseClient() : null;
-  if (client) {
-    const { data: porUser } = await client
-      .from('usuarios')
-      .select('*')
-      .eq('username', ident)
-      .limit(1);
-    const achado =
-      porUser && porUser.length > 0
-        ? (porUser[0] as Usuario)
-        : ((
-            await client.from('usuarios').select('*').eq('email', ident).limit(1)
-          ).data?.[0] as Usuario | undefined);
-    if (!achado) {
-      return { ok: false, msg: 'Usuário ou e-mail não encontrado.' };
-    }
-    usuario = achado;
 
-    if (String(usuario.perfil || '').toUpperCase() === 'ADMIN') {
+  if (client) {
+    const { data: rpcData, error: rpcErr } = await client.rpc('rpc_solicitar_codigo_recuperacao', {
+      p_identificador: ident,
+      p_codigo: codigo
+    });
+    if (rpcErr) return { ok: false, msg: rpcErr.message };
+    const info = rpcData as {
+      ok?: boolean;
+      msg?: string;
+      username?: string;
+      email?: string;
+      perfil?: string;
+      telegram_bot_token?: string;
+      telegram_chat_id?: string;
+    } | null;
+    if (!info?.ok) {
+      return { ok: false, msg: info?.msg || 'Usuário ou e-mail não encontrado.' };
+    }
+
+    let enviouEmail = false;
+    let enviouTelegram = false;
+
+    if (info.email && info.email.includes('@')) {
+      try {
+        const { data: emailRes } = await client.functions.invoke('enviar-email', {
+          body: {
+            to: info.email,
+            subject: 'Código de Recuperação — MK Gestão de Negócios 360°',
+            html: `<div style="font-family:Arial,sans-serif;padding:16px"><h2>MK Gestão de Negócios 360°</h2><p>Olá <strong>${info.username}</strong>,</p><p>Seu código para redefinir a senha é:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#3b82f6">${codigo}</p><p>Válido por 10 minutos.</p></div>`
+          }
+        });
+        if ((emailRes as { ok?: boolean } | null)?.ok) enviouEmail = true;
+      } catch {
+        // fallback para Telegram se Edge Function ainda não estiver publicada
+      }
+    }
+
+    let botToken = info.telegram_bot_token || '';
+    let chatId = info.telegram_chat_id || '';
+    if ((!botToken || !chatId) && String(info.perfil || '').toUpperCase() === 'ADMIN') {
       const cfg = await lerChaveConfigSaas<ConfigMasterSaas>(
         client,
         'SAAS_MASTER_CONFIG',
@@ -844,60 +852,58 @@ export async function solicitarRecuperacaoSenha(
       );
       botToken = cfg.telegram_bot_token_admin || '';
       chatId = cfg.telegram_chat_id_admin || '';
-    } else {
-      const { data: empRow } = await client
-        .from('empresas')
-        .select('telegram_bot_token,telegram_chat_id')
-        .eq('id', usuario.empresa_id)
-        .maybeSingle();
-      botToken = (empRow as { telegram_bot_token?: string } | null)?.telegram_bot_token || '';
-      chatId = (empRow as { telegram_chat_id?: string } | null)?.telegram_chat_id || '';
     }
-  } else {
-    const db = loadLocalDb();
-    usuario =
-      db.usuarios.find(
-        (u) => u.username.toLowerCase() === ident || String(u.email || '').toLowerCase() === ident
-      ) || null;
-    if (!usuario) return { ok: false, msg: 'Usuário ou e-mail não encontrado.' };
-    const emp = db.empresas.find((e) => e.id === usuario!.empresa_id);
-    botToken = emp?.telegram_bot_token || '';
-    chatId = emp?.telegram_chat_id || '';
+
+    if (botToken.trim() && chatId.trim()) {
+      const telRes = await enviarMensagemTelegram(
+        {
+          nome: 'MK Gestão 360°',
+          telegram_bot_token: botToken,
+          telegram_chat_id: chatId
+        } as Empresa,
+        `🔐 <b>Recuperação de Senha — MK Gestão 360°</b>\nUsuário: <code>${info.username}</code>\nCódigo de verificação: <b>${codigo}</b>\n\nVálido por 10 minutos.`
+      );
+      enviouTelegram = telRes.ok;
+    }
+
+    if (!enviouEmail && !enviouTelegram) {
+      return {
+        ok: false,
+        msg: 'Nenhum e-mail (Resend) ou Telegram configurado para receber o código. Contate o Dono ou Administrador.'
+      };
+    }
+
+    const canais = [enviouEmail ? 'E-mail' : '', enviouTelegram ? 'Telegram' : ''].filter(Boolean).join(' e ');
+    return { ok: true, msg: `Código de 6 dígitos enviado via ${canais}!` };
   }
 
+  const db = loadLocalDb();
+  const usuario =
+    db.usuarios.find(
+      (u) => u.username.toLowerCase() === ident || String(u.email || '').toLowerCase() === ident
+    ) || null;
+  if (!usuario) return { ok: false, msg: 'Usuário ou e-mail não encontrado.' };
+  const emp = db.empresas.find((e) => e.id === usuario.empresa_id);
+  const botToken = emp?.telegram_bot_token || '';
+  const chatId = emp?.telegram_chat_id || '';
   if (!botToken.trim() || !chatId.trim()) {
     return {
       ok: false,
       msg: 'Telegram da empresa não configurado. Peça ao Dono ou Administrador para redefinir sua senha.'
     };
   }
-
-  const codigo = String(Math.floor(100000 + Math.random() * 900000));
-  const payloadReset = {
+  await gravarChaveConfigSaas(null, `PWD_RESET_${usuario.id}`, `pwd_reset_${usuario.id}`, {
     userId: usuario.id,
     codigo,
     expiraEm: Date.now() + 10 * 60 * 1000
-  };
-  await gravarChaveConfigSaas(
-    client,
-    `PWD_RESET_${usuario.id}`,
-    `pwd_reset_${usuario.id}`,
-    payloadReset
+  });
+  const telRes = await enviarMensagemTelegram(
+    { nome: 'MK Gestão 360°', telegram_bot_token: botToken, telegram_chat_id: chatId } as Empresa,
+    `🔐 <b>Recuperação de Senha — MK Gestão 360°</b>\nUsuário: <code>${usuario.username}</code>\nCódigo: <b>${codigo}</b>`
   );
-
-  const enviado = await enviarMensagemTelegram(
-    {
-      nome: 'Gestão 360°',
-      telegram_bot_token: botToken,
-      telegram_chat_id: chatId
-    } as Empresa,
-    `🔐 <b>Recuperação de Senha — Gestão 360°</b>\nUsuário: <code>${usuario.username}</code>\nCódigo de verificação: <b>${codigo}</b>\n\nVálido por 10 minutos.`
-  );
-  if (!enviado) {
-    return { ok: false, msg: 'Falha ao enviar código pelo Telegram. Tente novamente ou contate o suporte.' };
-  }
-
-  return { ok: true, msg: 'Código de 6 dígitos enviado para o Telegram cadastrado!' };
+  return telRes.ok
+    ? { ok: true, msg: 'Código de 6 dígitos enviado para o Telegram cadastrado!' }
+    : { ok: false, msg: 'Falha ao enviar código pelo Telegram.' };
 }
 
 export async function redefinirSenhaComCodigo(
@@ -911,55 +917,42 @@ export async function redefinirSenhaComCodigo(
   if (!ident || !codigo) return { ok: false, msg: 'Informe usuário/e-mail e o código recebido.' };
   if (novaSenha.length < 4) return { ok: false, msg: 'A nova senha deve ter pelo menos 4 caracteres.' };
 
+  const novoHash = await sha256Hex(novaSenha);
   const client = isSupabaseConfigured() ? getSupabaseClient() : null;
-  let usuarioId = '';
 
   if (client) {
-    const { data: porUser } = await client.from('usuarios').select('id').eq('username', ident).limit(1);
-    const achado =
-      porUser && porUser.length > 0
-        ? (porUser[0] as { id: string })
-        : ((await client.from('usuarios').select('id').eq('email', ident).limit(1)).data?.[0] as
-            | { id: string }
-            | undefined);
-    if (!achado) return { ok: false, msg: 'Usuário não encontrado.' };
-    usuarioId = achado.id;
-  } else {
-    const db = loadLocalDb();
-    const u = db.usuarios.find(
-      (x) => x.username.toLowerCase() === ident || String(x.email || '').toLowerCase() === ident
-    );
-    if (!u) return { ok: false, msg: 'Usuário não encontrado.' };
-    usuarioId = u.id;
+    const { data, error } = await client.rpc('rpc_redefinir_senha_com_codigo', {
+      p_identificador: ident,
+      p_codigo: codigo,
+      p_nova_senha_hash: novoHash
+    });
+    if (error) return { ok: false, msg: error.message };
+    const res = data as { ok?: boolean; msg?: string } | null;
+    return {
+      ok: Boolean(res?.ok),
+      msg: res?.msg || 'Não foi possível redefinir a senha.'
+    };
   }
 
+  const db = loadLocalDb();
+  const u = db.usuarios.find(
+    (x) => x.username.toLowerCase() === ident || String(x.email || '').toLowerCase() === ident
+  );
+  if (!u) return { ok: false, msg: 'Usuário não encontrado.' };
+
   const salvo = await lerChaveConfigSaas<{ userId?: string; codigo?: string; expiraEm?: number } | null>(
-    client,
-    `PWD_RESET_${usuarioId}`,
-    `pwd_reset_${usuarioId}`,
+    null,
+    `PWD_RESET_${u.id}`,
+    `pwd_reset_${u.id}`,
     null
   );
   if (!salvo || salvo.codigo !== codigo || !salvo.expiraEm || Date.now() > salvo.expiraEm) {
     return { ok: false, msg: 'Código inválido ou expirado. Solicite um novo código.' };
   }
 
-  const novoHash = await sha256Hex(novaSenha);
-  if (client) {
-    const { error } = await client
-      .from('usuarios')
-      .update({ senha_hash: novoHash })
-      .eq('id', usuarioId);
-    if (error) return { ok: false, msg: error.message };
-  } else {
-    const db = loadLocalDb();
-    const u = db.usuarios.find((x) => x.id === usuarioId);
-    if (u) {
-      u.senha_hash = novoHash;
-      saveLocalDb(db);
-    }
-  }
-
-  await gravarChaveConfigSaas(client, `PWD_RESET_${usuarioId}`, `pwd_reset_${usuarioId}`, null);
+  u.senha_hash = novoHash;
+  saveLocalDb(db);
+  await gravarChaveConfigSaas(null, `PWD_RESET_${u.id}`, `pwd_reset_${u.id}`, null);
   return { ok: true, msg: 'Senha redefinida com sucesso! Já pode acessar com a nova senha.' };
 }
 
@@ -1235,7 +1228,7 @@ export async function obterSnapshotUnidade(sessao: SessaoAtiva): Promise<PainelS
     }
 
     const empresaBase = empRes.data as Empresa;
-    const ehMatriz = empresaBase.tipo === 'MATRIZ' || empId === 'EMP-MATRIZ-DEFAULT';
+    const ehMatriz = empId === 'EMP-MATRIZ-DEFAULT';
     const empresa: Empresa = {
       ...empresaBase,
       nome: empresaBase.nome || (ehMatriz ? cfgMap.NOME_DEPOSITO : '') || '',
@@ -5274,29 +5267,25 @@ export async function criarEmpresaPeloAdmin(
   };
 
   if (client) {
-    const { data: dup } = await client.from('usuarios').select('id').eq('username', uname).limit(1);
-    if (dup && dup.length > 0) {
-      return { ok: false, msg: `O login "${uname}" já está em uso.` };
-    }
-
-    const { error: empErr } = await client.from('empresas').insert({
-      ...novaEmpresa,
-      valido_ate: novaEmpresa.valido_ate || null
+    const { data: rpcData, error: rpcErr } = await client.rpc('rpc_criar_empresa_pelo_admin', {
+      p_empresa_id: empId,
+      p_grupo_id: grpId,
+      p_usuario_id: usrId,
+      p_nome_empresa: nomeEmp,
+      p_dono_nome: novaEmpresa.dono_nome,
+      p_cnpj: novaEmpresa.cnpj,
+      p_telefone: novaEmpresa.telefone,
+      p_cidade: novaEmpresa.cidade,
+      p_plano: novaEmpresa.plano,
+      p_status_assinatura: novaEmpresa.status_assinatura,
+      p_valido_ate: novaEmpresa.valido_ate || null,
+      p_username_dono: uname,
+      p_email_dono: payload.emailDono?.trim().toLowerCase() || '',
+      p_senha_hash: senhaHash
     });
-    if (empErr) return { ok: false, msg: empErr.message };
-
-    const { error: usrErr } = await client.from('usuarios').insert({
-      id: usrId,
-      empresa_id: empId,
-      grupo_id: grpId,
-      username: uname,
-      nome: novaEmpresa.dono_nome,
-      email: payload.emailDono?.trim().toLowerCase() || '',
-      senha_hash: senhaHash,
-      perfil: 'DONO',
-      ativo: true
-    });
-    if (usrErr) return { ok: false, msg: usrErr.message };
+    if (rpcErr) return { ok: false, msg: rpcErr.message };
+    const resRpc = rpcData as { ok?: boolean; msg?: string } | null;
+    if (!resRpc?.ok) return { ok: false, msg: resRpc?.msg || 'Não foi possível criar a empresa.' };
 
     return { ok: true, msg: `Empresa "${nomeEmp}" e usuário Dono "${uname}" criados no Supabase!`, empresa: novaEmpresa };
   }
@@ -5320,6 +5309,32 @@ export async function criarEmpresaPeloAdmin(
   });
   saveLocalDb(db);
   return { ok: true, msg: `Empresa "${nomeEmp}" criada com sucesso!`, empresa: novaEmpresa };
+}
+
+export async function excluirEmpresaAdmin(
+  sessao: SessaoAtiva,
+  empresaId: string
+): Promise<{ ok: boolean; msg: string }> {
+  if (String(sessao.usuario.perfil || '').toUpperCase() !== 'ADMIN') {
+    return { ok: false, msg: 'Apenas o ADMIN pode excluir empresas.' };
+  }
+  if (empresaId === 'EMP-MATRIZ-DEFAULT') {
+    return { ok: false, msg: 'A empresa matriz padrão do sistema não pode ser excluída.' };
+  }
+  const client = getTenantSupabaseClient(sessao);
+  if (client) {
+    const { data, error } = await client.rpc('rpc_excluir_empresa_admin', {
+      p_empresa_id: empresaId
+    });
+    if (error) return { ok: false, msg: error.message };
+    const res = data as { ok?: boolean; msg?: string } | null;
+    return { ok: Boolean(res?.ok), msg: res?.msg || 'Empresa excluída.' };
+  }
+  const db = loadLocalDb();
+  db.empresas = db.empresas.filter((e) => e.id !== empresaId);
+  db.usuarios = db.usuarios.filter((u) => u.empresa_id !== empresaId);
+  saveLocalDb(db);
+  return { ok: true, msg: 'Empresa excluída com sucesso!' };
 }
 
 export async function listarComprovantesEmpresa(

@@ -4,14 +4,35 @@ import {
   Copy,
   Database,
   ExternalLink,
+  FolderPlus,
+  MessageCircle,
+  Printer,
+  QrCode,
   RefreshCw,
   Save,
   Send
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import type { ConfigMasterSaas, PainelSnapshot, SessaoAtiva, StatusSync } from '../types/domain';
 import { criarNovaUnidade, obterConfigMasterSaasPublica, salvarConfiguracoesEmpresa } from '../services/dataRepository';
 import { PagamentoAssinaturaCard } from './PagamentoAssinaturaCard';
-import { testarTelegramEmpresa } from '../services/telegramService';
+import { detectarChatIdTelegram, obterInfoBotTelegram, testarTelegramEmpresa } from '../services/telegramService';
+import {
+  criarOuConectarInstanciaEvolution,
+  enviarTesteWhatsAppEvolution,
+  registrarWebhookTelegramBotPedidos
+} from '../services/whatsappEvolutionService';
+import { conectarGoogleDriveOAuth, getGoogleClientId, saveGoogleClientId } from '../services/googleDriveMirrorService';
+import {
+  conectarImpressoraBluetooth,
+  conectarImpressoraSerialCom,
+  getAutoPrintDeliveryEmpresa,
+  getLarguraTermicaEmpresa,
+  getStatusImpressoraBluetooth,
+  setAutoPrintDeliveryEmpresa,
+  setLarguraTermicaEmpresa,
+  type LarguraBobinaTermica
+} from '../services/thermalPrintService';
 import {
   getSupabaseConfig,
   saveSupabaseConfig,
@@ -22,6 +43,7 @@ import {
   dispararSyncPlanilhaImediata
 } from '../services/sheetBridgeService';
 import { normalizarChavePixBCB } from '../utils/pixPayload';
+import { formatarCidadeUf, formatarCpfCnpjBr, formatarTelefoneBr, formatarTextoInicialMaiuscula } from '../utils/formatters';
 import schemaSqlRaw from '../../supabase/schema_saas_v2.sql?raw';
 
 interface ConfigTabProps {
@@ -96,10 +118,144 @@ export function ConfigTab({
 
   // Filial / Nova Empresa
   const [configMasterPublica, setConfigMasterPublica] = useState<ConfigMasterSaas | null>(null);
+  const [qrTelegramDataUrl, setQrTelegramDataUrl] = useState('');
+  const [linkBotTelegram, setLinkBotTelegram] = useState('');
+  const [googleClientId, setGoogleClientId] = useState(() => getGoogleClientId());
+  const [larguraTermica, setLarguraTermica] = useState<LarguraBobinaTermica>(() => getLarguraTermicaEmpresa(emp.id));
+  const [autoPrintDelivery, setAutoPrintDelivery] = useState<boolean>(() => getAutoPrintDeliveryEmpresa(emp.id));
+  const [evoUrl, setEvoUrl] = useState(() => localStorage.getItem(`gn360_evo_url_${emp.id}`) || '');
+  const [evoInstance, setEvoInstance] = useState(() => localStorage.getItem(`gn360_evo_inst_${emp.id}`) || `mk-${emp.id.slice(-6).toLowerCase()}`);
+  const [evoApiKey, setEvoApiKey] = useState(() => localStorage.getItem(`gn360_evo_key_${emp.id}`) || '');
+  const [evoQrBase64, setEvoQrBase64] = useState('');
+  const [evoConectado, setEvoConectado] = useState(false);
 
   useEffect(() => {
-    void obterConfigMasterSaasPublica(sessao).then(setConfigMasterPublica);
+    void obterConfigMasterSaasPublica(sessao).then((cfg) => {
+      setConfigMasterPublica(cfg);
+      if (!evoUrl && cfg.evolution_api_url) setEvoUrl(cfg.evolution_api_url);
+      if (!evoApiKey && cfg.evolution_api_key) setEvoApiKey(cfg.evolution_api_key);
+    });
   }, [sessao]);
+
+  async function handleConectarWhatsAppEvolution() {
+    localStorage.setItem(`gn360_evo_url_${emp.id}`, evoUrl.trim());
+    localStorage.setItem(`gn360_evo_inst_${emp.id}`, evoInstance.trim());
+    localStorage.setItem(`gn360_evo_key_${emp.id}`, evoApiKey.trim());
+    setBusy(true);
+    try {
+      const res = await criarOuConectarInstanciaEvolution(
+        { url: evoUrl, instance: evoInstance, apiKey: evoApiKey },
+        emp.id
+      );
+      setEvoConectado(Boolean(res.conectado));
+      setEvoQrBase64(res.qrcodeBase64 || '');
+      onNotify(res.msg, res.ok ? 'success' : 'warning');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleTestarWhatsAppEvolution() {
+    if (!telefone.trim()) {
+      onNotify('Preencha o Telefone / WhatsApp da empresa acima para receber a mensagem de teste.', 'warning');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await enviarTesteWhatsAppEvolution(
+        { url: evoUrl, instance: evoInstance, apiKey: evoApiKey },
+        telefone,
+        emp.nome
+      );
+      onNotify(res.msg, res.ok ? 'success' : 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAtivarBotPedidosTelegram() {
+    setBusy(true);
+    try {
+      const res = await registrarWebhookTelegramBotPedidos(telegramToken, emp.id);
+      onNotify(res.msg, res.ok ? 'success' : 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGerarQrTelegram() {
+    if (!telegramToken.trim()) {
+      onNotify('Cole o Token do Bot Telegram primeiro (ou crie um no @BotFather).', 'warning');
+      return;
+    }
+    setBusy(true);
+    try {
+      const info = await obterInfoBotTelegram(telegramToken);
+      if (!info.ok || !info.username) {
+        onNotify(info.msg || 'Token inválido.', 'error');
+        return;
+      }
+      const url = `https://t.me/${info.username}?start=CONECTAR_${emp.id}`;
+      const qr = await QRCode.toDataURL(url, { width: 180, margin: 1 });
+      setLinkBotTelegram(url);
+      setQrTelegramDataUrl(qr);
+      onNotify(`QR Code gerado para @${info.username}! Leia no celular, aperte "Começar" e clique em Detectar ID.`, 'success');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDetectarChatId() {
+    setBusy(true);
+    try {
+      const res = await detectarChatIdTelegram(telegramToken);
+      if (res.ok && res.chatId) {
+        setTelegramChatId(res.chatId);
+        onNotify(res.msg, 'success');
+      } else {
+        onNotify(res.msg, 'warning');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConectarGoogleDriveDireto() {
+    if (googleClientId.trim()) saveGoogleClientId(googleClientId.trim());
+    setBusy(true);
+    try {
+      const res = await conectarGoogleDriveOAuth(emp.id, emp.nome);
+      if (!res.ok || !res.meta) {
+        onNotify(res.msg, 'warning');
+        return;
+      }
+      setDriveUrl(res.meta.rootFolderUrl);
+      setSpreadsheetUrl(res.meta.planilhaUrl);
+      await salvarConfiguracoesEmpresa(
+        sessao,
+        {
+          drive_folder_id: res.meta.rootFolderId,
+          planilha_espelho_id: res.meta.planilhaId
+        },
+        {
+          permitirEstoqueNegativo,
+          autoRefresh,
+          intervaloRefreshMin: Number(intervaloRefreshMin) || 5,
+          driveUrl: res.meta.rootFolderUrl,
+          spreadsheetUrl: res.meta.planilhaUrl,
+          webappUrl
+        }
+      );
+      await onRefreshSyncStatus();
+      await onAtualizarDados();
+      onNotify(res.msg, 'success');
+      window.open(res.meta.rootFolderUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      onNotify(err instanceof Error ? err.message : 'Erro ao conectar Google Drive.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   const [tipoUnidade, setTipoUnidade] = useState<'FILIAL' | 'NOVA_EMPRESA'>('FILIAL');
   const [nomeNovaUnidade, setNomeNovaUnidade] = useState('');
   const [copiarProdutos, setCopiarProdutos] = useState(true);
@@ -259,19 +415,19 @@ export function ConfigTab({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label className="field-label">Responsável / Dono</label>
-              <input className="field-input" value={donoNome} onChange={(e) => setDonoNome(e.target.value)} />
+              <input className="field-input" value={donoNome} onChange={(e) => setDonoNome(formatarTextoInicialMaiuscula(e.target.value))} />
             </div>
             <div>
-              <label className="field-label">CNPJ</label>
-              <input className="field-input" value={cnpj} onChange={(e) => setCnpj(e.target.value)} />
+              <label className="field-label">CNPJ / CPF</label>
+              <input className="field-input" placeholder="00.000.000/0001-00" value={cnpj} onChange={(e) => setCnpj(formatarCpfCnpjBr(e.target.value))} />
             </div>
             <div>
               <label className="field-label">Telefone / WhatsApp</label>
-              <input className="field-input" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+              <input className="field-input" placeholder="(11) 99999-9999" value={telefone} onChange={(e) => setTelefone(formatarTelefoneBr(e.target.value))} />
             </div>
             <div>
               <label className="field-label">Cidade / UF</label>
-              <input className="field-input" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+              <input className="field-input" placeholder="Ex.: Salvador / BA" value={cidade} onChange={(e) => setCidade(formatarCidadeUf(e.target.value))} />
             </div>
           </div>
           <div>
@@ -296,6 +452,54 @@ export function ConfigTab({
 
           <div
             style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <a
+                href="https://t.me/BotFather"
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-xs"
+                style={{ textDecoration: 'none' }}
+              >
+                <ExternalLink size={12} /> Criar Bot no @BotFather
+              </a>
+              <button type="button" className="btn btn-xs btn-primary" disabled={busy} onClick={() => void handleGerarQrTelegram()}>
+                <QrCode size={12} /> QR Code p/ Conectar
+              </button>
+              <button type="button" className="btn btn-xs btn-success" disabled={busy} onClick={() => void handleDetectarChatId()}>
+                Detectar ID Automaticamente
+              </button>
+              <button type="button" className="btn btn-xs" disabled={busy} onClick={() => void handleAtivarBotPedidosTelegram()}>
+                Ativar Bot Delivery (Telegram)
+              </button>
+            </div>
+            {qrTelegramDataUrl && (
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', paddingTop: 4 }}>
+                <img src={qrTelegramDataUrl} alt="QR Code Telegram" style={{ width: 120, height: 120, borderRadius: 8, background: '#fff', padding: 4 }} />
+                <div style={{ fontSize: 12, color: '#cbd5e1', maxWidth: 280 }}>
+                  <div>1. Aponte a câmera do celular para o QR Code (ou clique abaixo).</div>
+                  <div>2. Aperte <strong>Começar (Start)</strong> no Telegram.</div>
+                  <div>3. Clique em <strong>Detectar ID Automaticamente</strong>.</div>
+                  {linkBotTelegram && (
+                    <a href={linkBotTelegram} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', display: 'inline-block', marginTop: 4 }}>
+                      Abrir no Telegram
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
               borderTop: '1px solid var(--border-subtle)',
               paddingTop: 10,
               marginTop: 2,
@@ -304,6 +508,167 @@ export function ConfigTab({
               gap: 10
             }}
           >
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.28)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#a7f3d0' }}>
+                  Google Drive &amp; Planilha Espelho em 1 Clique
+                </span>
+                <button type="button" className="btn btn-xs btn-success" disabled={busy} onClick={() => void handleConectarGoogleDriveDireto()}>
+                  <FolderPlus size={13} /> Conectar Google e Criar Pasta/Planilha
+                </button>
+              </div>
+              {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                <input
+                  className="field-input"
+                  style={{ fontSize: 12 }}
+                  placeholder="Google OAuth Client ID (se não configurado no .env)"
+                  value={googleClientId}
+                  onChange={(e) => setGoogleClientId(e.target.value)}
+                />
+              )}
+            </div>
+
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.28)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#6ee7b7', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <MessageCircle size={14} /> WhatsApp Delivery Automático (Evolution API)
+                  {evoConectado && <span style={{ color: '#34d399' }}>• Conectado</span>}
+                </span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-xs btn-primary" disabled={busy} onClick={() => void handleConectarWhatsAppEvolution()}>
+                    <QrCode size={12} /> Gerar QR Code WhatsApp
+                  </button>
+                  <button type="button" className="btn btn-xs btn-success" disabled={busy} onClick={() => void handleTestarWhatsAppEvolution()}>
+                    <Send size={12} /> Testar WhatsApp
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 8 }}>
+                <input
+                  className="field-input"
+                  style={{ fontSize: 12 }}
+                  placeholder="URL Evolution API (https://...)"
+                  value={evoUrl}
+                  onChange={(e) => setEvoUrl(e.target.value)}
+                />
+                <input
+                  className="field-input"
+                  style={{ fontSize: 12 }}
+                  placeholder="Instância (ex.: mk-loja)"
+                  value={evoInstance}
+                  onChange={(e) => setEvoInstance(e.target.value)}
+                />
+                <input
+                  type="password"
+                  className="field-input"
+                  style={{ fontSize: 12 }}
+                  placeholder="API Key Evolution"
+                  value={evoApiKey}
+                  onChange={(e) => setEvoApiKey(e.target.value)}
+                />
+              </div>
+              {evoQrBase64 && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', paddingTop: 4 }}>
+                  <img
+                    src={evoQrBase64.startsWith('data:') ? evoQrBase64 : `data:image/png;base64,${evoQrBase64}`}
+                    alt="QR Code WhatsApp"
+                    style={{ width: 140, height: 140, borderRadius: 8, background: '#fff', padding: 4 }}
+                  />
+                  <div style={{ fontSize: 12, color: '#cbd5e1', maxWidth: 260 }}>
+                    Abra o <strong>WhatsApp</strong> no celular → <strong>Dispositivos Conectados</strong> → aponte para o QR Code para ativar o robô de pedidos!
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(139, 92, 246, 0.08)',
+                border: '1px solid rgba(139, 92, 246, 0.28)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 10
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#ddd6fe', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Printer size={14} /> Impressora Térmica (Delivery &amp; Relatórios)
+                {getStatusImpressoraBluetooth().conectada && (
+                  <span style={{ color: '#34d399' }}>• {getStatusImpressoraBluetooth().nome}</span>
+                )}
+              </span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-primary"
+                  onClick={async () => {
+                    const r = await conectarImpressoraBluetooth();
+                    onNotify(r.msg, r.ok ? 'success' : 'warning');
+                  }}
+                >
+                  Conectar Bluetooth
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-xs"
+                  onClick={async () => {
+                    const r = await conectarImpressoraSerialCom();
+                    onNotify(r.msg, r.ok ? 'success' : 'warning');
+                  }}
+                >
+                  Porta COM (Serial)
+                </button>
+                <select
+                  className="field-select"
+                  style={{ padding: '4px 8px', fontSize: 12 }}
+                  value={larguraTermica}
+                  onChange={(e) => {
+                    const v = e.target.value as LarguraBobinaTermica;
+                    setLarguraTermica(v);
+                    setLarguraTermicaEmpresa(emp.id, v);
+                    onNotify(`Bobina térmica definida para ${v}.`, 'info');
+                  }}
+                >
+                  <option value="80mm">Bobina 80mm</option>
+                  <option value="58mm">Bobina 58mm</option>
+                </select>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={autoPrintDelivery}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setAutoPrintDelivery(v);
+                      setAutoPrintDeliveryEmpresa(emp.id, v);
+                    }}
+                  />
+                  <span>Auto-imprimir novos pedidos</span>
+                </label>
+              </div>
+            </div>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="field-label">URL da Pasta Google Drive (DRIVE_URL)</label>
