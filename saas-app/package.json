@@ -41,11 +41,13 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Gestão de Negócios 360°",
-      "artifactName": "Gestao-Negocios-360-Setup-${version}.${ext}"
+      "artifactName": "Gestao-Negocios-360-Setup-${version}.${ext}",
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {
