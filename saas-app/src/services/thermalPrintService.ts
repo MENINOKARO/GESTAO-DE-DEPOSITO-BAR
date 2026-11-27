@@ -166,11 +166,37 @@ interface SerialPortLike {
   writable?: WritableStream<Uint8Array> | null;
 }
 
+interface AndroidThermalBridgeLike {
+  listPairedPrinters: () => string;
+  printBase64: (address: string, base64Data: string) => string;
+}
+
+const KEY_ANDROID_BT_ADDR = 'gn360_android_bt_addr';
+const KEY_ANDROID_BT_NAME = 'gn360_android_bt_name';
+
+function getAndroidBridge(): AndroidThermalBridgeLike | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as { AndroidThermalBridge?: AndroidThermalBridgeLike };
+  return w.AndroidThermalBridge || null;
+}
+
+function getSavedAndroidPrinter(): { address: string; name: string } | null {
+  try {
+    const address = localStorage.getItem(KEY_ANDROID_BT_ADDR) || '';
+    const name = localStorage.getItem(KEY_ANDROID_BT_NAME) || '';
+    return address ? { address, name } : null;
+  } catch {
+    return null;
+  }
+}
+
 let btCharacteristic: BtCharLike | null = null;
 let btDeviceName = '';
 let serialPort: SerialPortLike | null = null;
 
 export function getStatusImpressoraBluetooth(): { conectada: boolean; nome: string } {
+  const androidDev = getAndroidBridge() ? getSavedAndroidPrinter() : null;
+  if (androidDev) return { conectada: true, nome: androidDev.name || androidDev.address };
   if (btCharacteristic) return { conectada: true, nome: btDeviceName || 'Bluetooth BLE' };
   if (serialPort) return { conectada: true, nome: 'Bluetooth / Porta COM (Serial)' };
   return { conectada: false, nome: '' };
@@ -179,6 +205,12 @@ export function getStatusImpressoraBluetooth(): { conectada: boolean; nome: stri
 export async function desconectarImpressoraTermica(): Promise<void> {
   btCharacteristic = null;
   btDeviceName = '';
+  try {
+    localStorage.removeItem(KEY_ANDROID_BT_ADDR);
+    localStorage.removeItem(KEY_ANDROID_BT_NAME);
+  } catch {
+    // ignore
+  }
   const p = serialPort as unknown as { close?: () => Promise<void> } | null;
   serialPort = null;
   if (p?.close) {
@@ -191,6 +223,41 @@ export async function desconectarImpressoraTermica(): Promise<void> {
 }
 
 export async function conectarImpressoraBluetooth(): Promise<{ ok: boolean; msg: string }> {
+  const androidBridge = getAndroidBridge();
+  if (androidBridge) {
+    try {
+      const parsed = JSON.parse(androidBridge.listPairedPrinters()) as {
+        ok: boolean;
+        msg?: string;
+        devices?: Array<{ name: string; address: string }>;
+      };
+      if (!parsed.ok) {
+        return { ok: false, msg: parsed.msg || 'Não foi possível acessar o Bluetooth do Android.' };
+      }
+      const devs = parsed.devices || [];
+      if (devs.length === 0) {
+        return {
+          ok: false,
+          msg: 'Nenhuma impressora pareada encontrada no Bluetooth do celular. Pareie a Printer_AF72 nas configurações do Android (PIN 0000) e tente novamente.'
+        };
+      }
+      const escolhida =
+        devs.find((d) => /printer|pos|mpt|af72|rpp|elgin|bematech|xprinter|thermal|bt/i.test(d.name)) ||
+        devs[0];
+      localStorage.setItem(KEY_ANDROID_BT_ADDR, escolhida.address);
+      localStorage.setItem(KEY_ANDROID_BT_NAME, escolhida.name);
+      return {
+        ok: true,
+        msg: `Impressora "${escolhida.name}" conectada nativamente via Bluetooth Android!`
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        msg: err instanceof Error ? err.message : 'Erro ao conectar Bluetooth no Android.'
+      };
+    }
+  }
+
   const nav = navigator as unknown as {
     bluetooth?: {
       requestDevice: (opts: unknown) => Promise<{
@@ -311,9 +378,11 @@ async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTerm
       ? new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a])
       : new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x1d, 0x56, 0x42, 0x00]);
   const semAcentos = textoLimpo
+    .replace(/[\u00A0\u202F\u2007\u200B]/g, ' ')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\r?\n/g, '\r\n');
+    .replace(/\r?\n/g, '\r\n')
+    .replace(/[^\x20-\x7E\r\n]/g, '');
   const bodyBytes = new TextEncoder().encode(semAcentos + '\r\n');
   const full = new Uint8Array(escInit.length + bodyBytes.length + escEnd.length);
   full.set(escInit, 0);
@@ -321,6 +390,18 @@ async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTerm
   full.set(escEnd, escInit.length + bodyBytes.length);
 
   try {
+    const androidBridge = getAndroidBridge();
+    const androidSaved = androidBridge ? getSavedAndroidPrinter() : null;
+    if (androidBridge && androidSaved) {
+      let bin = '';
+      for (let i = 0; i < full.length; i++) bin += String.fromCharCode(full[i]);
+      const b64 = btoa(bin);
+      const parsed = JSON.parse(androidBridge.printBase64(androidSaved.address, b64)) as {
+        ok: boolean;
+        msg?: string;
+      };
+      return { ok: Boolean(parsed.ok), msg: parsed.msg };
+    }
     if (btCharacteristic) {
       for (let i = 0; i < full.length; i += 100) {
         await btCharacteristic.writeValue(full.slice(i, i + 100));
