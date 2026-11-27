@@ -174,6 +174,18 @@ export function App() {
   );
 
   useEffect(() => {
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<PrintPreviewPayload>;
+      if (ce.detail) {
+        ev.preventDefault();
+        setPrintPreview(ce.detail);
+      }
+    };
+    window.addEventListener('gn360:print-preview', handler);
+    return () => window.removeEventListener('gn360:print-preview', handler);
+  }, []);
+
+  useEffect(() => {
     if (!sessao) {
       const params = new URLSearchParams(window.location.search);
       const empParam = params.get('empresa_id') || undefined;
@@ -519,18 +531,6 @@ export function App() {
     config: '⚙️ Configuração',
     master: '👑 Master SaaS'
   };
-
-  useEffect(() => {
-    const handler = (ev: Event) => {
-      const ce = ev as CustomEvent<PrintPreviewPayload>;
-      if (ce.detail) {
-        ev.preventDefault();
-        setPrintPreview(ce.detail);
-      }
-    };
-    window.addEventListener('gn360:print-preview', handler);
-    return () => window.removeEventListener('gn360:print-preview', handler);
-  }, []);
 
   return (
     <div className="app-shell">
