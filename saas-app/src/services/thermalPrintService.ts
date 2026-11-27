@@ -163,6 +163,7 @@ interface BtCharLike {
 }
 interface SerialPortLike {
   open: (opts: { baudRate: number }) => Promise<void>;
+  close?: () => Promise<void>;
   writable?: WritableStream<Uint8Array> | null;
 }
 
@@ -173,6 +174,8 @@ interface AndroidThermalBridgeLike {
 
 const KEY_ANDROID_BT_ADDR = 'gn360_android_bt_addr';
 const KEY_ANDROID_BT_NAME = 'gn360_android_bt_name';
+const KEY_SERIAL_SAVED = 'gn360_serial_saved';
+const KEY_SERIAL_BAUD = 'gn360_serial_baud';
 
 function getAndroidBridge(): AndroidThermalBridgeLike | null {
   if (typeof window === 'undefined') return null;
@@ -190,15 +193,97 @@ function getSavedAndroidPrinter(): { address: string; name: string } | null {
   }
 }
 
+function hasSavedSerialPrinter(): boolean {
+  try {
+    return (
+      typeof navigator !== 'undefined' &&
+      'serial' in navigator &&
+      localStorage.getItem(KEY_SERIAL_SAVED) === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
 let btCharacteristic: BtCharLike | null = null;
 let btDeviceName = '';
 let serialPort: SerialPortLike | null = null;
+let serialBaudRate = 9600;
+let serialCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearSerialReleaseTimer(): void {
+  if (serialCloseTimer) {
+    clearTimeout(serialCloseTimer);
+    serialCloseTimer = null;
+  }
+}
+
+async function closePortSafely(port: SerialPortLike | null): Promise<void> {
+  clearSerialReleaseTimer();
+  if (!port?.close) return;
+  try {
+    await port.close();
+  } catch {
+    // ignore
+  }
+}
+
+function scheduleSerialRelease(port: SerialPortLike): void {
+  clearSerialReleaseTimer();
+  serialCloseTimer = setTimeout(() => {
+    serialCloseTimer = null;
+    if (serialPort === port) {
+      void closePortSafely(port);
+    }
+  }, 1500);
+}
+
+async function openPortWithBaud(port: SerialPortLike, preferredBaud = 9600): Promise<number | null> {
+  if (port.writable) return preferredBaud;
+  const bauds = Array.from(new Set([preferredBaud, 9600, 115200, 38400]));
+  for (const baudRate of bauds) {
+    try {
+      await port.open({ baudRate });
+      return baudRate;
+    } catch (e) {
+      const em = e instanceof Error ? e.message : '';
+      if (/already open/i.test(em)) return baudRate;
+    }
+  }
+  return null;
+}
+
+async function writeBytesToPort(port: SerialPortLike, bytes: Uint8Array, timeoutMs = 4000): Promise<void> {
+  if (!port.writable) {
+    throw new Error('Porta COM não está aberta para escrita.');
+  }
+  if (port.writable.locked) {
+    throw new Error('A porta COM travou (provável porta de Entrada do Bluetooth).');
+  }
+  const writer = port.writable.getWriter();
+  try {
+    await Promise.race([
+      writer.write(bytes),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Tempo esgotado ao enviar para a porta COM')), timeoutMs)
+      )
+    ]);
+  } finally {
+    try {
+      writer.releaseLock();
+    } catch {
+      // ignore
+    }
+  }
+}
 
 export function getStatusImpressoraBluetooth(): { conectada: boolean; nome: string } {
   const androidDev = getAndroidBridge() ? getSavedAndroidPrinter() : null;
   if (androidDev) return { conectada: true, nome: androidDev.name || androidDev.address };
   if (btCharacteristic) return { conectada: true, nome: btDeviceName || 'Bluetooth BLE' };
-  if (serialPort) return { conectada: true, nome: 'Bluetooth / Porta COM (Serial)' };
+  if (serialPort || hasSavedSerialPrinter()) {
+    return { conectada: true, nome: 'Bluetooth / Porta COM (Sob Demanda)' };
+  }
   return { conectada: false, nome: '' };
 }
 
@@ -208,18 +293,14 @@ export async function desconectarImpressoraTermica(): Promise<void> {
   try {
     localStorage.removeItem(KEY_ANDROID_BT_ADDR);
     localStorage.removeItem(KEY_ANDROID_BT_NAME);
+    localStorage.removeItem(KEY_SERIAL_SAVED);
+    localStorage.removeItem(KEY_SERIAL_BAUD);
   } catch {
     // ignore
   }
-  const p = serialPort as unknown as { close?: () => Promise<void> } | null;
+  const p = serialPort;
   serialPort = null;
-  if (p?.close) {
-    try {
-      await p.close();
-    } catch {
-      // ignore
-    }
-  }
+  await closePortSafely(p);
 }
 
 export async function conectarImpressoraBluetooth(): Promise<{ ok: boolean; msg: string }> {
@@ -319,56 +400,62 @@ export async function conectarImpressoraBluetooth(): Promise<{ ok: boolean; msg:
 
 export async function conectarImpressoraSerialCom(): Promise<{ ok: boolean; msg: string }> {
   const nav = navigator as unknown as {
-    serial?: { requestPort: () => Promise<SerialPortLike> };
+    serial?: {
+      requestPort: () => Promise<SerialPortLike>;
+      getPorts?: () => Promise<SerialPortLike[]>;
+    };
   };
   if (!nav.serial) {
     return { ok: false, msg: 'Web Serial não disponível neste navegador. Use Chrome, Edge ou o app Windows (.exe).' };
   }
-  try {
-    const port = await nav.serial.requestPort();
-    if (port.writable) {
-      serialPort = port;
-      return { ok: true, msg: 'Impressora já estava conectada na Porta COM!' };
-    }
-    const bauds = [9600, 115200, 38400];
-    let opened = false;
-    let lastErr: unknown = null;
-    for (const baudRate of bauds) {
-      try {
-        await port.open({ baudRate });
-        opened = true;
-        break;
-      } catch (e) {
-        const em = e instanceof Error ? e.message : '';
-        if (/already open/i.test(em)) {
-          opened = true;
-          break;
-        }
-        lastErr = e;
+  const isElectron = typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
+  const maxTentativas = isElectron ? 2 : 1;
+  let lastErr: unknown = null;
+
+  for (let tentativa = 0; tentativa < maxTentativas; tentativa++) {
+    let port: SerialPortLike | null = null;
+    try {
+      port = await nav.serial.requestPort();
+      const baud = await openPortWithBaud(port, serialBaudRate);
+      if (!baud) {
+        await closePortSafely(port);
+        lastErr = new Error('Não foi possível abrir esta porta COM.');
+        continue;
       }
-    }
-    if (!opened) {
-      const rawErr = lastErr instanceof Error ? lastErr.message : '';
-      if (/Failed to open serial port/i.test(rawErr)) {
+      // Sonda silenciosa (ESC @) para validar se a porta aceita escrita real (evita porta de Entrada no Windows)
+      await writeBytesToPort(port, new Uint8Array([0x1b, 0x40]), 3500);
+      serialPort = port;
+      serialBaudRate = baud;
+      try {
+        localStorage.setItem(KEY_SERIAL_SAVED, '1');
+        localStorage.setItem(KEY_SERIAL_BAUD, String(baud));
+      } catch {
+        // ignore
+      }
+      // Libera a porta após 1.5s para permitir multiconexão alternada com o celular
+      scheduleSerialRelease(port);
+      return { ok: true, msg: 'Impressora conectada via Porta COM (modo multiconexão sob demanda)!' };
+    } catch (err) {
+      await closePortSafely(port);
+      lastErr = err;
+      const raw = err instanceof Error ? err.message : '';
+      if (/cancel|No port selected/i.test(raw)) {
         return {
           ok: false,
-          msg: 'Não foi possível abrir esta porta COM. No Windows, impressoras Bluetooth (ex: Printer_AF72) criam 2 portas COM (Entrada e Saída) — teste selecionar a outra porta COM no Chrome/Edge.'
+          msg: 'Nenhuma porta COM selecionada. Se estiver no navegador embutido do editor, abra http://localhost:5173 no Chrome/Edge para escolher a porta COM da impressora.'
         };
       }
-      throw lastErr;
     }
-    serialPort = port;
-    return { ok: true, msg: 'Impressora conectada via Porta COM (Bluetooth Serial)!' };
-  } catch (err) {
-    const raw = err instanceof Error ? err.message : '';
-    if (/cancel|No port selected/i.test(raw)) {
-      return {
-        ok: false,
-        msg: 'Nenhuma porta COM selecionada. Se estiver no navegador embutido do editor, abra http://localhost:5173 no Chrome/Edge para escolher a porta COM da impressora.'
-      };
-    }
-    return { ok: false, msg: raw || 'Seleção de Porta COM cancelada.' };
   }
+
+  const rawErr = lastErr instanceof Error ? lastErr.message : '';
+  if (/Failed to open serial port|travou|Tempo esgotado/i.test(rawErr)) {
+    return {
+      ok: false,
+      msg: 'Não foi possível comunicar com a porta COM. Verifique se a impressora está ligada e não está sendo usada pelo celular no momento.'
+    };
+  }
+  return { ok: false, msg: rawErr || 'Falha ao conectar Porta COM.' };
 }
 
 async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTermica = '80mm'): Promise<{ ok: boolean; msg?: string }> {
@@ -408,27 +495,32 @@ async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTerm
       }
       return { ok: true };
     }
-    if (serialPort?.writable) {
-      if (serialPort.writable.locked) {
+    if (serialPort || hasSavedSerialPrinter()) {
+      clearSerialReleaseTimer();
+      let port = serialPort;
+      if (!port) {
+        const nav = navigator as unknown as { serial?: { getPorts?: () => Promise<SerialPortLike[]> } };
+        const ports = nav.serial?.getPorts ? await nav.serial.getPorts() : [];
+        if (ports.length > 0) {
+          port = ports[ports.length - 1];
+          serialPort = port;
+        }
+      }
+      if (!port) {
+        return { ok: false, msg: 'Porta COM salva não encontrada. Clique em Porta COM (Serial) para autorizar novamente.' };
+      }
+      const savedBaud = Number(localStorage.getItem(KEY_SERIAL_BAUD) || serialBaudRate || 9600);
+      const openedBaud = await openPortWithBaud(port, savedBaud);
+      if (!openedBaud) {
         return {
           ok: false,
-          msg: 'A porta COM travou (provável porta de Entrada do Bluetooth). Clique em Desconectar ou teste no Chrome/Edge escolhendo a outra porta COM (COM7/COM8).'
+          msg: 'Não foi possível abrir a porta COM (verifique se a impressora está ligada ou sendo usada no celular).'
         };
       }
-      const writer = serialPort.writable.getWriter();
       try {
-        await Promise.race([
-          writer.write(full),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Tempo esgotado ao enviar para a porta COM')), 4000)
-          )
-        ]);
+        await writeBytesToPort(port, full, 4000);
       } finally {
-        try {
-          writer.releaseLock();
-        } catch {
-          // ignore
-        }
+        scheduleSerialRelease(port);
       }
       return { ok: true };
     }

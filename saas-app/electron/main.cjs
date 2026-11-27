@@ -42,7 +42,8 @@ function createWindow() {
     }
     return false;
   });
-  let serialPortTryIdx = 0;
+  // Começa no índice 1 para priorizar a 2ª porta COM (Saída) em impressoras Bluetooth no Windows
+  let serialPortTryIdx = 1;
   ses.on('select-serial-port', (event, portList, _wc, callback) => {
     event.preventDefault();
     if (portList && portList.length > 0) {
