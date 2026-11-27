@@ -8,7 +8,8 @@ import {
   Search,
   ShoppingCart,
   Trash2,
-  UserPlus
+  UserPlus,
+  X
 } from 'lucide-react';
 import type {
   Cliente,
@@ -26,6 +27,7 @@ import {
 } from '../services/dataRepository';
 import { formatarMoeda } from '../utils/formatters';
 import { beep, beepErro } from '../utils/soundFeedback';
+import { NumberStepper } from './NumberStepper';
 import { ClienteQuickModal } from './ClienteQuickModal';
 import { PixPaymentBox } from './PixPaymentBox';
 
@@ -67,6 +69,7 @@ export function PdvTab({
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState('');
   const [clienteNome, setClienteNome] = useState('');
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
+  const [modalFecharVendaAberto, setModalFecharVendaAberto] = useState(false);
   const [processando, setProcessando] = useState(false);
 
   // Lançamento rápido com valor customizado (apenas ADMIN e DONO, somente antes de entrar no carrinho)
@@ -267,6 +270,17 @@ export function PdvTab({
     return true;
   }
 
+  const abrirModalFecharVenda = useCallback(() => {
+    if (carrinho.length === 0) {
+      onNotify('Adicione pelo menos 1 item ao carrinho!', 'error');
+      return;
+    }
+    if (!validarPreEstoqueCarrinho()) return;
+    setValorRecebidoDinheiro('');
+    setModalFecharVendaAberto(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carrinho, permitirEstoqueNegativo, onNotify]);
+
   const handleFinalizarVenda = useCallback(async () => {
     if (carrinho.length === 0) {
       onNotify('Adicione pelo menos 1 item ao carrinho!', 'error');
@@ -289,6 +303,8 @@ export function PdvTab({
         permitirEstoqueNegativo
       );
       if (res.ok) {
+        setModalFecharVendaAberto(false);
+        setValorRecebidoDinheiro('');
         limparCarrinho();
         setClienteNome('');
         onNotify(res.msg, 'success');
@@ -304,9 +320,17 @@ export function PdvTab({
 
   useEffect(() => {
     function onF8() {
-      void handleFinalizarVenda();
+      if (modalFecharVendaAberto) {
+        void handleFinalizarVenda();
+      } else {
+        abrirModalFecharVenda();
+      }
     }
     function onEscape() {
+      if (modalFecharVendaAberto) {
+        setModalFecharVendaAberto(false);
+        return;
+      }
       setBusca('');
       buscaInputRef.current?.focus();
     }
@@ -316,7 +340,7 @@ export function PdvTab({
       window.removeEventListener('gn360:finalizar-venda-pdv', onF8);
       window.removeEventListener('gn360:escape', onEscape);
     };
-  }, [handleFinalizarVenda]);
+  }, [abrirModalFecharVenda, handleFinalizarVenda, modalFecharVendaAberto]);
 
   async function handleAbrirCarrinhoComoComanda() {
     if (carrinho.length === 0) {
@@ -372,9 +396,9 @@ export function PdvTab({
   }
 
   return (
-    <div className="grid-2" style={{ gridTemplateColumns: '1.35fr 1fr' }}>
+    <div className="pdv-layout">
       {/* CATÁLOGO DE PRODUTOS */}
-      <div className="panel-card">
+      <div className="panel-card pdv-catalog-col">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
           <h3 style={{ fontSize: 16 }}>⚡ Catálogo &amp; PDV Balcão</h3>
           <div style={{ position: 'relative', flex: 1, minWidth: 220, maxWidth: 340 }}>
@@ -470,7 +494,7 @@ export function PdvTab({
       </div>
 
       {/* CARRINHO DE VENDA */}
-      <div className="panel-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="panel-card pdv-cart-col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ShoppingCart size={17} color="#c4b5fd" />
@@ -487,7 +511,38 @@ export function PdvTab({
           )}
         </div>
 
-        {/* BARRA DE ADIÇÃO AO CARRINHO: VALOR EDITÁVEL APENAS POR ADMIN/DONO E SOMENTE ANTES DE ENTRAR NO CARRINHO */}
+        {/* 1. CLIENTE PRIMEIRO */}
+        <div>
+          <label className="field-label" htmlFor="pdvClienteInput">
+            👤 Cliente
+          </label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              id="pdvClienteInput"
+              list="listaClientesPdv"
+              className="field-input"
+              placeholder="Consumidor Final (clique para digitar)"
+              value={clienteNome}
+              onChange={(e) => setClienteNome(e.target.value)}
+            />
+            <datalist id="listaClientesPdv">
+              {clientes.map((c) => (
+                <option key={c.id} value={c.nome} />
+              ))}
+            </datalist>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setModalClienteAberto(true)}
+              title="Cadastrar Novo Cliente"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <UserPlus size={14} /> Novo
+            </button>
+          </div>
+        </div>
+
+        {/* 2. LANÇAR PRODUTO NO CARRINHO */}
         <div
           style={{
             padding: 10,
@@ -503,11 +558,11 @@ export function PdvTab({
             <label className="field-label" style={{ marginBottom: 0 }}>
               ➕ Lançar Produto no Carrinho
             </label>
-            <span style={{ fontSize: 10.5, color: '#94a3b8' }}>
-              {isDonoOuAdmin
-                ? 'Valor editável antes de adicionar'
-                : '🔒 Valor fixo p/ vendedor'}
-            </span>
+            {isDonoOuAdmin && (
+              <span style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                Valor editável antes de adicionar
+              </span>
+            )}
           </div>
 
           <select
@@ -532,44 +587,32 @@ export function PdvTab({
               <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginBottom: 3 }}>
                 Quantidade
               </span>
-              <input
-                type="number"
-                min="1"
-                className="field-input"
-                style={{ textAlign: 'center' }}
-                title="Quantidade"
+              <NumberStepper
+                min={1}
+                step={1}
                 value={qtdSelPdv}
-                onChange={(e) => setQtdSelPdv(e.target.value)}
+                onChange={setQtdSelPdv}
+                title="Quantidade"
               />
             </div>
             <div>
               <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginBottom: 3 }}>
                 Valor Unit. (R$)
               </span>
-              <input
-                type="number"
-                step="0.50"
-                min="0"
-                className="field-input"
+              <NumberStepper
+                min={0}
+                step={0.5}
+                decimals={2}
                 placeholder="0,00"
                 value={unitSelPdv}
+                onChange={setUnitSelPdv}
                 readOnly={!isDonoOuAdmin}
                 disabled={!isDonoOuAdmin || !prodSelPdvId}
                 title={
                   isDonoOuAdmin
                     ? 'Valor unitário editável somente no momento de adicionar ao carrinho'
-                    : 'Apenas ADMIN e DONO podem alterar o valor unitário do produto'
+                    : 'Valor unitário'
                 }
-                style={{
-                  textAlign: 'right',
-                  ...(isDonoOuAdmin
-                    ? {}
-                    : { opacity: 0.72, cursor: 'not-allowed', background: 'rgba(15, 23, 42, 0.85)' })
-                }}
-                onChange={(e) => {
-                  if (!isDonoOuAdmin) return;
-                  setUnitSelPdv(e.target.value);
-                }}
               />
             </div>
             <button
@@ -656,109 +699,8 @@ export function PdvTab({
           </div>
         )}
 
+        {/* 3. TOTAL A PAGAR E BOTÕES DE AÇÃO */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-          <div>
-            <label className="field-label" htmlFor="pdvClienteInput">
-              👤 Cliente
-            </label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                id="pdvClienteInput"
-                list="listaClientesPdv"
-                className="field-input"
-                placeholder="Consumidor Final (clique para digitar)"
-                value={clienteNome}
-                onChange={(e) => setClienteNome(e.target.value)}
-              />
-              <datalist id="listaClientesPdv">
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.nome} />
-                ))}
-              </datalist>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setModalClienteAberto(true)}
-                title="Cadastrar Novo Cliente"
-                style={{ whiteSpace: 'nowrap' }}
-              >
-                <UserPlus size={14} /> Novo
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="field-label">💳 Forma de Pagamento</label>
-            <div className="payment-grid">
-              {BOTOES_PGTO.map((b) => (
-                <button
-                  key={b.forma}
-                  type="button"
-                  className={`pay-btn ${formaPgto === b.forma ? 'active' : ''}`}
-                  onClick={() => setFormaPgto(b.forma)}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {formaPgto === 'Dinheiro' && (
-            <div
-              style={{
-                padding: 10,
-                borderRadius: 10,
-                background: 'rgba(15, 23, 42, 0.72)',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>💵 Recebido:</span>
-                <input
-                  id="pdvValorRecebido"
-                  type="number"
-                  step="0.50"
-                  min="0"
-                  className="field-input"
-                  style={{ flex: 1, padding: '7px 10px' }}
-                  placeholder="R$ 0,00"
-                  value={valorRecebidoDinheiro}
-                  onChange={(e) => setValorRecebidoDinheiro(e.target.value)}
-                />
-                {valorRecebidoNum > 0 && valorRecebidoNum < totalCarrinho - 0.009 ? (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#38bdf8', whiteSpace: 'nowrap' }}>
-                    Resta: {formatarMoeda(totalCarrinho - valorRecebidoNum)}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#34d399', whiteSpace: 'nowrap' }}>
-                    Troco: {formatarMoeda(trocoDinheiro)}
-                  </span>
-                )}
-              </div>
-              {valorRecebidoNum > 0 && valorRecebidoNum < totalCarrinho - 0.009 && (
-                <div style={{ fontSize: 11.5, color: '#38bdf8' }}>
-                  💸 Ao clicar em <strong>ABRIR COMANDA</strong>, o valor recebido ({formatarMoeda(valorRecebidoNum)}) já será abatido como pagamento parcial e a comanda ficará aberta com saldo de <strong>{formatarMoeda(totalCarrinho - valorRecebidoNum)}</strong>.
-                </div>
-              )}
-            </div>
-          )}
-
-          {formaPgto === 'PIX' && totalCarrinho > 0 && (
-            <PixPaymentBox
-              chavePix={empresa.chave_pix}
-              donoNome={empresa.dono_nome}
-              nomeRecebedor={empresa.nome}
-              cidade={empresa.cidade}
-              valor={totalCarrinho}
-              txid="PDVBALCAO"
-              mostrarQrPorPadrao
-              onNotify={onNotify}
-            />
-          )}
-
           <div
             style={{
               display: 'flex',
@@ -792,14 +734,145 @@ export function PdvTab({
               type="button"
               className="btn btn-success"
               disabled={processando || carrinho.length === 0}
-              onClick={() => void handleFinalizarVenda()}
+              onClick={abrirModalFecharVenda}
             >
               <CheckCircle2 size={16} />
-              <span>{processando ? 'Gravando...' : 'FECHAR VENDA (F8)'}</span>
+              <span>FECHAR VENDA (F8)</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* MODAL DE PAGAMENTO AO FECHAR VENDA NO PDV */}
+      {modalFecharVendaAberto && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 110 }}
+          onClick={() => !processando && setModalFecharVendaAberto(false)}
+        >
+          <div
+            className="panel-card"
+            style={{ maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto', borderColor: 'var(--border-accent)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <div>
+                <h3 style={{ fontSize: 17 }}>💳 Fechar Venda — Pagamento</h3>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Cliente: <strong>{clienteNome.trim() || 'Consumidor Final (Balcão)'}</strong> • {carrinho.length} item(ns)
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                disabled={processando}
+                onClick={() => setModalFecharVendaAberto(false)}
+              >
+                <X size={15} /> Fechar
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: 'rgba(16, 185, 129, 0.1)',
+                padding: '12px 14px',
+                borderRadius: 10,
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                marginBottom: 12
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#a7f3d0' }}>TOTAL A PAGAR:</span>
+              <strong style={{ fontSize: 24, color: '#34d399' }}>{formatarMoeda(totalCarrinho)}</strong>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="field-label">💳 Forma de Pagamento</label>
+              <div className="payment-grid">
+                {BOTOES_PGTO.map((b) => (
+                  <button
+                    key={b.forma}
+                    type="button"
+                    className={`pay-btn ${formaPgto === b.forma ? 'active' : ''}`}
+                    onClick={() => setFormaPgto(b.forma)}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {formaPgto === 'Dinheiro' && (
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 10,
+                  background: 'rgba(15, 23, 42, 0.72)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  marginBottom: 12
+                }}
+              >
+                <span style={{ fontSize: 12.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>💵 Valor Entregue:</span>
+                <div style={{ width: 155 }}>
+                  <NumberStepper
+                    step={0.5}
+                    min={0}
+                    decimals={2}
+                    clearZeroOnFocus
+                    placeholder="R$ 0,00"
+                    value={valorRecebidoDinheiro}
+                    onChange={setValorRecebidoDinheiro}
+                  />
+                </div>
+                <strong style={{ fontSize: 14, color: '#34d399', whiteSpace: 'nowrap' }}>
+                  Troco: {formatarMoeda(trocoDinheiro)}
+                </strong>
+              </div>
+            )}
+
+            {formaPgto === 'PIX' && totalCarrinho > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <PixPaymentBox
+                  chavePix={empresa.chave_pix}
+                  donoNome={empresa.dono_nome}
+                  nomeRecebedor={empresa.nome}
+                  cidade={empresa.cidade}
+                  valor={totalCarrinho}
+                  txid="PDVBALCAO"
+                  mostrarQrPorPadrao
+                  onNotify={onNotify}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                className="btn"
+                disabled={processando}
+                onClick={() => setModalFecharVendaAberto(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                disabled={processando || carrinho.length === 0}
+                onClick={() => void handleFinalizarVenda()}
+              >
+                <CheckCircle2 size={16} />
+                <span>{processando ? 'Gravando...' : 'Confirmar e Fechar Venda'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ClienteQuickModal
         sessao={sessao}

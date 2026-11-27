@@ -50,6 +50,8 @@ import {
   DEFAULT_GAS_WEBAPP_URL,
   dispararSyncPlanilhaBackground
 } from './sheetBridgeService';
+import { salvarArquivoNaPastaLocal } from './localFolderService';
+import { enviarComprovanteDespesaParaDrive } from './googleDriveMirrorService';
 
 const LOCAL_DB_KEY = 'gn360_local_db_v2';
 const SESSION_LOCAL_KEY = 'gn360_session_v2';
@@ -1405,6 +1407,25 @@ export async function registrarVendaPdv(
     });
     if (error) return { ok: false, msg: error.message };
     const res = data as { ok: boolean; msg?: string; pedido_id?: string };
+    if (res.ok && res.pedido_id) {
+      const novoPedBalcao = await gerarProximoIdVendaBalcao(supaClient, empId);
+      await supaClient
+        .from('vendas')
+        .update({ pedido_id: novoPedBalcao })
+        .eq('empresa_id', empId)
+        .eq('pedido_id', res.pedido_id);
+      await supaClient
+        .from('caixa')
+        .update({ descricao: `Venda ${novoPedBalcao}` })
+        .eq('empresa_id', empId)
+        .ilike('descricao', `%${res.pedido_id}%`);
+      notificarPlanilhaPosMutacao(sessao);
+      return {
+        ok: true,
+        msg: `Venda ${novoPedBalcao} registrada com sucesso!`,
+        pedidoId: novoPedBalcao
+      };
+    }
     if (res.ok) notificarPlanilhaPosMutacao(sessao);
     return {
       ok: Boolean(res.ok),
@@ -1427,7 +1448,13 @@ export async function registrarVendaPdv(
     }
   }
   const agora = new Date().toISOString();
-  const pedidoId = gerarId('VND');
+  let maxB = 0;
+  for (const v of db.vendas) {
+    if (v.empresa_id !== empId) continue;
+    const m = String(v.pedido_id || '').match(/^B\s*-\s*0*(\d+)/i);
+    if (m) maxB = Math.max(maxB, Number(m[1]) || 0);
+  }
+  const pedidoId = `B - ${String(maxB + 1).padStart(4, '0')}`;
   let total = 0;
 
   for (const item of itens) {
@@ -2106,10 +2133,81 @@ export function contaPagarEstaCancelada(
 }
 
 export function contaPagarEhTaxaEntrega(c: Pick<ContaPagar, 'id' | 'categoria'>): boolean {
+  const cat = String(c.categoria || '').toLowerCase();
   return (
     /^TXE-/i.test(String(c.id || '').trim()) ||
-    String(c.categoria || '').toLowerCase().includes('taxa de entrega')
+    cat.includes('taxa de entrega')
   );
+}
+
+export function contaPagarEhComissao(c: Pick<ContaPagar, 'id' | 'categoria'>): boolean {
+  const cat = String(c.categoria || '').toLowerCase();
+  const id = String(c.id || '').trim();
+  return (
+    /^COM(?:\s|-|10-)/i.test(id) ||
+    cat.includes('comissão 10%') ||
+    cat.includes('comissao 10%')
+  );
+}
+
+async function registrarOuAcumularComissaoVendedor10(
+  client: ReturnType<typeof getTenantSupabaseClient>,
+  empId: string,
+  vendedorBruto: string,
+  comandaCodigo: string,
+  valorComissao: number,
+  agoraIso: string,
+  dbLocal?: LocalDatabase
+): Promise<void> {
+  const com = Number(valorComissao) || 0;
+  if (!(com > 0)) return;
+  const nomeLimpo = vendedorBruto.trim().replace(/^Vend\.\s*/i, '') || 'Vendedor';
+  const fornecedorVend = `Vend. ${nomeLimpo}`;
+  const mNum = String(comandaCodigo || '').match(/(\d+)/);
+  const baseComId = mNum ? `COM ${String(Number(mNum[1])).padStart(4, '0')}` : `COM ${comandaCodigo}`;
+
+  if (client) {
+    const { data } = await client.from('contas_a_pagar').select('id').eq('empresa_id', empId);
+    const idsExistentes = new Set((data || []).map((r: { id: string }) => String(r.id || '').trim().toUpperCase()));
+    let novoId = baseComId;
+    let seq = 2;
+    while (idsExistentes.has(novoId.toUpperCase())) {
+      novoId = `${baseComId}-${seq++}`;
+    }
+    await client.from('contas_a_pagar').insert({
+      id: novoId,
+      empresa_id: empId,
+      descricao: `Comissão 10% — Comanda ${comandaCodigo}`,
+      categoria: 'Comissão 10% (Vendedor)',
+      fornecedor: fornecedorVend,
+      valor: Number(com.toFixed(2)),
+      vencimento: agoraIso.slice(0, 10),
+      status: 'PENDENTE',
+      forma_pagamento: 'Dinheiro'
+    });
+    return;
+  }
+
+  if (!dbLocal) return;
+  const idsLocal = new Set(
+    dbLocal.contasPagar.filter((x) => x.empresa_id === empId).map((x) => String(x.id || '').trim().toUpperCase())
+  );
+  let novoId = baseComId;
+  let seq = 2;
+  while (idsLocal.has(novoId.toUpperCase())) {
+    novoId = `${baseComId}-${seq++}`;
+  }
+  dbLocal.contasPagar.unshift({
+    id: novoId,
+    empresa_id: empId,
+    descricao: `Comissão 10% — Comanda ${comandaCodigo}`,
+    categoria: 'Comissão 10% (Vendedor)',
+    fornecedor: fornecedorVend,
+    valor: Number(com.toFixed(2)),
+    vencimento: agoraIso.slice(0, 10),
+    status: 'PENDENTE',
+    forma_pagamento: 'Dinheiro'
+  });
 }
 
 async function registrarOuAcumularTaxaEntregaMotoboy(
@@ -2333,24 +2431,84 @@ export async function cancelarContaPagar(
 export async function pagarContaPagar(
   sessao: SessaoAtiva,
   conta: ContaPagar,
-  formaPagamento: FormaPagamento | string
+  formaPagamento: FormaPagamento | string,
+  comprovante?: { base64: string; mimeType: string; fileName: string } | null
 ): Promise<{ ok: boolean; msg: string }> {
   const empId = sessao.unidadeAtivaId;
   const agora = new Date().toISOString();
+  let comprovanteUrl = '';
+  let infoComprovante = '';
+
+  if (comprovante && comprovante.base64) {
+    const nomeArq = `${conta.id}_${Date.now()}_${comprovante.fileName}`;
+    try {
+      const byteStr = atob(comprovante.base64);
+      const bytes = new Uint8Array(byteStr.length);
+      for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: comprovante.mimeType || 'application/octet-stream' });
+
+      const anoMes = `${agora.slice(0, 4)}-${agora.slice(5, 7)}`;
+      await salvarArquivoNaPastaLocal(sessao.empresa.nome, 'Despesas', anoMes, nomeArq, blob).catch(() => null);
+
+      const drv = await enviarComprovanteDespesaParaDrive(
+        empId,
+        sessao.empresa.nome,
+        nomeArq,
+        blob,
+        comprovante.mimeType
+      ).catch(() => ({ ok: false, fileUrl: '' }));
+      if (drv.ok && drv.fileUrl) {
+        comprovanteUrl = drv.fileUrl;
+      } else {
+        const webAppUrl = obterWebappUrlSyncEmpresa(sessao);
+        if (webAppUrl) {
+          const resp = await fetch(webAppUrl, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'UPLOAD_NF_DRIVE',
+              empresa_id: empId,
+              idCompra: `DESP-${conta.id}`,
+              base64: comprovante.base64,
+              mimeType: comprovante.mimeType,
+              fileName: `Despesas_${nomeArq}`
+            })
+          }).catch(() => null);
+          if (resp) {
+            const j = (await resp.json().catch(() => ({}))) as { ok?: boolean; fileUrl?: string };
+            if (j.ok && j.fileUrl) comprovanteUrl = j.fileUrl;
+          }
+        }
+      }
+      infoComprovante = comprovanteUrl ? ` | Comprovante: ${comprovanteUrl}` : ` | Comprovante local: Despesas/${anoMes}/${nomeArq}`;
+    } catch {
+      infoComprovante = ` | Comprovante: ${nomeArq}`;
+    }
+  }
+
+  const novaDescricao = infoComprovante && !String(conta.descricao || '').includes('Comprovante:')
+    ? `${conta.descricao}${infoComprovante}`
+    : conta.descricao;
 
   const client = getTenantSupabaseClient(sessao);
   if (client) {
     const { error } = await client
       .from('contas_a_pagar')
-      .update({ status: 'PAGO', data_pagamento: agora, forma_pagamento: formaPagamento })
+      .update({
+        status: 'PAGO',
+        data_pagamento: agora,
+        forma_pagamento: formaPagamento,
+        descricao: novaDescricao
+      })
       .eq('id', conta.id)
       .eq('empresa_id', empId);
     if (error) return { ok: false, msg: error.message };
 
     const ehTaxa = contaPagarEhTaxaEntrega(conta);
     const descCaixa = ehTaxa
-      ? `Pgto Taxa Entrega ${conta.id} — ${conta.fornecedor || conta.descricao}`
-      : `Pgto Conta: ${conta.descricao}`;
+      ? `Pgto Taxa/Comissão ${conta.id} — ${conta.fornecedor || conta.descricao}${infoComprovante}`
+      : `Pgto Conta: ${novaDescricao}`;
     await client.from('caixa').insert({
       id: gerarId('CX'),
       empresa_id: empId,
@@ -2360,14 +2518,24 @@ export async function pagarContaPagar(
       forma_pagamento: formaPagamento,
       descricao: descCaixa,
       operador: sessao.usuario.username,
-      origem: ehTaxa ? 'Taxa Motoboy' : 'Financeiro'
+      origem: ehTaxa ? 'Taxa/Comissão' : 'Financeiro'
     });
+    if (infoComprovante) {
+      await client.from('auditoria_logs').insert({
+        id: gerarId('LOG'),
+        empresa_id: empId,
+        usuario: sessao.usuario.username,
+        acao: 'COMPROVANTE_DESPESA',
+        detalhes: `${conta.id} | ${conta.descricao}${infoComprovante}`,
+        canal: 'WEB'
+      });
+    }
     notificarPlanilhaPosMutacao(sessao);
     return {
       ok: true,
       msg: ehTaxa
-        ? `Taxa ${conta.id} paga ao motoboy (${conta.fornecedor || 'Motoboy'}) e abatida do Caixa!`
-        : `Conta "${conta.descricao}" paga e saída lançada no Caixa!`
+        ? `Pago (${conta.fornecedor || 'Beneficiário'}) e abatido do Caixa!`
+        : `Conta "${conta.descricao}" paga${infoComprovante ? ' com comprovante salvo em Despesas' : ''} e saída lançada no Caixa!`
     };
   }
 
@@ -2377,6 +2545,7 @@ export async function pagarContaPagar(
   alvo.status = 'PAGO';
   alvo.data_pagamento = agora;
   alvo.forma_pagamento = formaPagamento;
+  alvo.descricao = novaDescricao;
 
   const ehTaxaLocal = contaPagarEhTaxaEntrega(alvo);
   db.caixa.unshift({
@@ -2614,6 +2783,36 @@ export async function alternarStatusUsuario(
     saveLocalDb(db);
   }
   return { ok: true, msg: `Usuário ${novoStatus ? 'ativado' : 'desativado'}.` };
+}
+
+export async function excluirUsuario(
+  sessao: SessaoAtiva,
+  usuarioAlvo: Usuario
+): Promise<{ ok: boolean; msg: string }> {
+  if (usuarioAlvo.perfil === 'ADMIN') {
+    return { ok: false, msg: 'O administrador técnico único não pode ser excluído.' };
+  }
+  if (usuarioAlvo.id === sessao.usuario.id) {
+    return { ok: false, msg: 'Você não pode excluir seu próprio usuário logado.' };
+  }
+  const empId = sessao.unidadeAtivaId;
+
+  const client = getTenantSupabaseClient(sessao);
+  if (client) {
+    const { error } = await client
+      .from('usuarios')
+      .delete()
+      .eq('id', usuarioAlvo.id)
+      .eq('empresa_id', empId);
+    if (error) return { ok: false, msg: error.message };
+    notificarPlanilhaPosMutacao(sessao);
+    return { ok: true, msg: `Membro "${usuarioAlvo.nome}" excluído da equipe.` };
+  }
+
+  const db = loadLocalDb();
+  db.usuarios = db.usuarios.filter((x) => !(x.id === usuarioAlvo.id && x.empresa_id === empId));
+  saveLocalDb(db);
+  return { ok: true, msg: `Membro "${usuarioAlvo.nome}" excluído da equipe.` };
 }
 
 export async function salvarConfiguracoesEmpresa(
@@ -3096,11 +3295,34 @@ function calcularProximoNumeroSequencial(
 
 function formatarCodigoPedidoPadrao(prefixo: 'C' | 'D', pedido: string | number): string {
   const raw = String(pedido ?? '').trim();
-  const m = raw.match(/^(?:C-0*|D-0*|#)?(\d+)$/i);
+  const botMatch = raw.match(/^(?:D\s*-\s*0*)?(\d+)\s*\(?(BOT\s*)?(ZAP|TG)\)?$/i);
+  if (botMatch) {
+    return `${prefixo} - ${String(Number(botMatch[1])).padStart(4, '0')} ${botMatch[3].toUpperCase()}`;
+  }
+  const m = raw.match(/^(?:C\s*-\s*0*|D\s*-\s*0*|#)?(\d+)$/i);
   if (m) {
-    return `${prefixo}-${String(Number(m[1])).padStart(6, '0')}`;
+    return `${prefixo} - ${String(Number(m[1])).padStart(4, '0')}`;
   }
   return raw;
+}
+
+async function gerarProximoIdVendaBalcao(
+  client: ReturnType<typeof getTenantSupabaseClient>,
+  empId: string
+): Promise<string> {
+  let maxNum = 0;
+  if (client) {
+    const { data } = await client
+      .from('vendas')
+      .select('pedido_id')
+      .eq('empresa_id', empId)
+      .ilike('pedido_id', 'B%');
+    for (const r of (data || []) as Array<{ pedido_id?: string }>) {
+      const m = String(r.pedido_id || '').trim().match(/^B\s*-\s*0*(\d+)$/i);
+      if (m) maxNum = Math.max(maxNum, Number(m[1]) || 0);
+    }
+  }
+  return `B - ${String(maxNum + 1).padStart(4, '0')}`;
 }
 
 function gerarProtocoloConferencia(): string {
@@ -3317,11 +3539,14 @@ export async function receberEFecharComanda(
   sessao: SessaoAtiva,
   comanda: Comanda,
   formaPagamento: FormaPagamento,
-  observacaoOutro?: string
+  observacaoOutro?: string,
+  taxaServico10 = 0
 ): Promise<{ ok: boolean; msg: string }> {
   const empId = sessao.unidadeAtivaId;
   const agora = new Date().toISOString();
-  const valorReceber = comanda.saldo > 0 ? comanda.saldo : comanda.total;
+  const baseReceber = comanda.saldo > 0 ? comanda.saldo : comanda.total;
+  const taxa10 = Math.max(0, Number(taxaServico10) || 0);
+  const valorReceber = Number((baseReceber + taxa10).toFixed(2));
   if (formaPagamento === 'Fiado' && valorReceber > 0) {
     const valLim = await validarLimiteFiadoCliente(sessao, comanda.cliente, valorReceber);
     if (!valLim.ok) return { ok: false, msg: valLim.msg || 'Limite de fiado excedido.' };
@@ -3374,7 +3599,7 @@ export async function receberEFecharComanda(
             valor_total: item.subtotal,
             forma_pagamento: formaPagamento,
             origem: 'Comanda' as const,
-            pedido_id: String(comanda.pedido),
+            pedido_id: formatarCodigoPedidoPadrao('C', comanda.pedido),
             cliente_nome: comanda.cliente,
             vendedor: sessao.usuario.username
           }));
@@ -3403,10 +3628,20 @@ export async function receberEFecharComanda(
             tipo: 'ENTRADA',
             valor: valorReceber,
             forma_pagamento: formaPagamento,
-            descricao: `Fechamento Comanda #${comanda.pedido} (${comanda.cliente}) [${formaPagamento}${obsOutroLimpa ? ` | Obs: ${obsOutroLimpa}` : ''}]`,
+            descricao: `Fechamento Comanda #${comanda.pedido} (${comanda.cliente}) [${formaPagamento}${taxa10 > 0 ? ` | +10% Serv: ${formatarMoeda(taxa10)}` : ''}${obsOutroLimpa ? ` | Obs: ${obsOutroLimpa}` : ''}]`,
             operador: sessao.usuario.username,
             origem: 'Comanda'
           });
+          if (taxa10 > 0) {
+            await registrarOuAcumularComissaoVendedor10(
+              client,
+              empId,
+              sessao.usuario.nome || sessao.usuario.username,
+              formatarCodigoPedidoPadrao('C', comanda.pedido),
+              taxa10,
+              agora
+            );
+          }
           if (formaPagamento === 'Outro') {
             await client.from('auditoria_logs').insert({
               id: gerarId('LOG'),
@@ -3709,7 +3944,7 @@ export async function atualizarStatusDelivery(
           valor_total: item.subtotal,
           forma_pagamento: pedido.forma_pagamento,
           origem: 'Delivery',
-          pedido_id: pedido.pedido,
+          pedido_id: formatarCodigoPedidoPadrao('D', pedido.pedido),
           cliente_nome: pedido.cliente,
           vendedor: sessao.usuario.username
         });
@@ -4400,10 +4635,13 @@ export async function registrarPagamentoParcialComanda(
   comanda: Comanda,
   valorPago: number,
   formaPagamento: FormaPagamento,
-  observacaoOutro?: string
+  observacaoOutro?: string,
+  taxaServico10 = 0
 ): Promise<{ ok: boolean; msg: string }> {
   const empId = sessao.unidadeAtivaId;
   const val = Number(valorPago) || 0;
+  const taxa10 = Math.max(0, Number(taxaServico10) || 0);
+  const valCaixa = Number((val + taxa10).toFixed(2));
   if (val <= 0) return { ok: false, msg: 'Informe um valor maior que zero para abater.' };
   if (formaPagamento === 'Fiado') {
     const valLim = await validarLimiteFiadoCliente(sessao, comanda.cliente, val);
@@ -4440,12 +4678,22 @@ export async function registrarPagamentoParcialComanda(
         empresa_id: empId,
         data_hora: agora,
         tipo: 'ENTRADA',
-        valor: val,
+        valor: valCaixa,
         forma_pagamento: formaPagamento,
-        descricao: `Abatimento Comanda #${comanda.pedido} (${comanda.cliente}) [${formaPagamento}${obsOutroLimpa ? ` | Obs: ${obsOutroLimpa}` : ''}]`,
+        descricao: `Abatimento Comanda #${comanda.pedido} (${comanda.cliente}) [${formaPagamento}${taxa10 > 0 ? ` | +10% Serv: ${formatarMoeda(taxa10)}` : ''}${obsOutroLimpa ? ` | Obs: ${obsOutroLimpa}` : ''}]`,
         operador: sessao.usuario.username,
         origem: 'Comanda'
       });
+      if (taxa10 > 0) {
+        await registrarOuAcumularComissaoVendedor10(
+          clientParc,
+          empId,
+          sessao.usuario.nome || sessao.usuario.username,
+          formatarCodigoPedidoPadrao('C', comanda.pedido),
+          taxa10,
+          agora
+        );
+      }
 
       if (formaPagamento === 'Outro') {
         await clientParc.from('auditoria_logs').insert({

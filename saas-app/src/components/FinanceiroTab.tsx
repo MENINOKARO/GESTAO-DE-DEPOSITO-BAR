@@ -17,6 +17,7 @@ import {
 import {
   cadastrarContaPagar,
   cancelarContaPagar,
+  contaPagarEhComissao,
   contaPagarEhTaxaEntrega,
   contaPagarEstaCancelada,
   converterFormaPagamentoCaixa,
@@ -179,6 +180,16 @@ export function FinanceiroTab({
   const [novoTipoDespesa, setNovoTipoDespesa] = useState<'AVULSA' | 'FIXA'>('AVULSA');
 
   const [contaPagarModal, setContaPagarModal] = useState<ContaPagar | null>(null);
+  const [comissoesLoteModal, setComissoesLoteModal] = useState<{
+    vendedor: string;
+    total: number;
+    contas: ContaPagar[];
+  } | null>(null);
+  const [comprovanteDespesa, setComprovanteDespesa] = useState<{
+    base64: string;
+    mimeType: string;
+    fileName: string;
+  } | null>(null);
   const [formaSaidaPagamento, setFormaSaidaPagamento] = useState('PIX');
 
   // Sub-aba Contas a Receber
@@ -242,6 +253,22 @@ export function FinanceiroTab({
       totalPendente: vencidasVal + venceHojeVal + noPrazoVal,
       qtdPendente: vencidasQtd + venceHojeQtd + noPrazoQtd
     };
+  }, [contasPagarEnriquecidas]);
+
+  const comissoesAcumuladasPorVendedor = useMemo(() => {
+    const mapa = new Map<string, { vendedor: string; total: number; contas: ContaPagar[] }>();
+    for (const item of contasPagarEnriquecidas) {
+      if (item.paga || item.cancelada) continue;
+      if (!contaPagarEhComissao(item.conta)) continue;
+      const vendRaw = String(item.conta.fornecedor || 'Vendedor').trim();
+      const vendLabel = vendRaw.replace(/^Vend\.\s*/i, '') || 'Vendedor';
+      const chave = vendLabel.toLowerCase();
+      const atual = mapa.get(chave) || { vendedor: `Vend. ${vendLabel}`, total: 0, contas: [] };
+      atual.total = Number((atual.total + (Number(item.conta.valor) || 0)).toFixed(2));
+      atual.contas.push(item.conta);
+      mapa.set(chave, atual);
+    }
+    return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
   }, [contasPagarEnriquecidas]);
 
   const contasPagarFiltradas = useMemo(() => {
@@ -417,7 +444,9 @@ export function FinanceiroTab({
   }
 
   function abrirModalConfirmarPagamento(conta: ContaPagar) {
+    setComissoesLoteModal(null);
     setContaPagarModal(conta);
+    setComprovanteDespesa(null);
     const formaBruta = String(conta.forma_pagamento || '').trim();
     const padrao =
       formaBruta && FORMAS_PAGAMENTO_SAIDA.some((f) => f.toLowerCase() === formaBruta.toLowerCase())
@@ -426,15 +455,65 @@ export function FinanceiroTab({
     setFormaSaidaPagamento(padrao);
   }
 
+  function abrirModalPagarComissoesAcumuladas(vendedor: string, total: number, contas: ContaPagar[]) {
+    setContaPagarModal(null);
+    setComissoesLoteModal({ vendedor, total, contas });
+    setComprovanteDespesa(null);
+    setFormaSaidaPagamento('PIX');
+  }
+
+  function handleSelecionarComprovanteDespesa(file: File | null | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      setComprovanteDespesa({
+        base64,
+        mimeType: file.type || 'application/octet-stream',
+        fileName: file.name || `comprovante_${Date.now()}.jpg`
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleConfirmarPagamentoConta(e: FormEvent) {
     e.preventDefault();
-    if (!contaPagarModal) return;
+    if (!contaPagarModal && !comissoesLoteModal) return;
     setBusy(true);
     try {
-      const res = await pagarContaPagar(sessao, contaPagarModal, formaSaidaPagamento);
+      if (comissoesLoteModal) {
+        let okCount = 0;
+        let lastErr = '';
+        for (let i = 0; i < comissoesLoteModal.contas.length; i++) {
+          const c = comissoesLoteModal.contas[i];
+          const res = await pagarContaPagar(
+            sessao,
+            c,
+            formaSaidaPagamento,
+            i === 0 ? comprovanteDespesa : null
+          );
+          if (res.ok) okCount++;
+          else lastErr = res.msg;
+        }
+        onNotify(
+          okCount === comissoesLoteModal.contas.length
+            ? `✅ ${okCount} comissão(ões) de ${comissoesLoteModal.vendedor} (${formatarMoeda(comissoesLoteModal.total)}) pagas!`
+            : `Pagas ${okCount}/${comissoesLoteModal.contas.length}. ${lastErr}`,
+          okCount > 0 ? 'success' : 'error'
+        );
+        setComissoesLoteModal(null);
+        setComprovanteDespesa(null);
+        await onAtualizar();
+        return;
+      }
+
+      if (!contaPagarModal) return;
+      const res = await pagarContaPagar(sessao, contaPagarModal, formaSaidaPagamento, comprovanteDespesa);
       onNotify(res.msg, res.ok ? 'success' : 'error');
       if (res.ok) {
         setContaPagarModal(null);
+        setComprovanteDespesa(null);
         await onAtualizar();
       }
     } finally {
@@ -575,6 +654,63 @@ export function FinanceiroTab({
       {/* ================= SUB-ABA CONTAS A PAGAR ================= */}
       {subAba === 'pagar' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {comissoesAcumuladasPorVendedor.length > 0 && (
+            <div
+              className="panel-card"
+              style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#a7f3d0' }}>
+                💼 Comissões Acumuladas a Pagar (por Vendedor)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {comissoesAcumuladasPorVendedor.map((grp) => (
+                  <div
+                    key={grp.vendedor}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      background: 'rgba(15, 23, 42, 0.75)',
+                      border: '1px solid var(--border-subtle)',
+                      flex: '1 1 260px'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>{grp.vendedor}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                        {grp.contas.length} comissão(ões) pendente(s)
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <strong style={{ color: '#34d399', fontSize: 15 }}>
+                        {formatarMoeda(grp.total)}
+                      </strong>
+                      <button
+                        type="button"
+                        className="btn btn-success btn-xs"
+                        disabled={busy}
+                        onClick={() =>
+                          abrirModalPagarComissoesAcumuladas(grp.vendedor, grp.total, grp.contas)
+                        }
+                      >
+                        💸 Pagar Comissão
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="kpi-grid">
             <div className="kpi-card kpi-left-danger">
               <div className="kpi-label">🔴 Vencidas ({kpisPagar.vencidasQtd})</div>
@@ -701,7 +837,17 @@ export function FinanceiroTab({
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <span>{conta.fornecedor || '-'} • {conta.categoria || 'Geral'}</span>
-                            {contaPagarEhTaxaEntrega(conta) && (
+                            {contaPagarEhComissao(conta) ? (
+                              <span
+                                style={pillBadgeStyle(
+                                  'rgba(16,185,129,0.18)',
+                                  '#34d399',
+                                  'rgba(16,185,129,0.4)'
+                                )}
+                              >
+                                💼 Comissão
+                              </span>
+                            ) : contaPagarEhTaxaEntrega(conta) ? (
                               <span
                                 style={pillBadgeStyle(
                                   'rgba(245,158,11,0.18)',
@@ -711,7 +857,7 @@ export function FinanceiroTab({
                               >
                                 🏍️ Taxa Entrega (TXE)
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                         <td style={{ fontSize: 12 }}>
@@ -814,7 +960,11 @@ export function FinanceiroTab({
                                 style={{ padding: '6px 12px', fontSize: 12 }}
                                 onClick={() => abrirModalConfirmarPagamento(conta)}
                               >
-                                {contaPagarEhTaxaEntrega(conta) ? '💸 Pagar Motoboy' : '💸 Pagar'}
+                                {contaPagarEhComissao(conta)
+                                  ? '💸 Pagar Comissão'
+                                  : contaPagarEhTaxaEntrega(conta)
+                                  ? '💸 Pagar Motoboy'
+                                  : '💸 Pagar'}
                               </button>
                               {podeCancelarPagar && (
                                 <button
@@ -1419,19 +1569,22 @@ export function FinanceiroTab({
       )}
 
       {/* ================= MODAL CONFIRMAR PAGAMENTO DE CONTA ================= */}
-      {contaPagarModal && (
+      {(contaPagarModal || comissoesLoteModal) && (
         <div style={modalOverlayStyle}>
           <div className="panel-card" style={{ maxWidth: 440, width: '100%', borderColor: 'var(--border-accent)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ fontSize: 17, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <DollarSign size={18} color="#34d399" />
-                <span>Confirmar Pagamento</span>
+                <span>{comissoesLoteModal ? 'Pagar Comissões Acumuladas' : 'Confirmar Pagamento'}</span>
               </h3>
               <button
                 type="button"
                 className="btn"
                 style={{ padding: 6 }}
-                onClick={() => setContaPagarModal(null)}
+                onClick={() => {
+                  setContaPagarModal(null);
+                  setComissoesLoteModal(null);
+                }}
               >
                 <X size={15} />
               </button>
@@ -1446,14 +1599,31 @@ export function FinanceiroTab({
                   padding: 12
                 }}
               >
-                <div style={{ fontWeight: 700, color: '#f8fafc' }}>{contaPagarModal.descricao}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                  Fornecedor: {contaPagarModal.fornecedor || '-'} • Vencimento:{' '}
-                  {formatarDataBr(contaPagarModal.vencimento)}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 22, fontWeight: 800, color: '#f87171' }}>
-                  {formatarMoeda(contaPagarModal.valor)}
-                </div>
+                {comissoesLoteModal ? (
+                  <>
+                    <div style={{ fontWeight: 700, color: '#f8fafc' }}>{comissoesLoteModal.vendedor}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                      {comissoesLoteModal.contas.length} comissão(ões):{' '}
+                      {comissoesLoteModal.contas.map((c) => c.id).join(', ')}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 22, fontWeight: 800, color: '#34d399' }}>
+                      {formatarMoeda(comissoesLoteModal.total)}
+                    </div>
+                  </>
+                ) : (
+                  contaPagarModal && (
+                    <>
+                      <div style={{ fontWeight: 700, color: '#f8fafc' }}>{contaPagarModal.descricao}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                        Fornecedor: {contaPagarModal.fornecedor || '-'} • Vencimento:{' '}
+                        {formatarDataBr(contaPagarModal.vencimento)}
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 22, fontWeight: 800, color: '#f87171' }}>
+                        {formatarMoeda(contaPagarModal.valor)}
+                      </div>
+                    </>
+                  )
+                )}
               </div>
 
               <div>
@@ -1471,11 +1641,63 @@ export function FinanceiroTab({
                 </select>
               </div>
 
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8
+                }}
+              >
+                <label className="field-label" style={{ marginBottom: 0 }}>
+                  Comprovante de Pagamento (Pasta Despesas)
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <label className="btn btn-xs btn-primary" style={{ cursor: 'pointer' }}>
+                    📁 Buscar no Dispositivo
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleSelecionarComprovanteDespesa(e.target.files?.[0])}
+                    />
+                  </label>
+                  <label className="btn btn-xs btn-success" style={{ cursor: 'pointer' }}>
+                    📷 Tirar Foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleSelecionarComprovanteDespesa(e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+                {comprovanteDespesa && (
+                  <div style={{ fontSize: 12, color: '#34d399', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <span>📎 {comprovanteDespesa.fileName}</span>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-danger"
+                      onClick={() => setComprovanteDespesa(null)}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => setContaPagarModal(null)}
+                  onClick={() => {
+                    setContaPagarModal(null);
+                    setComissoesLoteModal(null);
+                  }}
                 >
                   Cancelar
                 </button>

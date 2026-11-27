@@ -50,11 +50,18 @@ function escHtml(s: unknown): string {
     .replace(/>/g, '&gt;');
 }
 
-export function imprimirHtmlTermico(htmlBody: string, largura: LarguraBobinaTermica = '80mm'): void {
+export interface PrintPreviewPayload {
+  titulo: string;
+  htmlBody: string;
+  textoLimpo: string;
+  largura: LarguraBobinaTermica;
+}
+
+export function buildCupomDocHtml(htmlBody: string, largura: LarguraBobinaTermica = '80mm'): string {
   const widthCss = largura === '58mm' ? '54mm' : '74mm';
   const pageSize = largura === '58mm' ? '58mm auto' : '80mm auto';
 
-  const docHtml = `<!doctype html>
+  return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -77,27 +84,16 @@ export function imprimirHtmlTermico(htmlBody: string, largura: LarguraBobinaTerm
   .sep { border-top: 1px dashed #000; margin: 6px 0; }
   .row { display: flex; justify-content: space-between; gap: 6px; }
   .big { font-size: ${largura === '58mm' ? '13px' : '15px'}; font-weight: 700; }
-  .no-print { margin-top: 10px; text-align: center; }
-  @media print { .no-print { display: none; } }
 </style>
 </head>
 <body>
 ${htmlBody}
-<div class="no-print">
-  <button onclick="window.print()" style="padding:8px 16px;font-weight:bold;cursor:pointer;">Imprimir Cupom</button>
-</div>
-<script>setTimeout(function(){ window.focus(); window.print(); }, 250);</script>
 </body>
 </html>`;
+}
 
-  const win = window.open('', '_blank', 'width=420,height=660');
-  if (win) {
-    win.document.open();
-    win.document.write(docHtml);
-    win.document.close();
-    return;
-  }
-
+export function imprimirViaIframeOculto(htmlBody: string, largura: LarguraBobinaTermica = '80mm'): void {
+  const docHtml = buildCupomDocHtml(htmlBody, largura);
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.right = '0';
@@ -125,9 +121,37 @@ ${htmlBody}
     } finally {
       setTimeout(() => {
         if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-      }, 2000);
+      }, 2500);
     }
   }, 250);
+}
+
+export function imprimirHtmlTermico(
+  htmlBody: string,
+  largura: LarguraBobinaTermica = '80mm',
+  titulo = 'Cupom Térmico',
+  textoLimpo = ''
+): void {
+  const textoFinal =
+    textoLimpo ||
+    htmlBody
+      .replace(/<div class="sep"><\/div>/g, '\n--------------------------------\n')
+      .replace(/<\/div>/g, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+  if (typeof window !== 'undefined') {
+    const ev = new CustomEvent<PrintPreviewPayload>('gn360:print-preview', {
+      cancelable: true,
+      detail: { titulo, htmlBody, textoLimpo: textoFinal, largura }
+    });
+    const naoCancelado = window.dispatchEvent(ev);
+    if (!naoCancelado) return;
+  }
+
+  imprimirViaIframeOculto(htmlBody, largura);
 }
 
 // ====================================================================
@@ -150,6 +174,20 @@ export function getStatusImpressoraBluetooth(): { conectada: boolean; nome: stri
   if (btCharacteristic) return { conectada: true, nome: btDeviceName || 'Bluetooth BLE' };
   if (serialPort) return { conectada: true, nome: 'Bluetooth / Porta COM (Serial)' };
   return { conectada: false, nome: '' };
+}
+
+export async function desconectarImpressoraTermica(): Promise<void> {
+  btCharacteristic = null;
+  btDeviceName = '';
+  const p = serialPort as unknown as { close?: () => Promise<void> } | null;
+  serialPort = null;
+  if (p?.close) {
+    try {
+      await p.close();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export async function conectarImpressoraBluetooth(): Promise<{ ok: boolean; msg: string }> {
@@ -221,7 +259,28 @@ export async function conectarImpressoraSerialCom(): Promise<{ ok: boolean; msg:
   }
   try {
     const port = await nav.serial.requestPort();
-    await port.open({ baudRate: 9600 });
+    const bauds = [9600, 115200, 38400];
+    let opened = false;
+    let lastErr: unknown = null;
+    for (const baudRate of bauds) {
+      try {
+        await port.open({ baudRate });
+        opened = true;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!opened) {
+      const rawErr = lastErr instanceof Error ? lastErr.message : '';
+      if (/Failed to open serial port/i.test(rawErr)) {
+        return {
+          ok: false,
+          msg: 'Não foi possível abrir esta porta COM. No Windows, impressoras Bluetooth (ex: Printer_AF72) criam 2 portas COM (Entrada e Saída) — teste selecionar a outra porta COM no Chrome/Edge.'
+        };
+      }
+      throw lastErr;
+    }
     serialPort = port;
     return { ok: true, msg: 'Impressora conectada via Porta COM (Bluetooth Serial)!' };
   } catch (err) {
@@ -236,29 +295,82 @@ export async function conectarImpressoraSerialCom(): Promise<{ ok: boolean; msg:
   }
 }
 
-async function enviarEscPosDireto(textoLimpo: string): Promise<boolean> {
+async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTermica = '80mm'): Promise<{ ok: boolean; msg?: string }> {
   const escInit = new Uint8Array([0x1b, 0x40]);
-  const escCut = new Uint8Array([0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x42, 0x00]);
-  const semAcentos = textoLimpo.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const bodyBytes = new TextEncoder().encode(semAcentos + '\n');
-  const full = new Uint8Array(escInit.length + bodyBytes.length + escCut.length);
+  const escEnd =
+    largura === '58mm'
+      ? new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a])
+      : new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x1d, 0x56, 0x42, 0x00]);
+  const semAcentos = textoLimpo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\r?\n/g, '\r\n');
+  const bodyBytes = new TextEncoder().encode(semAcentos + '\r\n');
+  const full = new Uint8Array(escInit.length + bodyBytes.length + escEnd.length);
   full.set(escInit, 0);
   full.set(bodyBytes, escInit.length);
-  full.set(escCut, escInit.length + bodyBytes.length);
+  full.set(escEnd, escInit.length + bodyBytes.length);
 
-  if (btCharacteristic) {
-    for (let i = 0; i < full.length; i += 100) {
-      await btCharacteristic.writeValue(full.slice(i, i + 100));
+  try {
+    if (btCharacteristic) {
+      for (let i = 0; i < full.length; i += 100) {
+        await btCharacteristic.writeValue(full.slice(i, i + 100));
+      }
+      return { ok: true };
     }
-    return true;
+    if (serialPort?.writable) {
+      const writer = serialPort.writable.getWriter();
+      try {
+        await writer.write(full);
+      } finally {
+        writer.releaseLock();
+      }
+      return { ok: true };
+    }
+    return { ok: false, msg: 'Nenhuma impressora Bluetooth/Serial conectada.' };
+  } catch (err) {
+    return {
+      ok: false,
+      msg: err instanceof Error ? err.message : 'Falha ao enviar dados para a impressora.'
+    };
   }
-  if (serialPort?.writable) {
-    const writer = serialPort.writable.getWriter();
-    await writer.write(full);
-    writer.releaseLock();
-    return true;
+}
+
+export async function testarImpressaoTermica(
+  empresaNome: string,
+  largura: LarguraBobinaTermica = '80mm'
+): Promise<{ ok: boolean; msg: string }> {
+  const sep = largura === '58mm' ? '--------------------------------' : '------------------------------------------';
+  const texto = [
+    empresaNome || 'MK Gestao de Negocios 360',
+    sep,
+    'TESTE DE IMPRESSAO TERMICA',
+    `Data: ${new Date().toLocaleString('pt-BR')}`,
+    `Bobina: ${largura}`,
+    sep,
+    'Impressao OK!',
+    ''
+  ].join('\n');
+
+  const bt = getStatusImpressoraBluetooth();
+  if (bt.conectada) {
+    const res = await enviarEscPosDireto(texto, largura);
+    if (res.ok) {
+      return { ok: true, msg: 'Teste enviado para a impressora térmica com sucesso!' };
+    }
+    return {
+      ok: false,
+      msg: `Falha ao imprimir na porta conectada (${res.msg || 'erro'}). Se for Bluetooth no Windows, clique em Desconectar e tente a outra porta COM.`
+    };
   }
-  return false;
+
+  imprimirHtmlTermico(
+    `<div class="center bold big">${escHtml(empresaNome || 'MK Gestão 360°')}</div><div class="sep"></div><div class="center bold">TESTE DE IMPRESSÃO TÉRMICA</div><div class="center">${escHtml(new Date().toLocaleString('pt-BR'))}</div><div class="sep"></div><div class="center">Impressão OK!</div>`,
+    largura,
+    'Teste de Impressão Térmica',
+    texto
+  );
+  return { ok: true, msg: 'Pré-visualização de teste aberta.' };
 }
 
 export function imprimirCupomTermicoDelivery(
@@ -268,37 +380,33 @@ export function imprimirCupomTermicoDelivery(
 ): void {
   const lar = largura || getLarguraTermicaEmpresa(empresa.id);
   const btStatus = getStatusImpressoraBluetooth();
-  if (btStatus.conectada) {
-    const linhaSep = lar === '58mm' ? '--------------------------------' : '------------------------------------------';
-    const linhasItens = (pedido.itens || [])
-      .map((it) => `${it.quantidade}x ${it.produto_nome} - ${formatarMoeda(it.subtotal || it.quantidade * it.preco_unitario)}`)
-      .join('\n');
-    const txt = [
-      empresa.nome || 'MK Gestao 360',
-      empresa.telefone || '',
-      linhaSep,
-      `PEDIDO DELIVERY #${pedido.pedido || pedido.id.slice(-6)}`,
-      formatarDataHoraBr(pedido.data_hora),
-      linhaSep,
-      `Cliente: ${pedido.cliente}`,
-      pedido.telefone ? `Tel: ${pedido.telefone}` : '',
-      pedido.endereco ? `End: ${pedido.endereco}` : '',
-      linhaSep,
-      linhasItens,
-      linhaSep,
-      `Subtotal: ${formatarMoeda(pedido.valor_produtos)}`,
-      `Taxa Entrega: ${formatarMoeda(pedido.taxa_entrega)}`,
-      `TOTAL: ${formatarMoeda(pedido.total)}`,
-      `Pagamento: ${pedido.forma_pagamento}`,
-      pedido.observacoes ? `Obs: ${pedido.observacoes}` : '',
-      linhaSep,
-      'MK Gestao de Negocios 360'
-    ]
-      .filter(Boolean)
-      .join('\n');
-    void enviarEscPosDireto(txt);
-    return;
-  }
+  const linhaSep = lar === '58mm' ? '--------------------------------' : '------------------------------------------';
+  const linhasItens = (pedido.itens || [])
+    .map((it) => `${it.quantidade}x ${it.produto_nome} - ${formatarMoeda(it.subtotal || it.quantidade * it.preco_unitario)}`)
+    .join('\n');
+  const txt = [
+    empresa.nome || 'MK Gestao 360',
+    empresa.telefone || '',
+    linhaSep,
+    `PEDIDO DELIVERY #${pedido.pedido || pedido.id.slice(-6)}`,
+    formatarDataHoraBr(pedido.data_hora),
+    linhaSep,
+    `Cliente: ${pedido.cliente}`,
+    pedido.telefone ? `Tel: ${pedido.telefone}` : '',
+    pedido.endereco ? `End: ${pedido.endereco}` : '',
+    linhaSep,
+    linhasItens,
+    linhaSep,
+    `Subtotal: ${formatarMoeda(pedido.valor_produtos)}`,
+    `Taxa Entrega: ${formatarMoeda(pedido.taxa_entrega)}`,
+    `TOTAL: ${formatarMoeda(pedido.total)}`,
+    `Pagamento: ${pedido.forma_pagamento}`,
+    pedido.observacoes ? `Obs: ${pedido.observacoes}` : '',
+    linhaSep,
+    'MK Gestao de Negocios 360'
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const itensHtml = (pedido.itens || [])
     .map(
@@ -336,7 +444,104 @@ export function imprimirCupomTermicoDelivery(
     <div class="center">MK Gestão de Negócios 360°</div>
   `;
 
-  imprimirHtmlTermico(html, lar);
+  if (btStatus.conectada) {
+    void enviarEscPosDireto(txt, lar).then((res) => {
+      if (!res.ok) {
+        imprimirHtmlTermico(html, lar, `Pedido Delivery #${pedido.pedido || pedido.id.slice(-6)}`, txt);
+      }
+    });
+    return;
+  }
+
+  imprimirHtmlTermico(html, lar, `Pedido Delivery #${pedido.pedido || pedido.id.slice(-6)}`, txt);
+}
+
+export function imprimirCupomTermicoComanda(
+  dados: {
+    pedido: string;
+    cliente: string;
+    itens: Array<{ produto_nome: string; quantidade: number; preco_unitario: number; subtotal: number }>;
+    totalComanda: number;
+    taxaServico10: number;
+    valorPagoAgora: number;
+    saldoRestante: number;
+    formaPagamento: string;
+    vendedorNome?: string;
+    parcial: boolean;
+  },
+  empresa: Pick<Empresa, 'id' | 'nome' | 'telefone' | 'cidade' | 'chave_pix'>,
+  largura?: LarguraBobinaTermica
+): void {
+  const lar = largura || getLarguraTermicaEmpresa(empresa.id);
+  const btStatus = getStatusImpressoraBluetooth();
+  const linhaSep = lar === '58mm' ? '--------------------------------' : '------------------------------------------';
+
+  const txt = [
+    empresa.nome || 'MK Gestao 360',
+    empresa.telefone || '',
+    linhaSep,
+    `COMANDA #${dados.pedido} (${dados.parcial ? 'PGTO PARCIAL' : 'QUITADA'})`,
+    formatarDataHoraBr(new Date().toISOString()),
+    `Cliente: ${dados.cliente}`,
+    dados.vendedorNome ? `Atendente: ${dados.vendedorNome}` : '',
+    linhaSep,
+    ...dados.itens.map((it) => `${it.quantidade}x ${it.produto_nome} - ${formatarMoeda(it.subtotal)}`),
+    linhaSep,
+    `Total Comanda: ${formatarMoeda(dados.totalComanda)}`,
+    dados.taxaServico10 > 0 ? `Taxa Servico (10%): ${formatarMoeda(dados.taxaServico10)}` : '',
+    `VALOR PAGO AGORA: ${formatarMoeda(dados.valorPagoAgora)}`,
+    dados.saldoRestante > 0 ? `Saldo Restante: ${formatarMoeda(dados.saldoRestante)}` : '',
+    `Pagamento: ${dados.formaPagamento}`,
+    linhaSep,
+    'MK Gestao de Negocios 360'
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const itensHtml = dados.itens
+    .map(
+      (it) =>
+        `<div class="row"><span>${it.quantidade}x ${escHtml(it.produto_nome)}</span><span>${escHtml(
+          formatarMoeda(it.subtotal)
+        )}</span></div>`
+    )
+    .join('');
+
+  const html = `
+    <div class="center bold big">${escHtml(empresa.nome || 'MK Gestão 360°')}</div>
+    ${empresa.telefone ? `<div class="center">${escHtml(empresa.telefone)}</div>` : ''}
+    ${empresa.cidade ? `<div class="center">${escHtml(empresa.cidade)}</div>` : ''}
+    <div class="sep"></div>
+    <div class="center bold">COMANDA #${escHtml(dados.pedido)} (${dados.parcial ? 'PGTO PARCIAL' : 'QUITADA'})</div>
+    <div class="center">${escHtml(formatarDataHoraBr(new Date().toISOString()))}</div>
+    <div class="sep"></div>
+    <div><span class="bold">Cliente:</span> ${escHtml(dados.cliente)}</div>
+    ${dados.vendedorNome ? `<div><span class="bold">Atendente:</span> ${escHtml(dados.vendedorNome)}</div>` : ''}
+    <div class="sep"></div>
+    <div class="bold">ITENS</div>
+    ${itensHtml || '<div>Sem itens</div>'}
+    <div class="sep"></div>
+    <div class="row"><span>Total Comanda:</span><span>${escHtml(formatarMoeda(dados.totalComanda))}</span></div>
+    ${dados.taxaServico10 > 0 ? `<div class="row"><span>Taxa Serviço (10%):</span><span>${escHtml(formatarMoeda(dados.taxaServico10))}</span></div>` : ''}
+    <div class="row big"><span>PAGO AGORA:</span><span>${escHtml(formatarMoeda(dados.valorPagoAgora))}</span></div>
+    ${dados.saldoRestante > 0 ? `<div class="row"><span>Saldo Restante:</span><span>${escHtml(formatarMoeda(dados.saldoRestante))}</span></div>` : ''}
+    <div class="sep"></div>
+    <div><span class="bold">Pagamento:</span> ${escHtml(dados.formaPagamento)}</div>
+    ${empresa.chave_pix && String(dados.formaPagamento).toUpperCase().includes('PIX') ? `<div><span class="bold">PIX:</span> ${escHtml(empresa.chave_pix)}</div>` : ''}
+    <div class="sep"></div>
+    <div class="center">MK Gestão de Negócios 360°</div>
+  `;
+
+  if (btStatus.conectada) {
+    void enviarEscPosDireto(txt, lar).then((res) => {
+      if (!res.ok) {
+        imprimirHtmlTermico(html, lar, `Comanda #${dados.pedido}`, txt);
+      }
+    });
+    return;
+  }
+
+  imprimirHtmlTermico(html, lar, `Comanda #${dados.pedido}`, txt);
 }
 
 export function imprimirRelatorioTermico(

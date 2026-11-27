@@ -5,6 +5,7 @@ import {
   Clock,
   Cloud,
   FileSpreadsheet,
+  Home,
   Layers,
   LogOut,
   Menu,
@@ -24,6 +25,7 @@ interface HeaderProps {
   linkExternoPlanilhaOuDrive?: string;
   mobileMenuOpen?: boolean;
   onToggleMobileMenu?: () => void;
+  onIrParaInicio?: () => void;
   onTrocarUnidade: (unidadeId: string) => void;
   onSincronizar: () => void;
   onIrParaFinanceiro: () => void;
@@ -42,6 +44,7 @@ export function Header({
   linkExternoPlanilhaOuDrive,
   mobileMenuOpen = false,
   onToggleMobileMenu,
+  onIrParaInicio,
   onTrocarUnidade,
   onSincronizar,
   onIrParaFinanceiro,
@@ -81,6 +84,18 @@ export function Header({
             title="Menu"
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        )}
+        {onIrParaInicio && (
+          <button
+            type="button"
+            className="mobile-menu-btn"
+            onClick={onIrParaInicio}
+            aria-label="Voltar para a Página Inicial"
+            title="Página Inicial"
+            style={{ display: 'inline-flex' }}
+          >
+            <Home size={18} />
           </button>
         )}
         <div className="header-logo">

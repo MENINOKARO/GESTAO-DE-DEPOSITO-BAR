@@ -4,6 +4,7 @@ import {
   KeyRound,
   Pencil,
   ShieldAlert,
+  Trash2,
   UserCheck,
   UserPlus,
   UserX,
@@ -13,7 +14,8 @@ import type { PerfilUsuario, SessaoAtiva, Usuario } from '../types/domain';
 import {
   alternarStatusUsuario,
   criarUsuarioEquipe,
-  editarUsuarioEquipe
+  editarUsuarioEquipe,
+  excluirUsuario
 } from '../services/dataRepository';
 import { formatarTextoInicialMaiuscula } from '../utils/formatters';
 
@@ -373,6 +375,30 @@ export function EquipeTab({ sessao, usuarios, onNotify, onAtualizar }: EquipeTab
                           {u.ativo ? <UserX size={13} /> : <UserCheck size={13} />}
                           <span>{u.ativo ? 'Bloquear' : 'Ativar'}</span>
                         </button>
+                        {isDonoOuAdmin && u.id !== sessao.usuario.id && (
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            style={{ padding: '4px 9px', fontSize: 11.5 }}
+                            disabled={busy}
+                            title="Excluir membro da equipe"
+                            onClick={async () => {
+                              if (!window.confirm(`Deseja realmente excluir "${u.nome}" (${u.username}) da equipe?`)) {
+                                return;
+                              }
+                              setBusy(true);
+                              try {
+                                const res = await excluirUsuario(sessao, u);
+                                onNotify(res.msg, res.ok ? 'success' : 'error');
+                                if (res.ok) await onAtualizar();
+                              } finally {
+                                setBusy(false);
+                              }
+                            }}
+                          >
+                            <Trash2 size={12} /> <span>Excluir</span>
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>

@@ -45,23 +45,39 @@ function createWindow() {
   ses.on('select-serial-port', (event, portList, _wc, callback) => {
     event.preventDefault();
     if (portList && portList.length > 0) {
-      const btOrPrinter =
-        portList.find((p) => /bluetooth|printer|pos|serial|com/i.test(`${p.displayName || ''} ${p.portName || ''}`)) ||
-        portList[0];
-      callback(btOrPrinter.portId);
+      const outgoing =
+        portList.find((p) => /outgoing|sa[ií]da|printer|pos|rpp|af72/i.test(`${p.displayName || ''} ${p.portName || ''}`)) ||
+        portList.find((p) => /bluetooth|serial|com/i.test(`${p.displayName || ''} ${p.portName || ''}`)) ||
+        portList[portList.length - 1];
+      callback(outgoing.portId);
     } else {
       callback('');
     }
   });
+  let btSelectTimer = null;
   mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
     event.preventDefault();
     if (deviceList && deviceList.length > 0) {
       const printer =
-        deviceList.find((d) => /pos|mpt|print|thermal|rpp|elgin|bematech|xprinter|bt/i.test(d.deviceName || '')) ||
-        deviceList[0];
-      callback(printer.deviceId);
-    } else {
-      callback('');
+        deviceList.find((d) => /pos|mpt|print|thermal|rpp|elgin|bematech|xprinter|af72|bt/i.test(d.deviceName || ''));
+      if (printer) {
+        if (btSelectTimer) {
+          clearTimeout(btSelectTimer);
+          btSelectTimer = null;
+        }
+        callback(printer.deviceId);
+        return;
+      }
+    }
+    if (!btSelectTimer) {
+      btSelectTimer = setTimeout(() => {
+        btSelectTimer = null;
+        if (deviceList && deviceList.length > 0) {
+          callback(deviceList[0].deviceId);
+        } else {
+          callback('');
+        }
+      }, 4500);
     }
   });
 

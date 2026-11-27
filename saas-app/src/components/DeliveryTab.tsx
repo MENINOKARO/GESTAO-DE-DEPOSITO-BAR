@@ -13,6 +13,7 @@ import { atualizarStatusDelivery, criarPedidoDelivery } from '../services/dataRe
 import { formatarDataHoraBr, formatarMoeda, formatarTelefoneBr, formatarTextoInicialMaiuscula } from '../utils/formatters';
 import { beep, beepErro } from '../utils/soundFeedback';
 import { ClienteQuickModal } from './ClienteQuickModal';
+import { NumberStepper } from './NumberStepper';
 import {
   getAutoPrintDeliveryEmpresa,
   imprimirCupomTermicoDelivery,
@@ -257,7 +258,7 @@ export function DeliveryTab({
   }
 
   return (
-    <div className="grid-2" style={{ gridTemplateColumns: '1.1fr 1.15fr', alignItems: 'start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* NOVO PEDIDO DELIVERY */}
       <div className="panel-card">
         <h3 style={{ fontSize: 16, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -335,13 +336,14 @@ export function DeliveryTab({
           <div style={{ display: 'grid', gridTemplateColumns: '0.75fr 1.25fr 1fr', gap: 10 }}>
             <div>
               <label className="field-label">Taxa (R$)</label>
-              <input
-                type="number"
-                step="0.50"
-                min="0"
-                className="field-input"
+              <NumberStepper
+                step={0.5}
+                min={0}
+                decimals={2}
+                clearZeroOnFocus
+                placeholder="0,00"
                 value={taxaEntrega}
-                onChange={(e) => setTaxaEntrega(e.target.value)}
+                onChange={setTaxaEntrega}
               />
             </div>
             <div>
@@ -447,30 +449,20 @@ export function DeliveryTab({
                 <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginBottom: 4 }}>
                   Valor Unit. (R$)
                 </span>
-                <input
-                  type="number"
-                  step="0.50"
-                  min="0"
-                  className="field-input"
+                <NumberStepper
+                  step={0.5}
+                  min={0}
+                  decimals={2}
                   placeholder="0,00"
                   value={unitSel}
+                  onChange={setUnitSel}
                   readOnly={!isDonoOuAdmin}
                   disabled={!isDonoOuAdmin || !produtoSelId}
                   title={
                     isDonoOuAdmin
                       ? 'Valor unitário editável somente no momento de adicionar'
-                      : 'Apenas ADMIN e DONO podem alterar o valor unitário'
+                      : 'Valor unitário'
                   }
-                  style={{
-                    textAlign: 'right',
-                    ...(isDonoOuAdmin
-                      ? {}
-                      : { opacity: 0.72, cursor: 'not-allowed', background: 'rgba(15, 23, 42, 0.85)' })
-                  }}
-                  onChange={(e) => {
-                    if (!isDonoOuAdmin) return;
-                    setUnitSel(e.target.value);
-                  }}
                 />
               </div>
 

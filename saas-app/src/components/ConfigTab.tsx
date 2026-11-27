@@ -26,11 +26,13 @@ import { conectarGoogleDriveOAuth, getGoogleClientId, saveGoogleClientId } from 
 import {
   conectarImpressoraBluetooth,
   conectarImpressoraSerialCom,
+  desconectarImpressoraTermica,
   getAutoPrintDeliveryEmpresa,
   getLarguraTermicaEmpresa,
   getStatusImpressoraBluetooth,
   setAutoPrintDeliveryEmpresa,
   setLarguraTermicaEmpresa,
+  testarImpressaoTermica,
   type LarguraBobinaTermica
 } from '../services/thermalPrintService';
 import {
@@ -641,6 +643,28 @@ export function ConfigTab({
                 >
                   Porta COM (Serial)
                 </button>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-success"
+                  onClick={async () => {
+                    const r = await testarImpressaoTermica(emp.nome || 'MK Gestão 360°', larguraTermica);
+                    onNotify(r.msg, r.ok ? 'success' : 'warning');
+                  }}
+                >
+                  Testar Impressão
+                </button>
+                {getStatusImpressoraBluetooth().conectada && (
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-danger"
+                    onClick={async () => {
+                      await desconectarImpressoraTermica();
+                      onNotify('Impressora térmica desconectada.', 'info');
+                    }}
+                  >
+                    Desconectar
+                  </button>
+                )}
                 <select
                   className="field-select"
                   style={{ padding: '4px 8px', fontSize: 12 }}

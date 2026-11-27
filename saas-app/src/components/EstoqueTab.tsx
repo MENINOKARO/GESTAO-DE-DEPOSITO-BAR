@@ -95,6 +95,7 @@ export function EstoqueTab({
   const fallbackFotoRef = useRef<HTMLInputElement | null>(null);
 
   const [modalHistoricoCompras, setModalHistoricoCompras] = useState(false);
+  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards');
   const [filtroHistNf, setFiltroHistNf] = useState<'SEM_NF' | 'TODAS'>('SEM_NF');
   const [compraExpandidaId, setCompraExpandidaId] = useState<string>('');
   const [anexandoParaId, setAnexandoParaId] = useState<string>('');
@@ -845,7 +846,97 @@ export function EstoqueTab({
           )}
         </div>
 
-        <div className="table-wrap" style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Exibindo <strong>{filtradosOrdenados.length}</strong> produto(s)
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className={`btn btn-xs ${modoVisualizacao === 'cards' ? 'btn-primary' : ''}`}
+              onClick={() => setModoVisualizacao('cards')}
+            >
+              Cards
+            </button>
+            <button
+              type="button"
+              className={`btn btn-xs ${modoVisualizacao === 'tabela' ? 'btn-primary' : ''}`}
+              onClick={() => setModoVisualizacao('tabela')}
+            >
+              Lista
+            </button>
+          </div>
+        </div>
+
+        {modoVisualizacao === 'cards' ? (
+          <div className="estoque-cards-grid">
+            {filtradosOrdenados.map((p) => {
+              const statusBadge =
+                p.estoque_atual <= 0 ? (
+                  <span className="badge badge-danger">CRÍTICO</span>
+                ) : p.estoque_atual <= p.estoque_minimo ? (
+                  <span className="badge badge-warn">BAIXO</span>
+                ) : (
+                  <span className="badge badge-ok">OK</span>
+                );
+              return (
+                <div
+                  key={p.id}
+                  className="estoque-item-card"
+                  onClick={() => abrirModalGestaoProduto(p)}
+                  title={isVendedor ? 'Clique para consultar detalhes do produto' : 'Clique para gerenciar produto, margem e saldo'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <code style={{ color: '#38bdf8', fontSize: 11.5 }}>{p.id}</code>
+                    {!isVendedor && statusBadge}
+                  </div>
+
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: '#f8fafc', lineHeight: 1.25 }}>{p.nome}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                      {[p.categoria, p.marca, p.volume].filter(Boolean).join(' • ')}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: isVendedor ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8, paddingTop: 6, borderTop: '1px solid rgba(148,163,184,0.14)' }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Venda</div>
+                      <div style={{ fontWeight: 800, color: '#34d399', fontSize: 14 }}>{formatarMoeda(p.preco_venda)}</div>
+                    </div>
+                    {!isVendedor && (
+                      <div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Custo</div>
+                        <div style={{ fontWeight: 700, color: '#cbd5e1', fontSize: 13 }}>{formatarMoeda(p.custo_medio)}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Estoque</div>
+                      <div style={{ fontWeight: 800, color: '#f8fafc', fontSize: 14 }}>
+                        {p.estoque_atual} un
+                        {!isVendedor && (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}> / mín {p.estoque_minimo}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-xs"
+                    style={{ width: '100%', justifyContent: 'center', marginTop: 2 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirModalGestaoProduto(p);
+                    }}
+                  >
+                    <Pencil size={12} /> {podeEditar ? 'Ajustar Produto / Preço' : 'Ver Detalhes'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+        <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="data-table">
             <thead>
               <tr>
@@ -912,6 +1003,7 @@ export function EstoqueTab({
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* MODAL GESTÃO DE PRODUTO & LUCRATIVIDADE (FIEL AO LEGADO) */}
@@ -974,23 +1066,6 @@ export function EstoqueTab({
                     </span>
                   )}
                 </div>
-              </div>
-            )}
-
-            {!podeEditar && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: 'rgba(245, 158, 11, 0.14)',
-                  border: '1px solid #f59e0b',
-                  color: '#fbbf24',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  marginBottom: 12
-                }}
-              >
-                🔒 Modo Consulta: Alteração de preços, margens e cadastro é restrita a Gerentes e Donos.
               </div>
             )}
 

@@ -29,6 +29,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   UserPlus,
+  Wallet,
   X
 } from 'lucide-react';
 import type {
@@ -42,6 +43,8 @@ import {
   calcularPreviaConferenciaCaixa,
   calcularPreviaFechamentoFiscal,
   gerarRelatorioFiltrado,
+  contaPagarEhComissao,
+  contaPagarEstaCancelada,
   registrarConferenciaCaixa,
   registrarFechamentoFiscal
 } from '../services/dataRepository';
@@ -135,6 +138,26 @@ export function CentralOperacionalTab({
     sessao.usuario.perfil === 'DONO' ||
     sessao.usuario.perfil === 'GERENTE' ||
     sessao.usuario.perfil === 'ADMIN';
+  const isVendedor = String(sessao.usuario.perfil || '').toUpperCase() === 'VENDEDOR';
+  const [modalComissoesVendedor, setModalComissoesVendedor] = useState(false);
+
+  const minhasComissoes = useMemo(() => {
+    if (!isVendedor) return { pendentes: [], pagas: [], totalPendente: 0 };
+    const nomeNorm = String(sessao.usuario.nome || '').trim().toLowerCase();
+    const userNorm = String(sessao.usuario.username || '').trim().toLowerCase();
+    const doVendedor = (snapshot.contasPagar || []).filter((c) => {
+      if (!contaPagarEhComissao(c) || contaPagarEstaCancelada(c)) return false;
+      const fornLimpo = String(c.fornecedor || '')
+        .replace(/^Vend\.\s*/i, '')
+        .trim()
+        .toLowerCase();
+      return (nomeNorm && fornLimpo === nomeNorm) || (userNorm && fornLimpo === userNorm);
+    });
+    const pendentes = doVendedor.filter((c) => c.status !== 'PAGO');
+    const pagas = doVendedor.filter((c) => c.status === 'PAGO');
+    const totalPendente = pendentes.reduce((acc, c) => acc + (Number(c.valor) || 0), 0);
+    return { pendentes, pagas, totalPendente };
+  }, [isVendedor, sessao.usuario.nome, sessao.usuario.username, snapshot.contasPagar]);
 
   const gestoresDisponiveis = useMemo(
     () =>
@@ -366,22 +389,26 @@ export function CentralOperacionalTab({
             icone: <UserPlus size={20} color="#c4b5fd" />,
             onClick: () => setModalClienteAberto(true)
           },
-          {
-            id: 'novo-produto',
-            titulo: '+ Novo Produto',
-            subtitulo: 'Acessar catálogo, preços e estoque',
-            keywords: 'produto cadastrar item estoque catalogo',
-            icone: <PackagePlus size={20} color="#34d399" />,
-            onClick: () => onIrAba('estoque')
-          },
-          {
-            id: 'registrar-compra',
-            titulo: 'Compras',
-            subtitulo: 'Registrar entrada de mercadoria e NF',
-            keywords: 'compras entrada mercadoria fornecedor nota fiscal',
-            icone: <ShoppingBag size={20} color="#38bdf8" />,
-            onClick: () => (onAbrirCompra ? onAbrirCompra() : onIrAba('estoque'))
-          },
+          ...(isVendedor
+            ? []
+            : [
+                {
+                  id: 'novo-produto',
+                  titulo: '+ Novo Produto',
+                  subtitulo: 'Acessar catálogo, preços e estoque',
+                  keywords: 'produto cadastrar item estoque catalogo',
+                  icone: <PackagePlus size={20} color="#34d399" />,
+                  onClick: () => onIrAba('estoque')
+                },
+                {
+                  id: 'registrar-compra',
+                  titulo: 'Compras',
+                  subtitulo: 'Registrar entrada de mercadoria e NF',
+                  keywords: 'compras entrada mercadoria fornecedor nota fiscal',
+                  icone: <ShoppingBag size={20} color="#38bdf8" />,
+                  onClick: () => (onAbrirCompra ? onAbrirCompra() : onIrAba('estoque'))
+                }
+              ]),
           {
             id: 'ir-pdv',
             titulo: 'PDV / Nova Venda',
@@ -412,6 +439,20 @@ export function CentralOperacionalTab({
         id: 'controle',
         titulo: '🛅 Controle & Auditoria',
         cards: [
+          ...(isVendedor
+            ? [
+                {
+                  id: 'minhas-comissoes',
+                  titulo: 'Minhas Comissões a Receber',
+                  subtitulo: `${minhasComissoes.pendentes.length} pendente(s) • ${formatarMoeda(
+                    minhasComissoes.totalPendente
+                  )}`,
+                  keywords: 'comissao comissoes vendedor receber 10%',
+                  icone: <Wallet size={20} color="#34d399" />,
+                  onClick: () => setModalComissoesVendedor(true)
+                }
+              ]
+            : []),
           {
             id: 'conferencia-caixa',
             titulo: 'Conferência de Caixa',
@@ -1364,6 +1405,92 @@ export function CentralOperacionalTab({
                 Exibindo 50 de {relatorioGerado.linhas.length} linhas na prévia. O PDF exporta o relatório completo.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {modalComissoesVendedor && isVendedor && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 120 }}
+          onClick={() => setModalComissoesVendedor(false)}
+        >
+          <div
+            className="panel-card"
+            style={{ maxWidth: 560, width: '100%', maxHeight: '88vh', overflowY: 'auto', borderColor: 'var(--border-accent)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <div>
+                <h3 style={{ fontSize: 17 }}>💼 Minhas Comissões a Receber</h3>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Vendedor: <strong>{sessao.usuario.nome}</strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                onClick={() => setModalComissoesVendedor(false)}
+              >
+                <X size={15} /> Fechar
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: 'rgba(16, 185, 129, 0.12)',
+                padding: '12px 14px',
+                borderRadius: 10,
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                marginBottom: 12
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#a7f3d0' }}>
+                Total Pendente ({minhasComissoes.pendentes.length}):
+              </span>
+              <strong style={{ fontSize: 22, color: '#34d399' }}>
+                {formatarMoeda(minhasComissoes.totalPendente)}
+              </strong>
+            </div>
+
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Descrição</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...minhasComissoes.pendentes, ...minhasComissoes.pagas].map((c) => (
+                    <tr key={c.id}>
+                      <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.id}</td>
+                      <td>{c.descricao}</td>
+                      <td>
+                        <span className={`badge ${c.status === 'PAGO' ? 'badge-ok' : 'badge-warn'}`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#34d399' }}>
+                        {formatarMoeda(c.valor)}
+                      </td>
+                    </tr>
+                  ))}
+                  {minhasComissoes.pendentes.length === 0 && minhasComissoes.pagas.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Você ainda não possui comissões registradas.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

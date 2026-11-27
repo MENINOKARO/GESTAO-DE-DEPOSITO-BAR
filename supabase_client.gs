@@ -2759,62 +2759,74 @@ function calcularStatusEstoquePadrao(qtd, minimo) {
 function formatarIdVendaPlanilha(origem, pedidoId, dt) {
   const orig = normalizarTextoChave(origem);
   const ped = String(pedidoId || '').trim();
-  const mNum = ped.match(/^(?:C-0*|D-0*|#)?(\d+)$/i);
+  const mBot = ped.match(/^(?:D\s*-\s*0*)?(\d+)\s*\(?(?:BOT\s*)?(ZAP|TG)\)?$/i);
+  if (mBot) {
+    return 'D - ' + String(Number(mBot[1])).padStart(4, '0') + ' ' + mBot[2].toUpperCase();
+  }
+  const mNum = ped.match(/^(?:C\s*-\s*0*|D\s*-\s*0*|B\s*-\s*0*|#)?(\d+)$/i);
   if (orig.includes('COMANDA') && mNum) {
-    return 'C-' + String(Number(mNum[1])).padStart(6, '0');
+    return 'C - ' + String(Number(mNum[1])).padStart(4, '0');
   }
   if (orig.includes('DELIVERY') && mNum) {
-    return 'D-' + String(Number(mNum[1])).padStart(6, '0');
+    return 'D - ' + String(Number(mNum[1])).padStart(4, '0');
   }
-  if (ped && !/^(ADMIN|BALCAO|BALCÃO|VENDEDOR|DONO|GERENTE|OPERADOR)$/i.test(ped)) {
+  if (/^B\s*-\s*0*(\d+)$/i.test(ped)) {
+    const mb = ped.match(/^B\s*-\s*0*(\d+)$/i);
+    return 'B - ' + String(Number(mb[1])).padStart(4, '0');
+  }
+  if (ped && !/^(ADMIN|BALCAO|BALCÃO|VENDEDOR|DONO|GERENTE|OPERADOR|VND-)/i.test(ped)) {
     return ped;
   }
   const d = dt instanceof Date && !isNaN(dt.getTime()) ? dt : parseDataSeguraSheet(dt);
-  return 'B-' + Utilities.formatDate(d, 'America/Sao_Paulo', 'yyyyMMdd-HHmmss');
+  return 'B - ' + Utilities.formatDate(d, 'America/Sao_Paulo', 'MMddHHmm');
 }
 
 function corrigirIdsEEstoquePlanilha() {
   const ss = SpreadsheetApp.getActive();
   const alteracoes = [];
 
-  // 1. PADRONIZA ID_VENDA NA ABA VENDAS
+  // 1. PADRONIZA ID_VENDA NA ABA VENDAS (B - 0025 / C - 0032 / D - 0056 / D - 0041 ZAP / D - 0087 TG)
   const shVendas = ss.getSheetByName('VENDAS');
   if (shVendas && shVendas.getLastRow() > 1) {
     const dV = shVendas.getDataRange().getValues();
-    let vCorrigidos = 0;
+    let maxB = 0;
     for (let i = 1; i < dV.length; i++) {
+      const mEx = String(dV[i][6] || '').trim().match(/^B\s*-\s*0*(\d+)$/i);
+      if (mEx && Number(mEx[1]) < 100000) maxB = Math.max(maxB, Number(mEx[1]));
+    }
+    let vCorrigidos = 0;
+    const mapaVndSeq = {};
+    for (let i = dV.length - 1; i >= 1; i--) {
       const dtV = parseDataSeguraSheet(dV[i][0]);
       const orig = String(dV[i][5] || 'Balcão').trim();
       const idAtual = String(dV[i][6] || '').trim();
       let idNovo = idAtual;
 
       const origNorm = normalizarTextoChave(orig);
-      if (origNorm.includes('COMANDA')) {
-        const mC = idAtual.match(/^(?:C-0*|#)?(\d+)$/i);
-        if (mC) idNovo = 'C-' + String(Number(mC[1])).padStart(6, '0');
+      const mBot = idAtual.match(/^(?:D\s*-\s*0*)?(\d+)\s*\(?(?:BOT\s*)?(ZAP|TG)\)?$/i);
+      if (mBot) {
+        idNovo = 'D - ' + String(Number(mBot[1])).padStart(4, '0') + ' ' + mBot[2].toUpperCase();
+      } else if (origNorm.includes('COMANDA')) {
+        const mC = idAtual.match(/^(?:C\s*-\s*0*|#)?(\d+)$/i);
+        if (mC) idNovo = 'C - ' + String(Number(mC[1])).padStart(4, '0');
       } else if (origNorm.includes('DELIVERY')) {
-        const mD = idAtual.match(/^(?:D-0*|#)?(\d+)$/i);
+        const mD = idAtual.match(/^(?:D\s*-\s*0*|#)?(\d+)$/i);
         if (mD) {
-          idNovo = 'D-' + String(Number(mD[1])).padStart(6, '0');
-        } else if (!idAtual || /^(admin|delivery)$/i.test(idAtual)) {
-          // Tenta casar com o pedido na aba DELIVERY pelo valor/data
-          const shDel = ss.getSheetByName('DELIVERY');
-          let pedDel = '';
-          if (shDel && shDel.getLastRow() > 1) {
-            const dDel = shDel.getDataRange().getValues();
-            for (let j = 1; j < dDel.length; j++) {
-              const pStr = String(dDel[j][0] || '').trim();
-              if (/^\d+$/.test(pStr)) {
-                pedDel = pStr;
-                break;
-              }
-            }
-          }
-          idNovo = pedDel ? 'D-' + String(Number(pedDel)).padStart(6, '0') : 'D-' + Utilities.formatDate(dtV, 'America/Sao_Paulo', 'yyyyMMdd-HHmmss');
+          idNovo = 'D - ' + String(Number(mD[1])).padStart(4, '0');
         }
       } else {
-        if (!idAtual || /^(admin|balcao|balcão|vendedor|dono|gerente)$/i.test(idAtual)) {
-          idNovo = 'B-' + Utilities.formatDate(dtV, 'America/Sao_Paulo', 'yyyyMMdd-HHmmss');
+        const mBExist = idAtual.match(/^B\s*-\s*0*(\d+)$/i);
+        if (mBExist && Number(mBExist[1]) < 100000) {
+          idNovo = 'B - ' + String(Number(mBExist[1])).padStart(4, '0');
+        } else if (!idAtual || /^(admin|balcao|balcão|vendedor|dono|gerente|VND-|B-\d{8})/i.test(idAtual)) {
+          const chaveAgrup = idAtual && /^VND-/i.test(idAtual)
+            ? idAtual
+            : Utilities.formatDate(dtV, 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm');
+          if (!mapaVndSeq[chaveAgrup]) {
+            maxB++;
+            mapaVndSeq[chaveAgrup] = 'B - ' + String(maxB).padStart(4, '0');
+          }
+          idNovo = mapaVndSeq[chaveAgrup];
         }
       }
 
@@ -2823,7 +2835,7 @@ function corrigirIdsEEstoquePlanilha() {
         vCorrigidos++;
       }
     }
-    if (vCorrigidos > 0) alteracoes.push(`VENDAS: ${vCorrigidos} ID(s) padronizado(s) (C-0000XX / D-0000XX / B-YYYYMMDD-HHMMSS)`);
+    if (vCorrigidos > 0) alteracoes.push(`VENDAS: ${vCorrigidos} ID(s) padronizado(s) (B - XXXX / C - XXXX / D - XXXX)`);
   }
 
   // 1.5 PADRONIZA IDs GENÉRICOS (PAG-...) EM CONTAS_A_PAGAR PARA AVULSA_000X

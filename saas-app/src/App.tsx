@@ -10,10 +10,13 @@ import {
   Lock,
   LogOut,
   Package,
+  Printer,
   Settings,
+  Share2,
   ShoppingCart,
   UserCheck,
-  Users
+  Users,
+  X
 } from 'lucide-react';
 import type {
   ConfigMasterSaas,
@@ -43,6 +46,10 @@ import {
   sincronizarPlanilhaEspelhoLimpa
 } from './services/googleDriveMirrorService';
 import { baixarPacoteRelatoriosGerenciais } from './services/pdfReportService';
+import {
+  imprimirViaIframeOculto,
+  type PrintPreviewPayload
+} from './services/thermalPrintService';
 import { formatarMoeda, obterSubpastaMesAtual } from './utils/formatters';
 import { LoginScreen } from './components/LoginScreen';
 import { Header } from './components/Header';
@@ -86,6 +93,7 @@ export function App() {
   const [snapshot, setSnapshot] = useState<PainelSnapshot | null>(null);
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('pdv');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [printPreview, setPrintPreview] = useState<PrintPreviewPayload | null>(null);
   const [financeiroSubAba, setFinanceiroSubAba] = useState<'caixa' | 'pagar' | 'receber'>('caixa');
   const [financeiroNavTick, setFinanceiroNavTick] = useState(0);
   const [abrirFiscalAoEntrar, setAbrirFiscalAoEntrar] = useState(false);
@@ -473,7 +481,13 @@ export function App() {
 
   const hojeYmd = new Date().toISOString().slice(0, 10);
   const comandasAbertasCount = snapshot
-    ? snapshot.comandas.filter((c) => c.status === 'ABERTA').length
+    ? snapshot.comandas.filter(
+        (c) =>
+          c.status === 'ABERTA' &&
+          (!isOperador ||
+            String(c.operador || '').trim().toLowerCase() ===
+              String(sessao.usuario.username || '').trim().toLowerCase())
+      ).length
     : 0;
   const deliverysPendentesCount = snapshot
     ? snapshot.delivery.filter((d) => !['ENTREGUE', 'CANCELADO'].includes(d.status)).length
@@ -491,6 +505,33 @@ export function App() {
     statusSync.planilhaEspelhoUrl ||
     statusSync.drivePastaUrl;
 
+  const titulosAbas: Record<AbaAtiva, string> = {
+    pdv: '⚡ PDV Balcão & Catálogo',
+    comandas: '🧾 Comandas Balcão',
+    delivery: '🛵 Módulo Delivery',
+    dashboard: '📊 Panorama 360°',
+    estoque: '📦 Estoque & Preços',
+    financeiro: '💵 Financeiro & Obrigações',
+    central: '🧠 Painel Inteligente',
+    relatorios: '📄 Relatórios PDF',
+    clientes: '👤 Clientes',
+    equipe: '👥 Equipe',
+    config: '⚙️ Configuração',
+    master: '👑 Master SaaS'
+  };
+
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<PrintPreviewPayload>;
+      if (ce.detail) {
+        ev.preventDefault();
+        setPrintPreview(ce.detail);
+      }
+    };
+    window.addEventListener('gn360:print-preview', handler);
+    return () => window.removeEventListener('gn360:print-preview', handler);
+  }, []);
+
   return (
     <div className="app-shell">
       <Header
@@ -504,6 +545,10 @@ export function App() {
         linkExternoPlanilhaOuDrive={isAdmin && !modoSuporteAdmin ? '' : linkExterno}
         mobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
+        onIrParaInicio={() => {
+          setMobileMenuOpen(false);
+          setAbaAtiva(isAdmin && !modoSuporteAdmin ? 'master' : 'pdv');
+        }}
         onTrocarUnidade={handleTrocarUnidade}
         onSincronizar={() => void handleSincronizarManual()}
         onIrParaFinanceiro={() => {
@@ -569,8 +614,8 @@ export function App() {
         </div>
       )}
 
-      {/* FAIXA SUPERIOR FIXA DE 6 KPIS CLICÁVEIS (OCULTA NO MASTER ADMIN PURO) */}
-      {snapshot && (!isAdmin || modoSuporteAdmin) && (
+      {/* FAIXA SUPERIOR FIXA DE 6 KPIS CLICÁVEIS (EXIBIDA NA PÁGINA INICIAL / PANORAMA) */}
+      {snapshot && (!isAdmin || modoSuporteAdmin) && (abaAtiva === 'pdv' || abaAtiva === 'dashboard') && (
         <section className="kpi-ribbon-6 no-print">
           <button
             type="button"
@@ -767,7 +812,7 @@ export function App() {
             onClick={() => setAbaAtiva('central')}
           >
             <BrainCircuit size={16} />{' '}
-            <span>{isOperador ? 'Conferência de Caixa' : 'Painel Inteligente'}</span>
+            <span>Painel Inteligente</span>
           </button>
 
           {!isOperador && (
@@ -841,6 +886,18 @@ export function App() {
         </nav>
 
         <main className="saas-main">
+          <div className="page-title-bar no-print">
+            <h2>{titulosAbas[abaAtiva]}</h2>
+            {abaAtiva !== 'pdv' && (!isAdmin || modoSuporteAdmin) && (
+              <button
+                type="button"
+                className="btn btn-xs"
+                onClick={() => setAbaAtiva('pdv')}
+              >
+                Voltar ao Início
+              </button>
+            )}
+          </div>
           {abaAtiva === 'master' && isAdmin ? (
             <AdminMasterTab
               sessao={sessao}
@@ -1091,6 +1148,84 @@ export function App() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {printPreview && (
+        <div
+          className="modal-overlay no-print"
+          style={{ zIndex: 1300 }}
+          onClick={() => setPrintPreview(null)}
+        >
+          <div
+            className="panel-card"
+            style={{ maxWidth: 440, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'var(--border-accent)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <strong style={{ fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Printer size={17} color="#c4b5fd" />
+                <span>{printPreview.titulo}</span>
+              </strong>
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                onClick={() => setPrintPreview(null)}
+                aria-label="Fechar impressão"
+              >
+                <X size={15} /> Fechar
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: '#ffffff',
+                color: '#000000',
+                padding: 14,
+                borderRadius: 10,
+                overflowY: 'auto',
+                fontFamily: "'Courier New', Courier, monospace",
+                fontSize: printPreview.largura === '58mm' ? 11 : 12,
+                lineHeight: 1.35,
+                maxHeight: '55vh'
+              }}
+              dangerouslySetInnerHTML={{ __html: printPreview.htmlBody }}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => imprimirViaIframeOculto(printPreview.htmlBody, printPreview.largura)}
+              >
+                <Printer size={15} /> Imprimir
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={async () => {
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({
+                        title: printPreview.titulo,
+                        text: printPreview.textoLimpo
+                      });
+                    } else if (navigator.clipboard) {
+                      await navigator.clipboard.writeText(printPreview.textoLimpo);
+                      notify('Cupom copiado! Cole no app da sua impressora Bluetooth (ex: RawBT).', 'success');
+                    }
+                  } catch {
+                    if (navigator.clipboard) {
+                      await navigator.clipboard.writeText(printPreview.textoLimpo);
+                      notify('Texto do cupom copiado para a área de transferência!', 'success');
+                    }
+                  }
+                }}
+              >
+                <Share2 size={15} /> Enviar / Bluetooth
+              </button>
             </div>
           </div>
         </div>

@@ -189,6 +189,7 @@ class BrowserFileSystemAdapter implements LocalFolderAdapter {
       await ensureDirPath(base, ['Relatorios', cat, subMes]);
     }
     await ensureDirPath(base, ['Compras', 'Notas', ano, mes]);
+    await ensureDirPath(base, ['Despesas', ano, mes]);
     await ensureDirPath(base, ['Backup']);
     await ensureDirPath(base, ['Logs', 'PDF']);
     return true;
@@ -225,7 +226,7 @@ export const localFolderService: LocalFolderAdapter = new BrowserFileSystemAdapt
 
 export async function salvarArquivoNaPastaLocal(
   nomeEmpresa: string,
-  categoria: CategoriaRelatorio | 'Backup' | 'Notas',
+  categoria: CategoriaRelatorio | 'Backup' | 'Notas' | 'Despesas',
   subpastaMes: string,
   nomeArquivo: string,
   blob: Blob | string
@@ -236,6 +237,8 @@ export async function salvarArquivoNaPastaLocal(
       ? [empSeg, 'Backup']
       : categoria === 'Notas'
       ? [empSeg, 'Compras', 'Notas', subpastaMes]
+      : categoria === 'Despesas'
+      ? [empSeg, 'Despesas', subpastaMes]
       : [empSeg, 'Relatorios', categoria, subpastaMes];
 
   return localFolderService.salvarArquivo(caminho, nomeArquivo, blob);

@@ -6,6 +6,7 @@ import {
   Eraser,
   Minus,
   Plus,
+  Printer,
   RefreshCw,
   Trash2,
   UserPlus,
@@ -31,7 +32,9 @@ import {
 } from '../services/dataRepository';
 import { formatarDataHoraBr, formatarMoeda } from '../utils/formatters';
 import { beep, beepErro } from '../utils/soundFeedback';
+import { imprimirCupomTermicoComanda } from '../services/thermalPrintService';
 import { ClienteQuickModal } from './ClienteQuickModal';
+import { NumberStepper } from './NumberStepper';
 import { PixPaymentBox } from './PixPaymentBox';
 
 interface ComandasTabProps {
@@ -85,12 +88,33 @@ export function ComandasTab({
   const [formaFechar, setFormaFechar] = useState<FormaPagamento>('Dinheiro');
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState('');
   const [obsOutroFechar, setObsOutroFechar] = useState('');
+  const [cobrarTaxa10, setCobrarTaxa10] = useState(false);
+  const [taxaServicoInput, setTaxaServicoInput] = useState('0.00');
+  const [comandaEncerradaVisualizar, setComandaEncerradaVisualizar] = useState<Comanda | null>(null);
+  const [promptImprimirComanda, setPromptImprimirComanda] = useState<{
+    pedido: string;
+    cliente: string;
+    itens: Array<{ produto_nome: string; quantidade: number; preco_unitario: number; subtotal: number }>;
+    totalComanda: number;
+    taxaServico10: number;
+    valorPagoAgora: number;
+    saldoRestante: number;
+    formaPagamento: string;
+    vendedorNome?: string;
+    parcial: boolean;
+  } | null>(null);
 
   const perfil = String(sessao.usuario.perfil || '').toUpperCase();
   const isDonoOuAdmin = perfil === 'DONO' || perfil === 'ADMIN';
+  const isVendedor = perfil === 'VENDEDOR';
+  const comandasVisiveis = useMemo(() => {
+    if (!isVendedor) return comandas;
+    const userLogado = String(sessao.usuario.username || '').trim().toLowerCase();
+    return comandas.filter((c) => String(c.operador || '').trim().toLowerCase() === userLogado);
+  }, [comandas, isVendedor, sessao.usuario.username]);
 
-  const abertas = useMemo(() => comandas.filter((c) => c.status === 'ABERTA'), [comandas]);
-  const encerradas = useMemo(() => comandas.filter((c) => c.status !== 'ABERTA'), [comandas]);
+  const abertas = useMemo(() => comandasVisiveis.filter((c) => c.status === 'ABERTA'), [comandasVisiveis]);
+  const encerradas = useMemo(() => comandasVisiveis.filter((c) => c.status !== 'ABERTA'), [comandasVisiveis]);
 
   const qtdQuitadasOuVazias = abertas.filter((c) => c.saldo <= 0.009 || c.total <= 0).length;
 
@@ -251,6 +275,8 @@ export function ComandasTab({
     setFormaFechar('Dinheiro');
     setValorRecebidoDinheiro('');
     setObsOutroFechar('');
+    setCobrarTaxa10(false);
+    setTaxaServicoInput('0.00');
   }
 
   async function handleConfirmarEncerrarZerada() {
@@ -303,14 +329,39 @@ export function ComandasTab({
       }
       setBusy(true);
       try {
-        const res = await registrarPagamentoParcialComanda(sessao, comandaFechar, val, formaFechar, obsOutroFechar);
+        const taxa10Parcial = Math.max(0, parseFloat(taxaServicoInput.replace(',', '.')) || 0);
+        const res = await registrarPagamentoParcialComanda(
+          sessao,
+          comandaFechar,
+          val,
+          formaFechar,
+          obsOutroFechar,
+          taxa10Parcial
+        );
         if (res.ok) {
           onNotify(res.msg, 'success');
           if (formaFechar === 'Outro') {
             onNotify('🏷️ Pagamento em "Outro" registrado! O Dono foi notificado no Telegram para conferência/conversão.', 'warning');
           }
-          await onAtualizar();
           const novoSaldoRestante = Math.max(0, Number((saldo - val).toFixed(2)));
+          setPromptImprimirComanda({
+            pedido: comandaFechar.pedido,
+            cliente: comandaFechar.cliente,
+            itens: (comandaFechar.itens || []).map((it) => ({
+              produto_nome: it.produto_nome,
+              quantidade: it.quantidade,
+              preco_unitario: it.preco_unitario,
+              subtotal: it.subtotal
+            })),
+            totalComanda: comandaFechar.total,
+            taxaServico10: taxa10Parcial,
+            valorPagoAgora: Number((val + taxa10Parcial).toFixed(2)),
+            saldoRestante: novoSaldoRestante,
+            formaPagamento: formaFechar,
+            vendedorNome: sessao.usuario.nome,
+            parcial: novoSaldoRestante > 0.009
+          });
+          await onAtualizar();
           if (novoSaldoRestante <= 0.009) {
             setComandaFecharId(null);
           } else {
@@ -329,8 +380,26 @@ export function ComandasTab({
 
     setBusy(true);
     try {
-      const res = await receberEFecharComanda(sessao, comandaFechar, formaFechar, obsOutroFechar);
+      const taxa10Total = Math.max(0, parseFloat(taxaServicoInput.replace(',', '.')) || 0);
+      const res = await receberEFecharComanda(sessao, comandaFechar, formaFechar, obsOutroFechar, taxa10Total);
       if (res.ok) {
+        setPromptImprimirComanda({
+          pedido: comandaFechar.pedido,
+          cliente: comandaFechar.cliente,
+          itens: (comandaFechar.itens || []).map((it) => ({
+            produto_nome: it.produto_nome,
+            quantidade: it.quantidade,
+            preco_unitario: it.preco_unitario,
+            subtotal: it.subtotal
+          })),
+          totalComanda: comandaFechar.total,
+          taxaServico10: taxa10Total,
+          valorPagoAgora: Number((saldo + taxa10Total).toFixed(2)),
+          saldoRestante: 0,
+          formaPagamento: formaFechar,
+          vendedorNome: sessao.usuario.nome,
+          parcial: false
+        });
         setComandaFecharId(null);
         onNotify(res.msg, 'success');
         if (formaFechar === 'Outro') {
@@ -362,7 +431,9 @@ export function ComandasTab({
   const valParcialEfetivo = obterValorParcialEfetivo();
   const isParcialValido = valParcialEfetivo > 0 && valParcialEfetivo < saldoModalFechar - 0.009;
   const restanteAposModal = Math.max(0, saldoModalFechar - valParcialEfetivo);
-  const trocoModal = Math.max(0, recebidoDinNum - valModalFecharNum);
+  const taxaServicoNum = Math.max(0, parseFloat(String(taxaServicoInput).replace(',', '.')) || 0);
+  const totalACobrarComTaxa = Number(((isParcialValido ? valParcialEfetivo : valModalFecharNum) + taxaServicoNum).toFixed(2));
+  const trocoModal = Math.max(0, recebidoDinNum - totalACobrarComTaxa);
 
   const unitAddNum = parseFloat(unitAdd) || 0;
   const subtotalAddPreview = qtdAdd * unitAddNum;
@@ -573,25 +644,100 @@ export function ComandasTab({
           </h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {encerradas.slice(0, 8).map((cmd) => (
-              <div
+              <button
                 key={cmd.id}
+                type="button"
+                onClick={() => setComandaEncerradaVisualizar(cmd)}
+                title="Clique para visualizar os itens desta comanda"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                   fontSize: 12,
-                  padding: '6px 12px',
+                  padding: '7px 12px',
                   borderRadius: 10,
-                  background: 'rgba(15, 23, 42, 0.55)',
-                  border: '1px solid var(--border-subtle)'
+                  background: 'rgba(15, 23, 42, 0.72)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-main)',
+                  cursor: 'pointer'
                 }}
               >
                 <span>
                   {cmd.pedido} — {cmd.cliente}
                 </span>
                 <span className="badge badge-ok">{formatarMoeda(cmd.total)}</span>
-              </div>
+              </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL VISUALIZAR ITENS DE COMANDA ENCERRADA (SOMENTE LEITURA) */}
+      {comandaEncerradaVisualizar && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 115 }}
+          onClick={() => setComandaEncerradaVisualizar(null)}
+        >
+          <div
+            className="panel-card"
+            style={{ maxWidth: 560, width: '100%', maxHeight: '88vh', overflowY: 'auto', borderColor: 'var(--border-accent)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <div>
+                <h3 style={{ fontSize: 17 }}>
+                  🧾 Comanda #{comandaEncerradaVisualizar.pedido} — {comandaEncerradaVisualizar.cliente}
+                </h3>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Encerrada em {formatarDataHoraBr(comandaEncerradaVisualizar.data_fechamento || comandaEncerradaVisualizar.data_abertura)} • Visualização
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                onClick={() => setComandaEncerradaVisualizar(null)}
+              >
+                <X size={15} /> Fechar
+              </button>
+            </div>
+
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Qtd</th>
+                    <th>Unit.</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(comandaEncerradaVisualizar.itens || []).map((it) => (
+                    <tr key={it.id}>
+                      <td>{it.produto_nome}</td>
+                      <td>{it.quantidade}</td>
+                      <td>{formatarMoeda(it.preco_unitario)}</td>
+                      <td style={{ fontWeight: 700, color: '#34d399' }}>{formatarMoeda(it.subtotal)}</td>
+                    </tr>
+                  ))}
+                  {(comandaEncerradaVisualizar.itens || []).length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Nenhum item discriminado nesta comanda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+              <span className="badge badge-ok">{comandaEncerradaVisualizar.status}</span>
+              <strong style={{ fontSize: 18, color: '#34d399' }}>
+                Total: {formatarMoeda(comandaEncerradaVisualizar.total)}
+              </strong>
+            </div>
           </div>
         </div>
       )}
@@ -1001,14 +1147,20 @@ export function ComandasTab({
                   Quitar Saldo Todo
                 </button>
               </div>
-              <input
-                type="number"
-                step="0.50"
-                min="0.01"
-                className="field-input"
-                style={{ fontSize: 20, fontWeight: 800, textAlign: 'center', color: '#34d399' }}
+              <NumberStepper
+                step={0.5}
+                min={0.01}
+                decimals={2}
+                clearZeroOnFocus
                 value={valorPagar}
-                onChange={(e) => setValorPagar(e.target.value)}
+                onChange={(next) => {
+                  setValorPagar(next);
+                  if (cobrarTaxa10) {
+                    const n = parseFloat(next.replace(',', '.')) || 0;
+                    setTaxaServicoInput((n * 0.1).toFixed(2));
+                  }
+                }}
+                inputStyle={{ fontSize: 18, fontWeight: 800, textAlign: 'center', color: '#34d399' }}
               />
               <div style={{ fontSize: 11.5, marginTop: 6, textAlign: 'center' }}>
                 {valModalFecharNum <= 0 ? (
@@ -1024,6 +1176,64 @@ export function ComandasTab({
                   </span>
                 )}
               </div>
+            </div>
+
+            <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 150px',
+                  gap: 10,
+                  alignItems: 'center',
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  background: taxaServicoNum > 0 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(15, 23, 42, 0.65)',
+                  border: `1px solid ${taxaServicoNum > 0 ? 'rgba(16, 185, 129, 0.45)' : 'var(--border-subtle)'}`
+                }}
+              >
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={cobrarTaxa10}
+                    onChange={(e) => {
+                      const marcado = e.target.checked;
+                      setCobrarTaxa10(marcado);
+                      const base = isParcialValido ? valParcialEfetivo : valModalFecharNum;
+                      setTaxaServicoInput(marcado ? (base * 0.1).toFixed(2) : '0.00');
+                    }}
+                  />
+                  <span>Acrescentar 10% ({sessao.usuario.nome})</span>
+                </label>
+                <div>
+                  <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
+                    Taxa / Gorjeta (R$)
+                  </span>
+                  <NumberStepper
+                    step={0.5}
+                    min={0}
+                    decimals={2}
+                    clearZeroOnFocus
+                    placeholder="0,00"
+                    value={taxaServicoInput}
+                    onChange={(next) => {
+                      setTaxaServicoInput(next);
+                      const n = parseFloat(next.replace(',', '.')) || 0;
+                      if (n <= 0 && cobrarTaxa10) setCobrarTaxa10(false);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {taxaServicoNum > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 10, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#a7f3d0' }}>
+                    Total a Receber Agora (com Taxa/Gorjeta):
+                  </span>
+                  <strong style={{ fontSize: 18, color: '#34d399' }}>
+                    {formatarMoeda(totalACobrarComTaxa)}
+                  </strong>
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -1042,14 +1252,14 @@ export function ComandasTab({
               </div>
             </div>
 
-            {formaFechar === 'PIX' && valModalFecharNum > 0 && (
+            {formaFechar === 'PIX' && totalACobrarComTaxa > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <PixPaymentBox
                   chavePix={empresa.chave_pix}
                   donoNome={empresa.dono_nome}
                   nomeRecebedor={empresa.nome}
                   cidade={empresa.cidade}
-                  valor={valModalFecharNum}
+                  valor={totalACobrarComTaxa}
                   txid={`COM${comandaFechar.pedido.replace(/[^a-zA-Z0-9]/g, '')}`}
                   mostrarQrPorPadrao
                   onNotify={onNotify}
@@ -1100,16 +1310,17 @@ export function ComandasTab({
                 }}
               >
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>💵 Valor Entregue:</span>
-                <input
-                  type="number"
-                  step="0.50"
-                  min="0"
-                  className="field-input"
-                  style={{ width: 110, padding: '6px 8px' }}
-                  placeholder="R$ 0,00"
-                  value={valorRecebidoDinheiro}
-                  onChange={(e) => setValorRecebidoDinheiro(e.target.value)}
-                />
+                <div style={{ width: 155 }}>
+                  <NumberStepper
+                    step={0.5}
+                    min={0}
+                    decimals={2}
+                    clearZeroOnFocus
+                    placeholder="R$ 0,00"
+                    value={valorRecebidoDinheiro}
+                    onChange={setValorRecebidoDinheiro}
+                  />
+                </div>
                 {recebidoDinNum > 0 && recebidoDinNum < valModalFecharNum - 0.009 ? (
                   <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#38bdf8', fontSize: 12.5 }}>
                     💸 Abater {formatarMoeda(recebidoDinNum)} (Resta: {formatarMoeda(saldoModalFechar - recebidoDinNum)})
@@ -1142,6 +1353,43 @@ export function ComandasTab({
                 onClick={() => void handleExecutarPagamentoComanda(true)}
               >
                 <CheckCircle2 size={14} /> Quitar Comanda Integral
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PERGUNTAR SE DESEJA IMPRIMIR COMPROVANTE DA COMANDA */}
+      {promptImprimirComanda && (
+        <div className="modal-overlay" style={{ zIndex: 120 }}>
+          <div className="panel-card" style={{ maxWidth: 420, width: '100%', borderColor: 'var(--border-accent)' }}>
+            <h4 style={{ fontSize: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Printer size={18} color="#c4b5fd" />
+              <span>Imprimir Comprovante?</span>
+            </h4>
+            <p style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 14, lineHeight: 1.45 }}>
+              Pagamento da Comanda <strong>#{promptImprimirComanda.pedido}</strong> ({promptImprimirComanda.cliente}) —{' '}
+              <strong style={{ color: '#34d399' }}>{formatarMoeda(promptImprimirComanda.valorPagoAgora)}</strong> registrado.
+              Deseja imprimir o comprovante desta transação?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setPromptImprimirComanda(null)}
+              >
+                Agora não
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const dados = promptImprimirComanda;
+                  setPromptImprimirComanda(null);
+                  imprimirCupomTermicoComanda(dados, empresa);
+                }}
+              >
+                <Printer size={14} /> Imprimir Comprovante
               </button>
             </div>
           </div>

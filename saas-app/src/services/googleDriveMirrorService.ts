@@ -169,6 +169,10 @@ async function garantirEstruturaDriveEmpresa(
   const anoId = await obterOuCriarPastaDrive(token, anoStr, notasId);
   await obterOuCriarPastaDrive(token, mesStr, anoId);
 
+  const despesasId = await obterOuCriarPastaDrive(token, 'Despesas', rootId);
+  const despAnoId = await obterOuCriarPastaDrive(token, anoStr, despesasId);
+  await obterOuCriarPastaDrive(token, mesStr, despAnoId);
+
   await obterOuCriarPastaDrive(token, 'Backup', rootId);
   const logsId = await obterOuCriarPastaDrive(token, 'Logs', rootId);
   await obterOuCriarPastaDrive(token, 'PDF', logsId);
@@ -449,6 +453,50 @@ export async function enviarPdfParaGoogleDrive(
   return {
     ok: true,
     msg: `PDF salvo no Google Drive em Relatorios/${categoria}/${subpastaMes}!`,
+    fileUrl: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`
+  };
+}
+
+export async function enviarComprovanteDespesaParaDrive(
+  empresaId: string,
+  nomeEmpresa: string,
+  nomeArquivo: string,
+  blob: Blob,
+  mimeType: string
+): Promise<{ ok: boolean; msg: string; fileUrl?: string }> {
+  const token = getActiveOAuthToken();
+  if (!token) {
+    return { ok: false, msg: 'Google Drive não conectado via OAuth.' };
+  }
+  const meta = await garantirEstruturaDriveEmpresa(token, empresaId, nomeEmpresa);
+  const despesasId = await obterOuCriarPastaDrive(token, 'Despesas', meta.rootFolderId);
+  const anoStr = String(new Date().getFullYear());
+  const mesStr = String(new Date().getMonth() + 1).padStart(2, '0');
+  const anoId = await obterOuCriarPastaDrive(token, anoStr, despesasId);
+  const mesId = await obterOuCriarPastaDrive(token, mesStr, anoId);
+
+  const form = new FormData();
+  form.append(
+    'metadata',
+    new Blob(
+      [JSON.stringify({ name: nomeArquivo, parents: [mesId], mimeType: mimeType || 'application/octet-stream' })],
+      { type: 'application/json' }
+    )
+  );
+  form.append('file', blob);
+
+  const resp = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }
+  );
+  if (!resp.ok) {
+    const txt = await resp.text();
+    return { ok: false, msg: `Falha ao enviar para o Drive (${resp.status}): ${txt}` };
+  }
+  const data = (await resp.json()) as { id: string; webViewLink?: string };
+  return {
+    ok: true,
+    msg: `Comprovante salvo no Google Drive em Despesas/${anoStr}/${mesStr}!`,
     fileUrl: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`
   };
 }
