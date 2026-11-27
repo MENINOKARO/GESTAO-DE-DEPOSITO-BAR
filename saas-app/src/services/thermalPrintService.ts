@@ -259,6 +259,10 @@ export async function conectarImpressoraSerialCom(): Promise<{ ok: boolean; msg:
   }
   try {
     const port = await nav.serial.requestPort();
+    if (port.writable) {
+      serialPort = port;
+      return { ok: true, msg: 'Impressora já estava conectada na Porta COM!' };
+    }
     const bauds = [9600, 115200, 38400];
     let opened = false;
     let lastErr: unknown = null;
@@ -268,6 +272,11 @@ export async function conectarImpressoraSerialCom(): Promise<{ ok: boolean; msg:
         opened = true;
         break;
       } catch (e) {
+        const em = e instanceof Error ? e.message : '';
+        if (/already open/i.test(em)) {
+          opened = true;
+          break;
+        }
         lastErr = e;
       }
     }
@@ -319,11 +328,26 @@ async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTerm
       return { ok: true };
     }
     if (serialPort?.writable) {
+      if (serialPort.writable.locked) {
+        return {
+          ok: false,
+          msg: 'A porta COM travou (provável porta de Entrada do Bluetooth). Clique em Desconectar ou teste no Chrome/Edge escolhendo a outra porta COM (COM7/COM8).'
+        };
+      }
       const writer = serialPort.writable.getWriter();
       try {
-        await writer.write(full);
+        await Promise.race([
+          writer.write(full),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Tempo esgotado ao enviar para a porta COM')), 4000)
+          )
+        ]);
       } finally {
-        writer.releaseLock();
+        try {
+          writer.releaseLock();
+        } catch {
+          // ignore
+        }
       }
       return { ok: true };
     }

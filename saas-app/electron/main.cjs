@@ -42,14 +42,13 @@ function createWindow() {
     }
     return false;
   });
+  let serialPortTryIdx = 0;
   ses.on('select-serial-port', (event, portList, _wc, callback) => {
     event.preventDefault();
     if (portList && portList.length > 0) {
-      const outgoing =
-        portList.find((p) => /outgoing|sa[ií]da|printer|pos|rpp|af72/i.test(`${p.displayName || ''} ${p.portName || ''}`)) ||
-        portList.find((p) => /bluetooth|serial|com/i.test(`${p.displayName || ''} ${p.portName || ''}`)) ||
-        portList[portList.length - 1];
-      callback(outgoing.portId);
+      const idx = serialPortTryIdx % portList.length;
+      serialPortTryIdx += 1;
+      callback(portList[idx].portId);
     } else {
       callback('');
     }
