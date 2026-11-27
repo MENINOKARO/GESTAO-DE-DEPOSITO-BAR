@@ -1409,6 +1409,15 @@ export function AdminMasterTab({
                 </div>
               </div>
               <div>
+                <label className="field-label">Site da Minha Empresa (Rodapé das Impressões)</label>
+                <input
+                  className="field-input"
+                  placeholder="Ex.: www.meninokaro.com.br"
+                  value={cfgMaster.site_empresa_master || ''}
+                  onChange={(e) => setCfgMaster({ ...cfgMaster, site_empresa_master: e.target.value })}
+                />
+              </div>
+              <div>
                 <label className="field-label">Link Checkout Online (PIX / Cartão / Boleto — Opcional)</label>
                 <input className="field-input" placeholder="https://..." value={cfgMaster.link_checkout_pix} onChange={(e) => setCfgMaster({ ...cfgMaster, link_checkout_pix: e.target.value })} />
               </div>

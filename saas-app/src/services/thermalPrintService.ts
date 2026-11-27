@@ -533,19 +533,88 @@ async function enviarEscPosDireto(textoLimpo: string, largura: LarguraBobinaTerm
   }
 }
 
+type EmpresaCabecalho =
+  | string
+  | (Pick<Empresa, 'id' | 'nome'> & Partial<Pick<Empresa, 'telefone' | 'endereco' | 'cidade' | 'cnpj' | 'chave_pix'>>);
+
+function getSiteMasterRodape(): string {
+  try {
+    const raw = localStorage.getItem('saas_master_cfg_v1');
+    if (!raw) return '';
+    const parsed = JSON.parse(raw) as { site_empresa_master?: string };
+    return String(parsed.site_empresa_master || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function buildCabecalhoEmpresa(empresaInput: EmpresaCabecalho): { linhasTxt: string[]; html: string; nomeTitulo: string } {
+  const empObj =
+    typeof empresaInput === 'string'
+      ? { id: '', nome: empresaInput }
+      : empresaInput;
+  const nome = String(empObj.nome || '').trim() || 'MK Gestão 360°';
+  const telefone = String(empObj.telefone || '').trim();
+  let endereco = String(empObj.endereco || '').trim();
+  if (!endereco && empObj.id) {
+    try {
+      endereco = String(localStorage.getItem(`gn360_empresa_endereco_${empObj.id}`) || '').trim();
+    } catch {
+      // ignore
+    }
+  }
+  const cidade = String(empObj.cidade || '').trim();
+  const cnpj = String(empObj.cnpj || '').trim();
+  const endCompleto = [endereco, cidade].filter(Boolean).join(' - ');
+
+  const linhasTxt = [
+    nome,
+    telefone ? `Tel: ${telefone}` : '',
+    endCompleto ? `End: ${endCompleto}` : '',
+    cnpj ? `CNPJ: ${cnpj}` : ''
+  ].filter(Boolean);
+
+  const html = [
+    `<div class="center bold big">${escHtml(nome)}</div>`,
+    telefone ? `<div class="center">Tel: ${escHtml(telefone)}</div>` : '',
+    endCompleto ? `<div class="center">${escHtml(endCompleto)}</div>` : '',
+    cnpj ? `<div class="center">CNPJ: ${escHtml(cnpj)}</div>` : ''
+  ]
+    .filter(Boolean)
+    .join('\n    ');
+
+  return { linhasTxt, html, nomeTitulo: nome };
+}
+
+function buildRodapeMaster(): { linhasTxt: string[]; html: string } {
+  const site = getSiteMasterRodape();
+  const linhasTxt = ['MK Gestao de Negocios 360', ...(site ? [site] : [])];
+  const html = [
+    `<div class="center">MK Gestão de Negócios 360°</div>`,
+    site ? `<div class="center">${escHtml(site)}</div>` : ''
+  ]
+    .filter(Boolean)
+    .join('\n    ');
+  return { linhasTxt, html };
+}
+
 export async function testarImpressaoTermica(
-  empresaNome: string,
+  empresaInput: EmpresaCabecalho,
   largura: LarguraBobinaTermica = '80mm'
 ): Promise<{ ok: boolean; msg: string }> {
   const sep = largura === '58mm' ? '--------------------------------' : '------------------------------------------';
+  const cab = buildCabecalhoEmpresa(empresaInput);
+  const rod = buildRodapeMaster();
   const texto = [
-    empresaNome || 'MK Gestao de Negocios 360',
+    ...cab.linhasTxt,
     sep,
     'TESTE DE IMPRESSAO TERMICA',
     `Data: ${new Date().toLocaleString('pt-BR')}`,
     `Bobina: ${largura}`,
     sep,
     'Impressao OK!',
+    sep,
+    ...rod.linhasTxt,
     ''
   ].join('\n');
 
@@ -562,7 +631,7 @@ export async function testarImpressaoTermica(
   }
 
   imprimirHtmlTermico(
-    `<div class="center bold big">${escHtml(empresaNome || 'MK Gestão 360°')}</div><div class="sep"></div><div class="center bold">TESTE DE IMPRESSÃO TÉRMICA</div><div class="center">${escHtml(new Date().toLocaleString('pt-BR'))}</div><div class="sep"></div><div class="center">Impressão OK!</div>`,
+    `${cab.html}<div class="sep"></div><div class="center bold">TESTE DE IMPRESSÃO TÉRMICA</div><div class="center">${escHtml(new Date().toLocaleString('pt-BR'))}</div><div class="sep"></div><div class="center">Impressão OK!</div><div class="sep"></div>${rod.html}`,
     largura,
     'Teste de Impressão Térmica',
     texto
@@ -572,18 +641,19 @@ export async function testarImpressaoTermica(
 
 export function imprimirCupomTermicoDelivery(
   pedido: DeliveryPedido,
-  empresa: Pick<Empresa, 'id' | 'nome' | 'telefone' | 'cidade' | 'chave_pix'>,
+  empresa: Pick<Empresa, 'id' | 'nome'> & Partial<Pick<Empresa, 'telefone' | 'endereco' | 'cidade' | 'cnpj' | 'chave_pix'>>,
   largura?: LarguraBobinaTermica
 ): void {
   const lar = largura || getLarguraTermicaEmpresa(empresa.id);
   const btStatus = getStatusImpressoraBluetooth();
   const linhaSep = lar === '58mm' ? '--------------------------------' : '------------------------------------------';
+  const cab = buildCabecalhoEmpresa(empresa);
+  const rod = buildRodapeMaster();
   const linhasItens = (pedido.itens || [])
     .map((it) => `${it.quantidade}x ${it.produto_nome} - ${formatarMoeda(it.subtotal || it.quantidade * it.preco_unitario)}`)
     .join('\n');
   const txt = [
-    empresa.nome || 'MK Gestao 360',
-    empresa.telefone || '',
+    ...cab.linhasTxt,
     linhaSep,
     `PEDIDO DELIVERY #${pedido.pedido || pedido.id.slice(-6)}`,
     formatarDataHoraBr(pedido.data_hora),
@@ -600,7 +670,7 @@ export function imprimirCupomTermicoDelivery(
     `Pagamento: ${pedido.forma_pagamento}`,
     pedido.observacoes ? `Obs: ${pedido.observacoes}` : '',
     linhaSep,
-    'MK Gestao de Negocios 360'
+    ...rod.linhasTxt
   ]
     .filter(Boolean)
     .join('\n');
@@ -615,9 +685,7 @@ export function imprimirCupomTermicoDelivery(
     .join('');
 
   const html = `
-    <div class="center bold big">${escHtml(empresa.nome || 'MK Gestão 360°')}</div>
-    ${empresa.telefone ? `<div class="center">${escHtml(empresa.telefone)}</div>` : ''}
-    ${empresa.cidade ? `<div class="center">${escHtml(empresa.cidade)}</div>` : ''}
+    ${cab.html}
     <div class="sep"></div>
     <div class="center bold">PEDIDO DELIVERY #${escHtml(pedido.pedido || pedido.id.slice(-6))}</div>
     <div class="center">${escHtml(formatarDataHoraBr(pedido.data_hora))}</div>
@@ -638,7 +706,7 @@ export function imprimirCupomTermicoDelivery(
     ${pedido.observacoes ? `<div><span class="bold">Obs:</span> ${escHtml(pedido.observacoes)}</div>` : ''}
     ${empresa.chave_pix && String(pedido.forma_pagamento).toUpperCase().includes('PIX') ? `<div><span class="bold">PIX:</span> ${escHtml(empresa.chave_pix)}</div>` : ''}
     <div class="sep"></div>
-    <div class="center">MK Gestão de Negócios 360°</div>
+    ${rod.html}
   `;
 
   if (btStatus.conectada) {
@@ -666,16 +734,17 @@ export function imprimirCupomTermicoComanda(
     vendedorNome?: string;
     parcial: boolean;
   },
-  empresa: Pick<Empresa, 'id' | 'nome' | 'telefone' | 'cidade' | 'chave_pix'>,
+  empresa: Pick<Empresa, 'id' | 'nome'> & Partial<Pick<Empresa, 'telefone' | 'endereco' | 'cidade' | 'cnpj' | 'chave_pix'>>,
   largura?: LarguraBobinaTermica
 ): void {
   const lar = largura || getLarguraTermicaEmpresa(empresa.id);
   const btStatus = getStatusImpressoraBluetooth();
   const linhaSep = lar === '58mm' ? '--------------------------------' : '------------------------------------------';
+  const cab = buildCabecalhoEmpresa(empresa);
+  const rod = buildRodapeMaster();
 
   const txt = [
-    empresa.nome || 'MK Gestao 360',
-    empresa.telefone || '',
+    ...cab.linhasTxt,
     linhaSep,
     `COMANDA #${dados.pedido} (${dados.parcial ? 'PGTO PARCIAL' : 'QUITADA'})`,
     formatarDataHoraBr(new Date().toISOString()),
@@ -690,7 +759,7 @@ export function imprimirCupomTermicoComanda(
     dados.saldoRestante > 0 ? `Saldo Restante: ${formatarMoeda(dados.saldoRestante)}` : '',
     `Pagamento: ${dados.formaPagamento}`,
     linhaSep,
-    'MK Gestao de Negocios 360'
+    ...rod.linhasTxt
   ]
     .filter(Boolean)
     .join('\n');
@@ -705,9 +774,7 @@ export function imprimirCupomTermicoComanda(
     .join('');
 
   const html = `
-    <div class="center bold big">${escHtml(empresa.nome || 'MK Gestão 360°')}</div>
-    ${empresa.telefone ? `<div class="center">${escHtml(empresa.telefone)}</div>` : ''}
-    ${empresa.cidade ? `<div class="center">${escHtml(empresa.cidade)}</div>` : ''}
+    ${cab.html}
     <div class="sep"></div>
     <div class="center bold">COMANDA #${escHtml(dados.pedido)} (${dados.parcial ? 'PGTO PARCIAL' : 'QUITADA'})</div>
     <div class="center">${escHtml(formatarDataHoraBr(new Date().toISOString()))}</div>
@@ -726,7 +793,7 @@ export function imprimirCupomTermicoComanda(
     <div><span class="bold">Pagamento:</span> ${escHtml(dados.formaPagamento)}</div>
     ${empresa.chave_pix && String(dados.formaPagamento).toUpperCase().includes('PIX') ? `<div><span class="bold">PIX:</span> ${escHtml(empresa.chave_pix)}</div>` : ''}
     <div class="sep"></div>
-    <div class="center">MK Gestão de Negócios 360°</div>
+    ${rod.html}
   `;
 
   if (btStatus.conectada) {
@@ -743,10 +810,12 @@ export function imprimirCupomTermicoComanda(
 
 export function imprimirRelatorioTermico(
   relatorio: RelatorioGerado,
-  empresa: Pick<Empresa, 'id' | 'nome'>,
+  empresa: Pick<Empresa, 'id' | 'nome'> & Partial<Pick<Empresa, 'telefone' | 'endereco' | 'cidade' | 'cnpj'>>,
   largura?: LarguraBobinaTermica
 ): void {
   const lar = largura || getLarguraTermicaEmpresa(empresa.id);
+  const cab = buildCabecalhoEmpresa(empresa);
+  const rod = buildRodapeMaster();
   const resumoHtml = (relatorio.resumo || [])
     .map(
       (r) =>
@@ -767,7 +836,8 @@ export function imprimirRelatorioTermico(
     .join('');
 
   const html = `
-    <div class="center bold big">${escHtml(empresa.nome || 'MK Gestão 360°')}</div>
+    ${cab.html}
+    <div class="sep"></div>
     <div class="center bold">${escHtml(relatorio.titulo)}</div>
     <div class="center">${escHtml(relatorio.periodoLabel)}</div>
     <div class="center">${escHtml(formatarDataHoraBr(new Date().toISOString()))}</div>
@@ -776,7 +846,7 @@ export function imprimirRelatorioTermico(
     <div class="bold">DETALHAMENTO (${(relatorio.linhas || []).length})</div>
     ${linhasHtml || '<div>Sem registros no período.</div>'}
     <div class="sep"></div>
-    <div class="center">MK Gestão de Negócios 360°</div>
+    ${rod.html}
   `;
 
   imprimirHtmlTermico(html, lar);

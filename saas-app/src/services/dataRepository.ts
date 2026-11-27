@@ -5278,7 +5278,8 @@ const DEFAULT_CONFIG_MASTER_SAAS: ConfigMasterSaas = {
   link_atualizacao: '',
   link_checkout_pix: '',
   formas_pagamento_ativas: ['PIX', 'Cartão', 'Boleto', 'Transferência'],
-  instrucoes_pagamento: ''
+  instrucoes_pagamento: '',
+  site_empresa_master: ''
 };
 
 function lerJsonLocalStorage<T>(chave: string, fallback: T): T {

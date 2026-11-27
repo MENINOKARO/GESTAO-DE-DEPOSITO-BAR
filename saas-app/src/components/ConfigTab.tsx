@@ -77,6 +77,9 @@ export function ConfigTab({
   const [donoNome, setDonoNome] = useState(emp.dono_nome || '');
   const [cnpj, setCnpj] = useState(emp.cnpj || '');
   const [telefone, setTelefone] = useState(emp.telefone || '');
+  const [endereco, setEndereco] = useState(
+    () => emp.endereco || localStorage.getItem(`gn360_empresa_endereco_${emp.id}`) || ''
+  );
   const [cidade, setCidade] = useState(emp.cidade || '');
   const [chavePix, setChavePix] = useState(emp.chave_pix || '');
   const [telegramToken, setTelegramToken] = useState(emp.telegram_bot_token || '');
@@ -100,6 +103,7 @@ export function ConfigTab({
     setDonoNome(emp.dono_nome || '');
     setCnpj(emp.cnpj || '');
     setTelefone(emp.telefone || '');
+    setEndereco(emp.endereco || localStorage.getItem(`gn360_empresa_endereco_${emp.id}`) || '');
     setCidade(emp.cidade || '');
     setChavePix(emp.chave_pix || '');
     setTelegramToken(emp.telegram_bot_token || '');
@@ -269,6 +273,11 @@ export function ConfigTab({
     e.preventDefault();
     setBusy(true);
     try {
+      try {
+        localStorage.setItem(`gn360_empresa_endereco_${emp.id}`, endereco.trim());
+      } catch {
+        // ignore
+      }
       const intervaloNum = Math.max(1, parseInt(intervaloRefreshMin, 10) || 5);
       const res = await salvarConfiguracoesEmpresa(
         sessao,
@@ -431,6 +440,15 @@ export function ConfigTab({
               <label className="field-label">Cidade / UF</label>
               <input className="field-input" placeholder="Ex.: Salvador / BA" value={cidade} onChange={(e) => setCidade(formatarCidadeUf(e.target.value))} />
             </div>
+          </div>
+          <div>
+            <label className="field-label">Endereço Completo (Cabeçalho da Impressão)</label>
+            <input
+              className="field-input"
+              placeholder="Ex.: Rua das Flores, 123 - Centro"
+              value={endereco}
+              onChange={(e) => setEndereco(e.target.value)}
+            />
           </div>
           <div>
             <label className="field-label">Chave PIX</label>
@@ -647,7 +665,7 @@ export function ConfigTab({
                   type="button"
                   className="btn btn-xs btn-success"
                   onClick={async () => {
-                    const r = await testarImpressaoTermica(emp.nome || 'MK Gestão 360°', larguraTermica);
+                    const r = await testarImpressaoTermica({ ...emp, endereco }, larguraTermica);
                     onNotify(r.msg, r.ok ? 'success' : 'warning');
                   }}
                 >

@@ -13,6 +13,7 @@ export interface Empresa {
   dono_nome: string;
   cnpj: string;
   telefone: string;
+  endereco?: string;
   cidade: string;
   chave_pix: string;
   drive_folder_id: string;
@@ -380,6 +381,7 @@ export interface ConfigMasterSaas {
   resend_dominio?: string;
   resend_remetente?: string;
   github_repo?: string;
+  site_empresa_master?: string;
 }
 
 export interface MasterSaasSnapshot {
